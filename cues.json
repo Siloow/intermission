@@ -46,17 +46,6 @@
       "note": "whole row changes"
     },
     {
-      "id": "ckw83zaa",
-      "lane": "td",
-      "song": "Test One",
-      "section": "Start",
-      "offset_bars": 0,
-      "length_bars": 17,
-      "value": "SpaceUniverse",
-      "note": "",
-      "layer": 3
-    },
-    {
       "id": "cyf58r56",
       "lane": "td",
       "song": "Test One",
@@ -66,16 +55,6 @@
       "value": "NoHopeJustFear",
       "note": "",
       "layer": 1
-    },
-    {
-      "id": "c5k2xo9s",
-      "lane": "scenes",
-      "song": "Test One",
-      "section": "Start",
-      "offset_bars": 8,
-      "length_bars": 4,
-      "value": "Column 1",
-      "note": ""
     }
   ],
   "automation": [
