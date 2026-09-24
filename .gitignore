@@ -1,0 +1,10 @@
+.live/
+*.blend1
+audio/*
+!audio/.gitkeep
+__pycache__/
+*.bak
+*.tmp
+.DS_Store
+# this Mac's Blender input settings, saved before setup_input.py changed them
+.input_backup.json

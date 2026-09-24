@@ -1,0 +1,13 @@
+fixture,kind,mode,universe,address,last_channel,pixels,x_m,y_m,distance_m,angle_deg,side,beam_deg
+BAR_01,bar,72ch,0,33,104,18,-4.2,-0.9,4.3,-102.1,stage right,
+BAR_02,bar,72ch,0,105,176,18,-1.6,-0.9,1.84,-119.4,stage right,
+BAR_03,bar,72ch,0,177,248,18,1.591,1.591,2.25,45.0,stage left,
+BAR_04,bar,72ch,0,249,320,18,4.2,-0.9,4.3,102.1,stage left,
+PAR_01,par,4ch,0,1,4,1,-1.1,-1.905,2.2,-150.0,stage right,25.0
+PAR_02,par,4ch,0,5,8,1,-1.905,-1.1,2.2,-120.0,stage right,25.0
+PAR_03,par,4ch,0,9,12,1,-2.2,0.0,2.2,-90.0,stage right,25.0
+PAR_04,par,4ch,0,13,16,1,-1.685,1.414,2.2,-50.0,stage right,25.0
+PAR_05,par,4ch,0,17,20,1,1.685,1.414,2.2,50.0,stage left,25.0
+PAR_06,par,4ch,0,21,24,1,2.2,0.0,2.2,90.0,stage left,25.0
+PAR_07,par,4ch,0,25,28,1,1.905,-1.1,2.2,120.0,stage left,25.0
+PAR_08,par,4ch,0,29,32,1,1.1,-1.905,2.2,150.0,stage left,25.0

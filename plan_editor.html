@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Venue floor plan</title>
+<style>
+  :root{
+    --bg:#15161a; --panel:#1d1f25; --line:#2c2f37; --text:#e7e8ec; --dim:#9AA0AC;
+    --accent:#ffd54a; --accent-dim:#6b5a1e; --ok:#57c98a; --warn:#e2725b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:13px/1.5 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+    user-select:none;-webkit-user-select:none}
+  input,textarea{user-select:text;-webkit-user-select:text}
+  #app{display:flex;height:100%}
+  #stage{flex:1;display:flex;flex-direction:column;overflow:hidden;
+    user-select:none;-webkit-user-select:none}
+  #planwrap{position:relative;flex:1 1 auto;min-height:120px;overflow:hidden}
+  #divider{height:6px;flex:none;background:var(--line);cursor:row-resize}
+  #divider:hover{background:#3d434f}
+  #view3d{position:relative;flex:0 0 42%;min-height:0;background:#0b0c0f}
+  #view3d.hidden{display:none}
+  #gl{display:block;width:100%;height:100%}
+  #view3d-bar{position:absolute;left:12px;bottom:10px;display:flex;gap:8px;align-items:center;
+    color:var(--dim);background:rgba(11,12,15,.8);border:1px solid var(--line);
+    border-radius:6px;padding:5px 9px}
+  #view3d-bar button{padding:3px 8px}
+  #gl-note{color:var(--text)}
+  svg{display:block;width:100%;height:100%;cursor:grab}
+  svg.dragging{cursor:grabbing}
+  aside{width:272px;flex:none;background:var(--panel);border-left:1px solid var(--line);
+    padding:14px;overflow-y:auto}
+  h1{font-size:14px;margin:0 0 2px}
+  h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);
+    margin:18px 0 8px;font-weight:600}
+  .sub{color:var(--dim);margin:0 0 6px}
+  .row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+  .row label{width:74px;color:var(--dim);flex:none}
+  input[type=number],input[type=text]{width:100%;background:#121316;color:var(--text);
+    border:1px solid var(--line);border-radius:5px;padding:5px 7px;font:inherit}
+  input:focus{outline:none;border-color:var(--accent)}
+  button{background:#282b33;color:var(--text);border:1px solid var(--line);border-radius:6px;
+    padding:6px 9px;font:inherit;cursor:pointer}
+  button:hover{background:#31353f}
+  button.primary{background:var(--accent);color:#1a1a1a;border-color:var(--accent);font-weight:600}
+  button.danger:hover{background:#3a2420;border-color:var(--warn)}
+  .btns{display:flex;gap:6px;flex-wrap:wrap}
+  .pill{display:inline-block;padding:1px 7px;border-radius:99px;background:#282b33;color:var(--dim)}
+  #status{position:absolute;left:14px;bottom:12px;background:rgba(20,21,25,.85);
+    border:1px solid var(--line);border-radius:6px;padding:6px 10px;color:var(--dim)}
+  #status b{color:var(--ok);font-weight:600}
+  #status.err b{color:var(--warn)}
+  #hint{position:absolute;right:14px;bottom:12px;color:var(--dim);
+    background:rgba(20,21,25,.85);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+  table{width:100%;border-collapse:collapse}
+  td{padding:3px 2px;border-bottom:1px solid var(--line)}
+  tr.sel td{color:var(--accent)}
+  td.num{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
+  tr{cursor:pointer}
+
+  #nav{display:flex;gap:6px;align-items:center;padding:6px 10px;background:#131418;
+    border-bottom:1px solid var(--line);flex:none}
+  #nav a{color:var(--dim);text-decoration:none;border:1px solid var(--line);
+    border-radius:6px;padding:3px 10px;font-size:12px}
+  #nav a:hover{color:var(--text);background:#22252c}
+  #nav a.here{color:#15161a;background:var(--accent);border-color:var(--accent);font-weight:600}
+  .kbd{font:11px ui-monospace,Menlo,monospace;background:#121316;border:1px solid var(--line);
+    border-radius:4px;padding:0 4px;color:var(--dim)}
+
+  /* what lights the room: live, the look being designed, or a loop */
+  #room{position:absolute;left:12px;top:10px;right:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    pointer-events:none}
+  #room > *{pointer-events:auto}
+  #room .box{display:flex;gap:6px;align-items:center;background:rgba(20,21,25,.88);border:1px solid var(--line);
+    border-radius:8px;padding:4px 6px}
+  #room button{padding:3px 9px}
+  #room button.on{background:var(--accent);color:#15161a;border-color:var(--accent);font-weight:600}
+  .seg{display:flex}
+  .seg button{border-radius:0;margin-left:-1px}
+  .seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
+  .seg button:last-child{border-radius:0 6px 6px 0}
+  #room select{background:#121316;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:3px 5px;font:inherit}
+  #room input[type=number]{width:58px;padding:3px 5px}
+  #room input[type=color]{width:30px;height:24px;padding:0 2px;background:#121316;border:1px solid var(--line);border-radius:5px}
+  #room .sub{margin:0;white-space:nowrap}
+  #loop-count{font-variant-numeric:tabular-nums;min-width:96px}
+  #bandstrip{flex:none;background:#0b0c0f;border-top:1px solid var(--line);padding:6px 12px 8px}
+  #bandstrip[hidden]{display:none}
+  #bandstrip canvas{display:block;width:100%;max-width:100%;border-radius:4px;background:#000}
+  #stage{min-width:0}
+  #bandstrip .sub{margin:4px 0 0;font-size:12px}
+  body.focus aside{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+<nav id="nav">
+  <a href="/" class="here">Floor plan</a>
+  <a href="/show" >Show timeline</a>
+  <a href="/docs">How it works</a>
+</nav>
+
+    <div id="planwrap">
+      <svg id="plan"></svg>
+      <div id="room">
+        <div class="box">
+          <div class="seg" id="room-src" title="what lights the plan and the 3D preview">
+            <button data-src="live" title="what Resolume is sending, as the previz sees it">Live</button>
+            <button data-src="look" title="the look you are designing">Look</button>
+            <button data-src="loop" title="a control-band loop, played here">Loop</button>
+          </div>
+          <span id="room-loop" hidden style="display:none">
+            <select id="loop-list" title="[ and ] step through the loops"></select>
+            <button id="loop-play" title="play / pause">❚❚</button>
+            <span class="sub" id="loop-count">—</span>
+            <input id="loop-bpm" type="number" min="40" max="240" step="1" title="bpm">
+            <button id="loop-tint" title="T — colour it the way a Solid Color layer or Colorize would">Tint</button>
+            <input id="loop-tint-c" type="color" value="#2255ff" title="tint colour">
+          </span>
+          <span class="sub" id="room-note"></span>
+          <button id="band-toggle" title="B — the control band, with where each fixture samples it">Band</button>
+          <button id="focus" title="hide the side panel">⤢</button>
+        </div>
+      </div>
+    <div id="status">rig.json <b id="save">loading</b></div>
+      <div id="hint">drag a par &middot; drag a box to select several &middot;
+        <span class="kbd">shift</span> add &middot; <span class="kbd">alt</span> pan &middot;
+        <span class="kbd">S</span> snap &middot; <span class="kbd">⌘Z</span> undo</div>
+    </div>
+    <div id="bandstrip" hidden>
+      <canvas id="band" width="1920" height="150"></canvas>
+      <p class="sub" id="band-note"></p>
+    </div>
+    <div id="divider" title="drag to resize"></div>
+    <div id="view3d">
+      <canvas id="gl"></canvas>
+      <div id="view3d-bar">
+        <span id="gl-note">3D preview</span>
+        <span class="kbd">drag</span> orbit
+        <span class="kbd">scroll</span> zoom
+        <span class="kbd">shift drag</span> pan
+        <button id="gl-seat">from my seat</button>
+        <button id="gl-top">from above</button>
+      </div>
+    </div>
+  </div>
+  <aside>
+    <h1>Venue floor plan</h1>
+    <p class="sub">Blender follows this file live.</p>
+
+    <h2>Selected</h2>
+    <div id="none" class="sub">Nothing selected. Click a par.</div>
+    <p id="multi" class="sub" hidden><b id="multi-count"></b> pars selected &mdash;
+      height, aim, tilt and beam apply to all of them.</p>
+    <div id="editor" hidden>
+      <div class="row"><label>Name</label><input id="f-name" type="text"></div>
+      <div class="row"><label>Address</label><input id="f-address" type="number" min="1" max="512" step="1"></div>
+      <div class="row"><label>Distance</label><input id="f-dist" type="number" step="0.05"><span class="pill">m</span></div>
+      <div class="row"><label>Angle</label><input id="f-ang" type="number" step="1"><span class="pill">°</span></div>
+      <div class="row"><label>X</label><input id="f-x" type="number" step="0.05"><span class="pill">m</span></div>
+      <div class="row"><label>Y</label><input id="f-y" type="number" step="0.05"><span class="pill">m</span></div>
+      <div class="row"><label>Height</label><input id="f-z" type="number" step="0.05"><span class="pill">m</span></div>
+      <div class="row"><label>Aim</label><input id="f-aim" type="number" step="1"><span class="pill">°</span></div>
+      <div class="row"><label>Tilt</label><input id="f-tilt" type="number" step="1" min="0" max="90"><span class="pill">°</span></div>
+      <div class="row"><label>Beam</label><input id="f-beam" type="number" step="1" min="1" max="120"><span class="pill">°</span></div>
+      <div class="row" id="row-rot"><label>Turn</label><input id="f-rot" type="number" step="5"><span class="pill">°</span></div>
+      <p class="sub" id="f-profile"></p>
+      <div class="btns">
+        <button id="mirror">Mirror to other side</button>
+        <button id="dup">Duplicate</button>
+        <button id="del" class="danger">Delete</button>
+      </div>
+    </div>
+
+    <h2>Rig</h2>
+    <div class="btns" style="margin-bottom:8px">
+      <button id="add" class="primary">Add par</button>
+      <button id="add-bar">Add bar</button>
+      <button id="renumber">Renumber addresses</button>
+      <button id="arc">Arrange on an arc</button>
+    </div>
+    <table id="list"></table>
+    <p class="sub" id="summary"></p>
+
+    <h2>Looks</h2>
+    <p class="sub">A look is a colour and level per par. The previz shows the one
+      you are editing; the show timeline calls them by name.</p>
+    <select id="look-list" size="6" style="height:auto;margin-bottom:6px"></select>
+    <div class="btns" style="margin-bottom:8px">
+      <button id="look-new">New</button>
+      <button id="look-dup">Duplicate</button>
+      <button id="look-rename">Rename</button>
+      <button id="look-del" class="danger">Delete</button>
+    </div>
+    <div id="look-edit" hidden>
+      <div class="row"><label>Colour</label><input id="look-color" type="color" value="#ff7a00"></div>
+      <div class="row"><label>White</label><input id="look-w" type="range" min="0" max="255" value="0"></div>
+      <div class="row"><label>Level</label><input id="look-dim" type="range" min="0" max="255" value="180"></div>
+      <div class="btns" style="margin-bottom:6px">
+        <button id="look-apply" class="primary">Set selected pars</button>
+        <button id="look-all">Set all</button>
+        <button id="look-off">Selected off</button>
+      </div>
+      <div class="row"><label>Note</label><input id="look-note" type="text" placeholder="when to use it"></div>
+      <p class="sub" id="look-summary"></p>
+      <div class="btns">
+        <button id="look-clip" title="render this look onto the control band and load it into Resolume's lights layer, named after the look">Make clip</button>
+        <button id="look-clip-all" title="the same for every look">Make all</button>
+      </div>
+      <p class="sub" id="look-clip-note">Turns the look into a Resolume clip, so a Lights cue that names it fires it. Re-make after changing it.</p>
+    </div>
+
+    <h2>3D preview</h2>
+    <div class="row"><label><input id="gl-on" type="checkbox" checked style="width:auto"> show</label></div>
+    <p class="sub">The plan and the beams follow the <b>Live · Look · Loop</b>
+      switch above the plan.</p>
+
+    <h2>Snapping</h2>
+    <div class="row"><label>Grid</label><input id="snap-grid" type="number" step="0.05" value="0.25"><span class="pill">m</span></div>
+    <div class="row"><label>Angle</label><input id="snap-ang" type="number" step="5" value="15"><span class="pill">°</span></div>
+    <p class="sub">Hold <span class="kbd">S</span> or turn snapping off with the box below.</p>
+    <div class="row"><label><input id="snap-on" type="checkbox" checked style="width:auto"> on</label></div>
+  </aside>
+</div>
+<script src="/lib/band.js"></script>
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+const el = id => document.getElementById(id);
+// the version of each file this page loaded, so a stale tab cannot overwrite
+// someone else's newer work
+const fileMtime = {};
+let stale = false;
+async function loadJson(name, fallback){
+  try{
+    const r = await fetch(name, {cache:"no-store"});
+    fileMtime[name] = r.headers.get("X-File-Mtime");
+    if (!r.ok) throw new Error(r.statusText);
+    return await r.json();
+  }catch(e){ return fallback; }
+}
+async function postJson(name, body){
+  const r = await fetch(name, {method:"POST",
+    headers:{"Content-Type":"application/json",
+             ...(fileMtime[name] ? {"X-If-Mtime": fileMtime[name]} : {})},
+    body: JSON.stringify(body, null, 2)});
+  const out = await r.json().catch(() => ({}));
+  if (r.status === 409){
+    stale = true;
+    throw new Error("changed elsewhere — reload");
+  }
+  if (!r.ok) throw new Error(out.error || r.statusText);
+  fileMtime[name] = r.headers.get("X-File-Mtime");
+  return out;
+}
+const svg = el("plan");
+
+let rig = null;                 // the file, as loaded
+let venue = {screen_width:16, screen_from_performer:1.8, first_row_from_screen:4, room_width:26};
+let sel = -1;                   // the one shown in the inspector
+let selSet = new Set();         // everything selected
+let view = {scale:70, cx:0, cy:0};   // px per metre, and the pan in px
+let undo = [], redo = [];
+let looks = {looks: []}, lookIndex = -1;
+let profiles = {};                  // fixtures.json: what a par or a bar actually is
+const profOf = f => profiles[f.profile] || profiles["gm-par-rgbw-7x10"] || {kind:"par"};
+const kindOf = f => (profOf(f).kind || "par");
+const barLength = f => (profOf(f).body || {}).length || 1.04;
+const footprintOf = f => {
+  const p = profOf(f), m = (p.modes || {})[f.mode || p.default_mode];
+  return (m && m.footprint) || 4;
+};
+let snapHeld = false;
+
+// ---------------------------------------------------------------- geometry --
+const toPx = (x, y) => [view.cx + x * view.scale, view.cy + y * view.scale];
+const toM  = (px, py) => [(px - view.cx) / view.scale, (py - view.cy) / view.scale];
+const dist = f => Math.hypot(f.x, f.y);
+const angle = f => Math.atan2(f.x, f.y) * 180 / Math.PI;
+const round2 = v => Math.round(v * 1000) / 1000;
+
+function snapValue(v, step){ return step > 0 ? Math.round(v / step) * step : v; }
+function snapping(){ return el("snap-on").checked !== snapHeld; }   // S inverts it
+
+// ------------------------------------------------------------------- data ---
+async function load(){
+  rig = await loadJson("rig.json", {fixtures: []});
+  if (rig.venue) venue = Object.assign(venue, rig.venue);
+  rig.fixtures.forEach((f, i) => {
+    f.name = f.name || `PAR_${String(i+1).padStart(2,"0")}`;
+    f.z = f.z ?? 0.18; f.tilt_deg = f.tilt_deg ?? 70;
+    f.beam_deg = f.beam_deg ?? 25; f.aim_deg = f.aim_deg ?? angle(f);
+  });
+  profiles = (await loadJson("fixtures.json", {profiles: {}})).profiles || {};
+  looks = await loadJson("looks.json", {looks: []});
+  if (!Array.isArray(looks.looks)) looks.looks = [];
+  fit();
+  draw();
+  drawLooks();
+  setStatus("loaded", false);
+}
+
+let saveTimer = null;
+function save(){
+  clearTimeout(saveTimer);
+  setStatus("saving", false);
+  saveTimer = setTimeout(async () => {
+    if (stale) return;
+    try{ await postJson("rig.json", rig); setStatus("saved", false); band.reloadLayout().catch(() => {}); }
+    catch(e){ setStatus(e.message, true); }
+  }, 200);
+}
+function setStatus(text, isErr){
+  el("save").textContent = text;
+  el("status").classList.toggle("err", !!isErr);
+}
+
+function selected(){ return [...selSet].filter(i => i >= 0 && i < rig.fixtures.length); }
+function setSel(list, primary){
+  selSet = new Set(list);
+  sel = primary !== undefined ? primary : (list.length ? list[list.length - 1] : -1);
+}
+
+function pushUndo(){
+  undo.push(JSON.stringify(rig.fixtures));
+  if (undo.length > 100) undo.shift();
+  redo.length = 0;
+}
+function doUndo(stack, other){
+  if (!stack.length) return;
+  other.push(JSON.stringify(rig.fixtures));
+  rig.fixtures = JSON.parse(stack.pop());
+  if (sel >= rig.fixtures.length) sel = rig.fixtures.length - 1;
+  draw(); save();
+}
+
+// ------------------------------------------------------------------ view ----
+function fit(){
+  const w = svg.clientWidth, h = svg.clientHeight;
+  const reach = Math.max(4, ...rig.fixtures.map(dist)) + 1.5;
+  const wide = Math.max(venue.screen_width * 0.6, reach);
+  view.scale = Math.min(w / (wide * 2.2), h / ((reach + venue.first_row_from_screen) * 1.6));
+  view.scale = Math.max(24, Math.min(160, view.scale));
+  view.cx = w / 2;
+  view.cy = h / 2 + venue.screen_from_performer * view.scale * 0.35;
+}
+
+// ------------------------------------------------------------------ draw ----
+function line(x1,y1,x2,y2,stroke,w,dash){
+  const l = document.createElementNS(SVGNS,"line");
+  l.setAttribute("x1",x1); l.setAttribute("y1",y1);
+  l.setAttribute("x2",x2); l.setAttribute("y2",y2);
+  l.setAttribute("stroke",stroke); l.setAttribute("stroke-width",w||1);
+  if (dash) l.setAttribute("stroke-dasharray",dash);
+  return l;
+}
+function text(x,y,s,fill,anchor,size){
+  const t = document.createElementNS(SVGNS,"text");
+  t.setAttribute("x",x); t.setAttribute("y",y); t.setAttribute("fill",fill||"#9AA0AC");
+  t.setAttribute("text-anchor",anchor||"start"); t.setAttribute("font-size",size||11);
+  t.textContent = s; return t;
+}
+function circle(cx,cy,r,fill,stroke,w){
+  const c = document.createElementNS(SVGNS,"circle");
+  c.setAttribute("cx",cx); c.setAttribute("cy",cy); c.setAttribute("r",r);
+  c.setAttribute("fill",fill||"none"); if(stroke) c.setAttribute("stroke",stroke);
+  c.setAttribute("stroke-width",w||1); return c;
+}
+
+function draw(){
+  const w = svg.clientWidth, h = svg.clientHeight;
+  svg.innerHTML = "";
+  const g = document.createElementNS(SVGNS,"g");
+  svg.appendChild(g);
+
+  // metre grid
+  const [mx0,my0] = toM(0,0), [mx1,my1] = toM(w,h);
+  for (let x = Math.ceil(mx0); x <= mx1; x++){
+    const [px] = toPx(x,0);
+    g.appendChild(line(px,0,px,h, x===0 ? "#3a3f4a" : "#23262d", x===0?1.5:1));
+  }
+  for (let y = Math.ceil(my0); y <= my1; y++){
+    const [,py] = toPx(0,y);
+    g.appendChild(line(0,py,w,py, y===0 ? "#3a3f4a" : "#23262d", y===0?1.5:1));
+  }
+  // rings every metre around the performer
+  for (let r = 1; r <= 6; r++){
+    const [cx,cy] = toPx(0,0);
+    g.appendChild(circle(cx,cy,r*view.scale,null,"#262a32",1));
+    g.appendChild(text(cx + r*view.scale - 4, cy - 4, r+" m", "#4a505c","end",10));
+  }
+  // angle spokes every 45 degrees
+  for (let a = 0; a < 360; a += 45){
+    const rad = a*Math.PI/180, [cx,cy] = toPx(0,0);
+    const [ex,ey] = toPx(Math.sin(rad)*6.4, Math.cos(rad)*6.4);
+    g.appendChild(line(cx,cy,ex,ey,"#21242b",1,"2 6"));
+  }
+
+  // screen and first row
+  const sy = -venue.screen_from_performer, ry = venue.first_row_from_screen - venue.screen_from_performer;
+  const [sx0,spy] = toPx(-venue.screen_width/2, sy);
+  const [sx1] = toPx(venue.screen_width/2, sy);
+  g.appendChild(line(sx0,spy,sx1,spy,"#e8e8ea",6));
+  g.appendChild(text((sx0+sx1)/2, spy-10, `screen ${venue.screen_width} m`, "#c9ccd2","middle",12));
+  const [,rpy] = toPx(0,ry);
+  g.appendChild(line(0,rpy,w,rpy,"#3a3f4a",2,"10 8"));
+  g.appendChild(text(12, rpy-8, `first row of seats (${venue.first_row_from_screen} m from the screen)`, "#6d7482","start",11));
+
+  // rulers
+  for (let x = Math.ceil(mx0); x <= mx1; x++){
+    const [px] = toPx(x,0);
+    g.appendChild(line(px,0,px,x%5===0?12:7,"#5b6170",1));
+    if (x%5===0) g.appendChild(text(px+3,22,x+" m","#6d7482","start",10));
+  }
+  for (let y = Math.ceil(my0); y <= my1; y++){
+    const [,py] = toPx(0,y);
+    g.appendChild(line(0,py,y%5===0?12:7,py,"#5b6170",1));
+    if (y%5===0) g.appendChild(text(15,py+4,y+" m","#6d7482","start",10));
+  }
+
+  // performer
+  const [cx,cy] = toPx(0,0);
+  g.appendChild(circle(cx,cy,9,"#e8e8ea"));
+  g.appendChild(text(cx, cy+24, "you", "#c9ccd2","middle",12));
+
+  // fixtures
+  rig.fixtures.forEach((f,i) => {
+    const [px,py] = toPx(f.x,f.y);
+    const on = selSet.has(i);
+    const primary = i === sel;
+    if (kindOf(f) === "bar"){
+      const L = barLength(f) * view.scale, rot = (f.rot_deg || 0) * Math.PI/180;
+      const dx = Math.cos(rot) * L/2, dy = Math.sin(rot) * L/2;
+      g.appendChild(line(px-dx, py-dy, px+dx, py+dy, on?"#fff":"#15161a", on?11:9));
+      g.appendChild(line(px-dx, py-dy, px+dx, py+dy, on?"#8fe3ef":"#4aa9b8", 6));
+      const n = profOf(f).pixels || 18;                    // the 18 LEDs, as ticks
+      for (let k = 0; k < n; k++){
+        const t = (k + 0.5)/n - 0.5;
+        const c = circle(px + Math.cos(rot)*L*t, py + Math.sin(rot)*L*t, 1.6, "#0d2b31");
+        c.style.pointerEvents = "none";
+        c.dataset.px = f.name; c.dataset.k = k;              // lit by paintRoom()
+        g.appendChild(c);
+      }
+      const hx = px + Math.cos(rot)*(L/2 + 14), hy = py + Math.sin(rot)*(L/2 + 14);
+      const h = circle(hx, hy, on?6:4.5, on?"#8fe3ef":"#2e5c64", "#15161a", 1.5);
+      h.dataset.rot = i; h.style.cursor = "grab";          // drag to turn the bar
+      g.appendChild(h);
+      const hit = line(px-dx, py-dy, px+dx, py+dy, "rgba(0,0,0,0)", 16);
+      hit.dataset.fix = i; hit.style.cursor = "move";      // fat invisible grab line
+      g.appendChild(hit);
+      const lbl = text(px, py - 14,
+        `${f.name}  @${f.address}${f.rot_deg ? "  " + Math.round(f.rot_deg) + "°" : ""}`,
+        on?"#e7e8ec":"#8b909b", "middle", 11);
+      lbl.style.pointerEvents = "none";
+      g.appendChild(lbl);
+      return;
+    }
+    const rad = (f.aim_deg||0)*Math.PI/180;
+    const len = 1.1*view.scale*Math.cos((f.tilt_deg||70)*Math.PI/180) + 26;
+    const hx = px + Math.sin(rad)*len, hy = py + Math.cos(rad)*len;
+    // beam direction
+    const spread = (f.beam_deg||25)*Math.PI/360;
+    const wedge = document.createElementNS(SVGNS,"path");
+    const p1 = [px + Math.sin(rad-spread)*len, py + Math.cos(rad-spread)*len];
+    const p2 = [px + Math.sin(rad+spread)*len, py + Math.cos(rad+spread)*len];
+    wedge.setAttribute("d", `M${px},${py} L${p1[0]},${p1[1]} L${p2[0]},${p2[1]} Z`);
+    wedge.setAttribute("fill", on ? "rgba(255,213,74,.18)" : "rgba(255,213,74,.08)");
+    wedge.dataset.glow = f.name; wedge.dataset.def = wedge.getAttribute("fill");
+    g.appendChild(wedge);
+    g.appendChild(line(px,py,hx,hy, on?"#ffd54a":"#6b5a1e", on?2:1.5));
+    const handle = circle(hx,hy,on?6:4, on?"#ffd54a":"#3a3320", "#15161a",1.5);
+    handle.dataset.aim = i; handle.style.cursor = "crosshair";
+    g.appendChild(handle);
+
+    const c = circle(px,py,13, on?"#ffd54a":"#c9a63c",
+                     primary?"#fff":(on?"#ffeca8":"#15161a"), on?2:1.5);
+    c.dataset.fix = i; c.style.cursor = "move";
+    c.dataset.lamp = f.name; c.dataset.def = c.getAttribute("fill");
+    g.appendChild(c);
+    const t = text(px, py+4, f.address, "#1a1a1a","middle",11);
+    t.setAttribute("font-weight","700"); t.style.pointerEvents = "none";
+    t.dataset.addr = f.name;
+    g.appendChild(t);
+    const lbl = text(px + (f.x>=0?20:-20), py-16,
+                     `${f.name}  ${dist(f).toFixed(2)} m  ${angle(f)>=0?"+":""}${angle(f).toFixed(0)}°`,
+                     on?"#e7e8ec":"#8b909b", f.x>=0?"start":"end", 11);
+    lbl.style.pointerEvents="none";
+    g.appendChild(lbl);
+  });
+
+  if (marquee){
+    const r = document.createElementNS(SVGNS,"rect");
+    const x0 = Math.min(marquee.a[0], marquee.b[0]), y0 = Math.min(marquee.a[1], marquee.b[1]);
+    r.setAttribute("x",x0); r.setAttribute("y",y0);
+    r.setAttribute("width", Math.abs(marquee.b[0]-marquee.a[0]));
+    r.setAttribute("height", Math.abs(marquee.b[1]-marquee.a[1]));
+    r.setAttribute("fill","rgba(255,213,74,.08)");
+    r.setAttribute("stroke","#ffd54a"); r.setAttribute("stroke-dasharray","5 4");
+    g.appendChild(r);
+  }
+
+  drawList();
+  paintables = null;                                   // the elements changed: find them again
+  window.__rig = rig; window.__selSet = [...selSet]; window.__venue = venue; window.__sel = sel;
+  document.dispatchEvent(new CustomEvent("rig:changed"));
+}
+
+function drawList(){
+  const rows = rig.fixtures.map((f,i) =>
+    `<tr class="${selSet.has(i)?"sel":""}" data-i="${i}"><td>${f.name}</td>
+     <td class="num">${f.address}</td><td class="num">${dist(f).toFixed(2)} m</td>
+     <td class="num">${angle(f)>=0?"+":""}${angle(f).toFixed(0)}°</td></tr>`).join("");
+  el("list").innerHTML = rows;
+  [...el("list").rows].forEach(r => r.onclick = e => {
+    const i = +r.dataset.i;
+    if (e.shiftKey || e.metaKey){ selSet.has(i) ? selSet.delete(i) : selSet.add(i); sel = i; }
+    else setSel([i]);
+    draw(); showEditor();
+  });
+
+  const sorted = [...rig.fixtures].sort((a,b) => a.address - b.address);
+  const clash = sorted.some((f,i) => i && f.address < sorted[i-1].address + footprintOf(sorted[i-1]));
+  const nBars = rig.fixtures.filter(f => kindOf(f) === "bar").length;
+  const last = sorted.length ? sorted[sorted.length-1].address + footprintOf(sorted[sorted.length-1]) - 1 : 0;
+  el("summary").innerHTML = rig.fixtures.length
+    ? `${rig.fixtures.length - nBars} pars, ${nBars} bars &middot; channels ${sorted[0].address}–${last}`
+      + (last > 512 ? ` &middot; <span style="color:var(--warn)">past 512</span>` : "")
+      + (clash ? ` &middot; <span style="color:var(--warn)">addresses overlap</span>` : "")
+    : "no fixtures yet";
+  showEditor();
+}
+
+function showEditor(){
+  const many = selected().length > 1;
+  const f = rig.fixtures[sel];
+  el("editor").hidden = !f; el("none").hidden = !!f;
+  el("multi").hidden = !many;
+  el("multi-count").textContent = selected().length;
+  for (const id of ["f-name","f-address","f-dist","f-ang","f-x","f-y"])
+    el(id).closest(".row").style.display = many ? "none" : "";
+  if (!f) { el("none").textContent = "Nothing selected. Click a par, or drag a box around several."; return; }
+  el("f-name").value = f.name; el("f-address").value = f.address;
+  el("f-dist").value = dist(f).toFixed(2); el("f-ang").value = angle(f).toFixed(0);
+  el("f-x").value = f.x.toFixed(2); el("f-y").value = f.y.toFixed(2);
+  el("f-z").value = f.z; el("f-aim").value = Math.round(f.aim_deg);
+  const isBar = kindOf(f) === "bar";
+  el("row-rot").style.display = isBar ? "" : "none";
+  el("f-rot").value = Math.round(f.rot_deg || 0);
+  const pr = profOf(f);
+  el("f-profile").textContent = pr.name
+    ? `${pr.name} — ${f.mode || pr.default_mode}, ${footprintOf(f)} ch`
+      + (isBar ? `, ${pr.pixels} pixels` : "")
+    : "";
+  el("f-tilt").value = f.tilt_deg; el("f-beam").value = f.beam_deg;
+}
+
+// ------------------------------------------------------------------ looks ---
+const curLook = () => looks.looks[lookIndex];
+
+function drawLooks(){
+  el("look-list").innerHTML = looks.looks.map((l,i) =>
+    `<option value="${i}" ${i===lookIndex?"selected":""}>${l.name}</option>`).join("");
+  const l = curLook();
+  el("look-edit").hidden = !l;
+  if (!l) return;
+  el("look-note").value = l.note || "";
+  const lit = Object.entries(l.fixtures || {}).filter(([,v]) => (v.dim ?? 0) > 0);
+  el("look-summary").textContent = lit.length
+    ? `${lit.length} of ${rig.fixtures.length} pars lit`
+    : "all dark";
+  pushPreview();
+}
+
+let looksTimer = null;
+function saveLooks(){
+  clearTimeout(looksTimer);
+  looksTimer = setTimeout(() => doSaveLooks(), 150);
+}
+function doSaveLooks(){
+  if (stale) return Promise.resolve();
+  clearTimeout(looksTimer);
+  return postJson("looks.json", looks)
+    .then(() => setStatus("look saved", false))
+    .catch(e => setStatus(e.message, true));
+}
+
+// a look as a Resolume clip: rendered onto the control band, loaded into the lights layer
+async function makeLookClips(names){
+  el("look-clip-note").textContent = "making…";
+  try {
+    await doSaveLooks();                          // the server renders what is on disk
+    const r = await fetch("/looks/clip", {method: "POST", headers: {"Content-Type": "application/json"},
+                                           body: JSON.stringify({looks: names})});
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.statusText);
+    el("look-clip-note").textContent = out.made.map(m => `✓ ${m.name} → layer ${m.layer}, clip ${m.clip}`).join(" · ");
+  } catch(e){ el("look-clip-note").textContent = "✗ " + e.message; }
+}
+el("look-clip").onclick = () => { const l = curLook(); if (l) makeLookClips([l.name]); };
+el("look-clip-all").onclick = () => makeLookClips(looks.looks.map(l => l.name));
+
+// tell the previz (and the 3D pane) what to show
+let previewTimer = null;
+function pushPreview(){
+  const l = curLook();
+  window.__look = l ? (l.fixtures || {}) : null;
+  window.__lookName = l ? l.name : "";
+  document.dispatchEvent(new CustomEvent("look:changed"));
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    fetch("preview.json", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({look: l ? l.name : null, fixtures: l ? (l.fixtures || {}) : {},
+                            hold: true, t: Date.now()/1000})}).catch(() => {});
+  }, 120);
+}
+
+function hexToRgb(hex){
+  const n = parseInt(hex.slice(1), 16);
+  return {r:(n>>16)&255, g:(n>>8)&255, b:n&255};
+}
+function setLookValues(names){
+  const l = curLook(); if (!l) return;
+  l.fixtures = l.fixtures || {};
+  const c = hexToRgb(el("look-color").value);
+  names.forEach(n => l.fixtures[n] = {r:c.r, g:c.g, b:c.b,
+                                      w:+el("look-w").value, dim:+el("look-dim").value});
+  drawLooks(); saveLooks();
+}
+
+el("look-list").addEventListener("change", () => {
+  lookIndex = +el("look-list").value; drawLooks(); setSource("look");
+});
+el("look-new").onclick = () => {
+  const name = prompt("Name for the look:", `Look ${looks.looks.length + 1}`);
+  if (!name) return;
+  looks.looks.push({name, note:"", fixtures:{}});
+  lookIndex = looks.looks.length - 1; drawLooks(); saveLooks();
+};
+el("look-dup").onclick = () => {
+  const l = curLook(); if (!l) return;
+  looks.looks.push({name: l.name + " copy", note: l.note || "",
+                    fixtures: JSON.parse(JSON.stringify(l.fixtures || {}))});
+  lookIndex = looks.looks.length - 1; drawLooks(); saveLooks();
+};
+el("look-rename").onclick = () => {
+  const l = curLook(); if (!l) return;
+  const name = prompt("Rename the look:", l.name);
+  if (!name) return;
+  l.name = name; drawLooks(); saveLooks();
+};
+el("look-del").onclick = () => {
+  if (!curLook()) return;
+  if (!confirm(`Delete the look "${curLook().name}"? Cues using it will point at nothing.`)) return;
+  looks.looks.splice(lookIndex, 1);
+  lookIndex = Math.min(lookIndex, looks.looks.length - 1);
+  drawLooks(); saveLooks();
+};
+el("look-apply").onclick = () => setLookValues(selected().map(i => rig.fixtures[i].name));
+el("look-all").onclick = () => setLookValues(rig.fixtures.map(f => f.name));
+el("look-off").onclick = () => {
+  const l = curLook(); if (!l) return;
+  const names = selected().length ? selected().map(i => rig.fixtures[i].name)
+                                  : rig.fixtures.map(f => f.name);
+  names.forEach(n => (l.fixtures || {})[n] = {r:0,g:0,b:0,w:0,dim:0});
+  drawLooks(); saveLooks();
+};
+el("look-note").addEventListener("change", () => {
+  const l = curLook(); if (!l) return;
+  l.note = el("look-note").value; saveLooks();
+});
+for (const id of ["look-color","look-w","look-dim"])
+  el(id).addEventListener("input", () => {
+    // while sliding, paint what is selected; with nothing selected use the buttons
+    if (selected().length) setLookValues(selected().map(i => rig.fixtures[i].name));
+  });
+
+// ------------------------------------------------------ what lights the room --
+// One switch for the plan, the 3D preview and the band strip:
+//   live — what Resolume is sending, as the previz reports it (status.json)
+//   look — the look being designed here
+//   loop — a control-band loop, played in the browser and sampled per fixture
+const band = new BandPlayer();
+let roomSource = "look", livePars = {}, liveOk = false, tintOn = false, paintables = null;
+
+function setSource(src){
+  roomSource = src;
+  window.__roomSource = src;
+  document.querySelectorAll("#room-src button").forEach(b => b.classList.toggle("on", b.dataset.src === src));
+  el("room-loop").hidden = src !== "loop";
+  el("room-loop").style.display = src === "loop" ? "contents" : "none";
+  el("room-note").style.display = src === "loop" ? "none" : "";
+  if (src === "loop"){
+    if (!band.current || band.current.kind !== "loop") pickLoop(+el("loop-list").value || 0);
+    else band.video.play().catch(() => {});
+  } else if (band.current && band.current.kind === "loop") band.video.pause();
+  if (src === "look"){ const l = curLook(); if (l) band.showLook(l); }
+  band.tint = src === "loop" && tintOn ? el("loop-tint-c").value : null;
+}
+function pickLoop(i){
+  const loops = (band.clips && band.clips.loops) || [];
+  if (!loops.length) return;
+  i = (i + loops.length) % loops.length;
+  el("loop-list").value = i;
+  band.playLoop(loops[i]);
+  band.tint = tintOn ? el("loop-tint-c").value : null;
+  window.__roomLabel = loops[i].name;
+  el("band-note").textContent = loops[i].name === "identify"
+    ? "identify: the fixtures should light one at a time, in patch order — PAR_01 … BAR_04"
+    : `${loops[i].name}: ${loops[i].what || ""} · white on black, the colour comes from under it in Resolume — try Tint`;
+}
+
+async function pollLive(){
+  try {
+    const s = await (await fetch("status.json", {cache: "no-store"})).json();
+    liveOk = !!(s.live && s.t && Date.now() / 1000 - s.t < 3);
+    livePars = liveOk ? (s.pars || {}) : {};
+  } catch(e){ liveOk = false; livePars = {}; }
+  setTimeout(pollLive, 250);
+}
+
+function roomTable(){
+  if (roomSource === "live") return livePars;
+  if (roomSource === "look"){ const l = curLook(); return (l && l.fixtures) || {}; }
+  return band.colours();
+}
+const rgbOfEntry = v => bandRgbOf(v);
+function paintRoom(){
+  if (!rig) return;
+  if (!paintables){
+    paintables = {lamps: [...svg.querySelectorAll("[data-lamp]")], glows: [...svg.querySelectorAll("[data-glow]")],
+                  addrs: [...svg.querySelectorAll("[data-addr]")], px: [...svg.querySelectorAll("[data-px]")]};
+  }
+  const T = roomTable();
+  const lit = name => { const v = T[name]; if (!v) return null; const c = rgbOfEntry(v); return c; };
+  for (const c of paintables.lamps){
+    const rgb = lit(c.dataset.lamp);
+    c.setAttribute("fill", rgb ? `rgb(${rgb.map(Math.round)})` : c.dataset.def);
+  }
+  for (const t of paintables.addrs){
+    const rgb = lit(t.dataset.addr);
+    t.setAttribute("fill", rgb && Math.max(...rgb) < 110 ? "#c9ccd2" : "#1a1a1a");
+  }
+  for (const w of paintables.glows){
+    const rgb = lit(w.dataset.glow);
+    w.setAttribute("fill", rgb ? `rgba(${rgb.map(Math.round)},${(0.06 + 0.4 * Math.max(...rgb) / 255).toFixed(3)})` : w.dataset.def);
+  }
+  for (const d of paintables.px){
+    const v = T[d.dataset.px];
+    let rgb = null;
+    if (v && v.pixels && v.pixels[+d.dataset.k]){
+      const q = v.pixels[+d.dataset.k];
+      rgb = bandRgbOf({r: q[0], g: q[1], b: q[2], w: q[3] || 0, dim: 255});
+    } else if (v) rgb = rgbOfEntry(v);
+    d.setAttribute("fill", rgb ? `rgb(${rgb.map(Math.round)})` : "#0d2b31");
+    d.setAttribute("r", rgb && Math.max(...rgb) > 8 ? 2.4 : 1.6);
+  }
+}
+
+function roomFrame(){
+  requestAnimationFrame(roomFrame);
+  if (roomSource === "loop") band.frame();
+  if (roomSource === "look"){
+    const l = curLook();
+    if (l){
+      // follow the look while it is being edited: same object, fresh colours
+      if (!band.current || band.current.kind !== "look" || band.current.name !== l.name) band.showLook(l);
+      else band.current.fixtures = l.fixtures;
+      band.frame();
+    }
+  }
+  window.__roomColours = roomSource === "live" ? null : roomTable();
+  paintRoom();
+  if (!el("bandstrip").hidden) band.drawStrip(el("band"), true);
+  el("loop-count").textContent = band.counter();
+  el("loop-play").textContent = band.paused ? "▶" : "❚❚";
+  el("room-note").textContent =
+      roomSource === "live" ? (liveOk ? "live from Resolume, via the previz" : "the previz isn't running — nothing live to show")
+    : roomSource === "look" ? (curLook() ? `look: ${curLook().name}` : "pick a look in the side panel")
+    : "";
+  el("loop-bpm").title = band.rateNote() || "bpm";
+}
+
+el("room-src").addEventListener("click", e => { const b = e.target.closest("[data-src]"); if (b) setSource(b.dataset.src); });
+el("loop-list").addEventListener("change", () => { pickLoop(+el("loop-list").value); setSource("loop"); });
+el("loop-play").onclick = () => band.toggle();
+el("loop-bpm").addEventListener("input", () => band.setBpm(+el("loop-bpm").value));
+function setTint(on){
+  tintOn = on; el("loop-tint").classList.toggle("on", on);
+  band.tint = on && roomSource === "loop" ? el("loop-tint-c").value : null;
+}
+el("loop-tint").onclick = () => setTint(!tintOn);
+el("loop-tint-c").addEventListener("input", () => setTint(true));
+el("band-toggle").onclick = () => {
+  const show = el("bandstrip").hidden;
+  el("bandstrip").hidden = !show; el("band-toggle").classList.toggle("on", show);
+  if (show && roomSource === "live") el("band-note").textContent = "live: the band shows what Look or Loop would send — switch to one of them";
+  else if (show && roomSource === "look") el("band-note").textContent = "a look, rendered onto the band as Make clip will";
+  dispatchEvent(new Event("resize"));
+};
+el("focus").onclick = () => {
+  const on = document.body.classList.toggle("focus");
+  el("focus").classList.toggle("on", on);
+  dispatchEvent(new Event("resize"));
+};
+
+async function startRoom(){
+  try { await band.load(); } catch(e){ band.clips = {loops: []}; }
+  const loops = (band.clips && band.clips.loops) || [];
+  el("loop-list").innerHTML = loops.map((c, i) =>
+    `<option value="${i}">${c.name}${c.bars ? ` — ${c.bars} bar${c.bars > 1 ? "s" : ""}` : ""}</option>`).join("")
+    || `<option>no loops yet</option>`;
+  el("loop-bpm").value = Math.round(band.bpm || 120);
+  const q = new URLSearchParams(location.search);
+  let first = q.get("room");
+  try { const s = await (await fetch("status.json", {cache: "no-store"})).json();
+        if (!first) first = s.live && s.t && Date.now() / 1000 - s.t < 3 ? "live" : "look"; }
+  catch(e){ first = first || "look"; }
+  const want = q.get("clip");
+  if (want){ const i = loops.findIndex(l => l.name === want); if (i >= 0){ el("loop-list").value = i; pickLoop(i); first = "loop"; } }
+  setSource(first);
+  if (q.get("band")) el("band-toggle").onclick();
+  pollLive();
+  requestAnimationFrame(roomFrame);
+}
+
+// --------------------------------------------------------------- dragging ---
+let drag = null, marquee = null, spaceHeld = false;
+svg.addEventListener("pointerdown", e => {
+  e.preventDefault();                      // never start a text selection
+  const t = e.target;
+  const r = svg.getBoundingClientRect();
+  const p = [e.clientX - r.left, e.clientY - r.top];
+  const add = e.shiftKey || e.metaKey;
+  if (t.dataset && t.dataset.fix !== undefined){
+    const i = +t.dataset.fix;
+    if (add){ selSet.has(i) ? selSet.delete(i) : selSet.add(i); sel = i; }
+    else if (!selSet.has(i)) setSel([i]);
+    else sel = i;
+    pushUndo();
+    drag = {kind:"move", i, from:toM(p[0],p[1]),
+            start: selected().map(j => ({j, x:rig.fixtures[j].x, y:rig.fixtures[j].y}))};
+    draw(); showEditor();
+  } else if (t.dataset && t.dataset.rot !== undefined){
+    const i = +t.dataset.rot;
+    if (!selSet.has(i)) setSel([i]); else sel = i;
+    pushUndo(); drag = {kind:"rot", i}; draw(); showEditor();
+  } else if (t.dataset && t.dataset.aim !== undefined){
+    const i = +t.dataset.aim;
+    if (!selSet.has(i)) setSel([i]); else sel = i;
+    pushUndo(); drag = {kind:"aim", i}; draw(); showEditor();
+  } else if (e.altKey || spaceHeld || e.button === 1){
+    drag = {kind:"pan", from:p, cx:view.cx, cy:view.cy};
+    svg.classList.add("dragging");
+  } else {
+    marquee = {a:p, b:p, add, base: add ? selected() : []};
+    drag = {kind:"marquee"};
+  }
+  try { svg.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
+});
+svg.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const r = svg.getBoundingClientRect();
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+  if (drag.kind === "pan"){
+    view.cx = drag.cx + (px - drag.from[0]);
+    view.cy = drag.cy + (py - drag.from[1]);
+    draw(); return;
+  }
+  if (drag.kind === "marquee"){
+    marquee.b = [px,py];
+    const [x0,y0] = toM(Math.min(marquee.a[0],px), Math.min(marquee.a[1],py));
+    const [x1,y1] = toM(Math.max(marquee.a[0],px), Math.max(marquee.a[1],py));
+    const inside = rig.fixtures.map((f,i) =>
+      (f.x >= x0 && f.x <= x1 && f.y >= y0 && f.y <= y1) ? i : -1).filter(i => i >= 0);
+    setSel([...new Set([...marquee.base, ...inside])]);
+    draw(); showEditor(); return;
+  }
+  const f = rig.fixtures[drag.i];
+  let [mx,my] = toM(px,py);
+  if (drag.kind === "rot"){
+    let a = Math.atan2(my - f.y, mx - f.x) * 180/Math.PI;
+    if (snapping()) a = snapValue(a, +el("snap-ang").value || 0);
+    f.rot_deg = round2(((a % 360) + 360) % 360);
+    draw(); showEditor(); save();
+    return;
+  }
+  if (drag.kind === "move"){
+    if (snapping()){
+      const g = +el("snap-grid").value || 0;
+      const d = snapValue(Math.hypot(mx,my), g);
+      const a = snapValue(Math.atan2(mx,my)*180/Math.PI, +el("snap-ang").value || 0);
+      mx = Math.sin(a*Math.PI/180)*d; my = Math.cos(a*Math.PI/180)*d;
+    }
+    // move the whole selection by the same amount
+    const dx = mx - f.x, dy = my - f.y;
+    drag.start.forEach(({j}) => {
+      if (j === drag.i) return;
+      rig.fixtures[j].x = round2(rig.fixtures[j].x + dx);
+      rig.fixtures[j].y = round2(rig.fixtures[j].y + dy);
+    });
+    f.x = round2(mx); f.y = round2(my);
+  } else {
+    let a = Math.atan2(mx - f.x, my - f.y) * 180/Math.PI;
+    if (snapping()) a = snapValue(a, +el("snap-ang").value || 0);
+    f.aim_deg = round2(((a % 360) + 540) % 360 - 180);
+  }
+  draw(); showEditor(); save();
+});
+const endDrag = () => {
+  const wasMarquee = drag && drag.kind === "marquee";
+  drag = null; marquee = null; svg.classList.remove("dragging");
+  if (wasMarquee) draw();
+};
+svg.addEventListener("pointerup", endDrag);
+svg.addEventListener("pointercancel", endDrag);
+svg.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = svg.getBoundingClientRect();
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+  const [mx,my] = toM(px,py);
+  view.scale = Math.max(18, Math.min(220, view.scale * (e.deltaY < 0 ? 1.08 : 1/1.08)));
+  view.cx = px - mx*view.scale; view.cy = py - my*view.scale;
+  draw();
+}, {passive:false});
+
+// ------------------------------------------------------------- inspector ----
+function bind(id, apply, all){
+  el(id).addEventListener("change", () => {
+    if (sel < 0) return;
+    pushUndo();
+    const targets = all ? selected() : [sel];
+    targets.forEach(i => apply(rig.fixtures[i], parseFloat(el(id).value), el(id).value));
+    draw(); showEditor(); save();
+  });
+}
+bind("f-address", (f,v) => f.address = Math.max(1, Math.min(512, Math.round(v))));
+bind("f-x", (f,v) => f.x = round2(v));
+bind("f-y", (f,v) => f.y = round2(v));
+bind("f-z", (f,v) => f.z = round2(v), true);
+bind("f-aim", (f,v) => f.aim_deg = round2(v), true);
+bind("f-tilt", (f,v) => f.tilt_deg = Math.max(0, Math.min(90, v)), true);
+bind("f-beam", (f,v) => f.beam_deg = Math.max(1, Math.min(120, v)), true);
+bind("f-rot", (f,v) => f.rot_deg = round2(v), true);
+bind("f-dist", (f,v) => { const a = angle(f)*Math.PI/180;
+  f.x = round2(Math.sin(a)*v); f.y = round2(Math.cos(a)*v); });
+bind("f-ang", (f,v) => { const d = dist(f), a = v*Math.PI/180;
+  f.x = round2(Math.sin(a)*d); f.y = round2(Math.cos(a)*d); });
+el("f-name").addEventListener("change", () => {
+  const f = rig.fixtures[sel]; if (!f) return;
+  pushUndo(); f.name = el("f-name").value.trim() || f.name; draw(); save();
+});
+
+// ----------------------------------------------------------------- tools ----
+function nextAddress(){
+  // leave room for each fixture's own footprint: a bar in 72ch mode needs 72
+  return rig.fixtures.reduce((end, f) => Math.max(end, f.address + footprintOf(f)), 1);
+}
+function nextName(prefix){
+  let n = 1;
+  const taken = new Set(rig.fixtures.map(f=>f.name));
+  while (taken.has(`${prefix}_${String(n).padStart(2,"0")}`)) n++;
+  return `${prefix}_${String(n).padStart(2,"0")}`;
+}
+function addFixture(kind){
+  pushUndo();
+  const isBar = kind === "bar";
+  const key = isBar ? "showtec-pixelbar-18-q4" : "gm-par-rgbw-7x10";
+  const pr = profiles[key] || {};
+  rig.fixtures.push(Object.assign({
+    name: nextName(isBar ? "BAR" : "PAR"), profile: key, mode: pr.default_mode,
+    address: nextAddress(), x: 0, y: isBar ? -0.9 : -2, z: isBar ? 0.07 : 0.18,
+    aim_deg: 180, tilt_deg: isBar ? 80 : 70, beam_deg: pr.beam_deg || 25},
+    isBar ? {rot_deg: 0} : {}));
+  setSel([rig.fixtures.length - 1]); draw(); showEditor(); save();
+}
+el("add").onclick = () => addFixture("par");
+el("add-bar").onclick = () => addFixture("bar");
+el("dup").onclick = () => {
+  const src = selected(); if (!src.length) return;
+  pushUndo();
+  const made = [];
+  src.forEach(i => {
+    const f = rig.fixtures[i];
+    rig.fixtures.push(Object.assign({}, f, {name:nextName(), address:nextAddress(), x:round2(f.x+0.3)}));
+    made.push(rig.fixtures.length - 1);
+  });
+  setSel(made); draw(); showEditor(); save();
+};
+el("mirror").onclick = () => {
+  const src = selected(); if (!src.length) return;
+  pushUndo();
+  const made = [];
+  src.forEach(i => {
+    const f = rig.fixtures[i];
+    rig.fixtures.push(Object.assign({}, f, {name:nextName(), address:nextAddress(),
+      x: round2(-f.x), aim_deg: round2(-f.aim_deg)}));
+    made.push(rig.fixtures.length - 1);
+  });
+  setSel(made); draw(); showEditor(); save();
+};
+el("del").onclick = () => {
+  const gone = selected().sort((a,b) => b - a);
+  if (!gone.length) return;
+  pushUndo(); gone.forEach(i => rig.fixtures.splice(i,1));
+  setSel([]); draw(); showEditor(); save();
+};
+el("renumber").onclick = () => {
+  pushUndo();
+  // pars first, left to right, then the bars; each takes its own footprint
+  const pars = rig.fixtures.filter(f => kindOf(f) !== "bar").sort((a,b) => angle(a) - angle(b));
+  const bars = rig.fixtures.filter(f => kindOf(f) === "bar").sort((a,b) => a.x - b.x);
+  let addr = 1;
+  [...pars, ...bars].forEach(f => { f.address = addr; addr += footprintOf(f); });
+  draw(); save();
+};
+el("arc").onclick = () => {
+  if (!rig.fixtures.length) return;
+  pushUndo();
+  const r = +prompt("Distance from you, in metres:", dist(rig.fixtures[0]).toFixed(2) || 2);
+  if (!r || r <= 0) return;
+  const spread = +prompt("Total spread in degrees (180 = a half circle behind and beside you):", 270);
+  const n = rig.fixtures.length;
+  rig.fixtures.forEach((f,i) => {
+    const a = n === 1 ? 0 : -spread/2 + spread * i/(n-1);
+    f.x = round2(Math.sin(a*Math.PI/180)*r);
+    f.y = round2(Math.cos(a*Math.PI/180)*r);
+    f.aim_deg = round2(a);
+  });
+  draw(); save();
+};
+
+// -------------------------------------------------------------- keyboard ----
+addEventListener("keydown", e => {
+  if (e.key === "s" || e.key === "S") snapHeld = true;
+  if (e.code === "Space") spaceHeld = true;
+  if (/input/i.test(e.target.tagName)) return;
+  if (e.metaKey && e.key === "a"){
+    e.preventDefault(); setSel(rig.fixtures.map((_,i) => i)); draw(); showEditor(); return;
+  }
+  if (e.key === "Escape"){ setSel([]); draw(); showEditor(); return; }
+  if (!e.metaKey && (e.key === "[" || e.key === "]")){
+    pickLoop((+el("loop-list").value || 0) + (e.key === "]" ? 1 : -1)); setSource("loop"); return;
+  }
+  if (!e.metaKey && (e.key === "t" || e.key === "T")){ setTint(!tintOn); return; }
+  if (!e.metaKey && (e.key === "b" || e.key === "B")){ el("band-toggle").onclick(); return; }
+  const f = rig.fixtures[sel];
+  const step = e.shiftKey ? 0.01 : 0.1;
+  if (e.metaKey && e.key === "z"){ e.preventDefault(); e.shiftKey ? doUndo(redo,undo) : doUndo(undo,redo); return; }
+  if (!f) return;
+  if (e.key === "Backspace" || e.key === "Delete"){ e.preventDefault(); el("del").onclick(); return; }
+  const moves = {ArrowLeft:[-step,0], ArrowRight:[step,0], ArrowUp:[0,-step], ArrowDown:[0,step]};
+  if (moves[e.key]){
+    e.preventDefault(); pushUndo();
+    selected().forEach(i => {
+      rig.fixtures[i].x = round2(rig.fixtures[i].x + moves[e.key][0]);
+      rig.fixtures[i].y = round2(rig.fixtures[i].y + moves[e.key][1]);
+    });
+    draw(); showEditor(); save();
+  }
+});
+addEventListener("keyup", e => {
+  if (e.key === "s" || e.key === "S") snapHeld = false;
+  if (e.code === "Space") spaceHeld = false;
+});
+addEventListener("resize", () => draw());
+
+document.addEventListener("rig:select", e => {
+  const {index, add} = typeof e.detail === "object" ? e.detail : {index:e.detail, add:false};
+  if (add){ selSet.has(index) ? selSet.delete(index) : selSet.add(index); sel = index; }
+  else setSel([index]);
+  draw(); showEditor();
+});
+
+// plan / preview divider
+(function(){
+  const div = el("divider"), stage = el("stage"), view = el("view3d");
+  let dragging = false;
+  div.addEventListener("pointerdown", e => { dragging = true; div.setPointerCapture(e.pointerId); });
+  div.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    const r = stage.getBoundingClientRect();
+    const h = Math.max(80, Math.min(r.height - 120, r.bottom - e.clientY));
+    view.style.flexBasis = h + "px";
+    dispatchEvent(new Event("resize"));
+  });
+  div.addEventListener("pointerup", () => { dragging = false; });
+  el("gl-on").addEventListener("change", () => {
+    const on = el("gl-on").checked;
+    view.classList.toggle("hidden", !on);
+    div.style.display = on ? "" : "none";
+    dispatchEvent(new Event("resize"));
+  });
+})();
+
+load().then(startRoom);
+</script>
+<script type="module" src="/lib/preview3d.js"></script>
+<script src="/lib/status.js"></script>
+</body>
+</html>

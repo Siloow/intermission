@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How this works</title>
+<style>
+  :root{
+    --bg:#15161a; --panel:#1d1f25; --line:#2c2f37; --text:#e7e8ec; --dim:#9AA0AC;
+    --accent:#ffd54a; --ok:#57c98a; --warn:#e2725b;
+    --screen:#5b8cff; --lights:#ffd54a; --td:#57c98a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+  nav{position:sticky;top:0;z-index:10;display:flex;gap:8px;align-items:center;
+    padding:9px 18px;background:#131418;border-bottom:1px solid var(--line)}
+  nav a{color:var(--dim);text-decoration:none;border:1px solid var(--line);
+    border-radius:6px;padding:4px 11px}
+  nav a:hover{color:var(--text);background:#22252c}
+  nav a.here{color:#15161a;background:var(--accent);border-color:var(--accent);font-weight:600}
+  nav .spacer{flex:1}
+  main{max-width:860px;margin:0 auto;padding:26px 22px 90px}
+  h1{font-size:23px;margin:10px 0 4px}
+  h2{font-size:17px;margin:38px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+  h3{font-size:14px;margin:22px 0 6px;color:var(--accent)}
+  p,li{color:#d5d7dd}
+  .lead{color:var(--dim);margin-top:0}
+  code,kbd{font:12.5px ui-monospace,Menlo,monospace;background:#101116;
+    border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  pre{background:#101116;border:1px solid var(--line);border-radius:8px;
+    padding:12px 14px;overflow-x:auto}
+  pre code{border:0;background:none;padding:0}
+  table{width:100%;border-collapse:collapse;margin:10px 0}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  td code{white-space:nowrap}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .card h3{margin-top:0}
+  .note{border-left:3px solid var(--accent);background:#1e1d16;padding:10px 14px;
+    border-radius:0 8px 8px 0;margin:14px 0}
+  .warn{border-left-color:var(--warn);background:#241a18}
+  ol li, ul li{margin:4px 0}
+  .kbdgrid{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:baseline}
+  .kbdgrid div:nth-child(odd){text-align:right;color:var(--dim)}
+  svg{max-width:100%;height:auto}
+  @media (max-width:700px){ .cols{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/">Floor plan</a>
+  <a href="/show">Show timeline</a>
+  <a href="/docs" class="here">How it works</a>
+  <span class="spacer"></span>
+  <span style="color:var(--dim)">Intermission · venue previz</span>
+</nav>
+<main>
+
+<h1>How this all works</h1>
+<p class="lead">The show is planned in files, played by one small program, and
+previewed in a model of the room. This page is the map — read it when it has
+been a few weeks and nothing looks familiar.</p>
+
+<h2>Two modes</h2>
+<p>There are only two things to start, and each is one double-click. Open
+Resolume and the show set in Live yourself, first; the launcher does the rest
+and tells you, before anything runs, what is missing.</p>
+<div class="cols">
+  <div class="card">
+    <h3>Test — at home</h3>
+    <p><b><code>Test.command</code></b></p>
+    <table>
+      <tr><td>Blender previz</td><td>✓</td></tr>
+      <tr><td>Syphon bridge (screen into Blender)</td><td>✓</td></tr>
+      <tr><td>editors (these pages)</td><td>✓</td></tr>
+      <tr><td>cue_player, following Live</td><td>✓</td></tr>
+    </table>
+    <p>Resolume's Lumiverse sends Art-Net to <code>127.0.0.1</code>, so Blender's
+    pars are the rig. Quit Blender or ctrl-C and it all stops.</p>
+    <p style="color:var(--dim)"><code>./Test.command --plan</code> — only the
+    editors, for planning with no Resolume or Blender (your brother's usual).</p>
+  </div>
+  <div class="card">
+    <h3>Live — show night</h3>
+    <p><b><code>Live.command</code></b></p>
+    <table>
+      <tr><td>Blender previz</td><td>—</td></tr>
+      <tr><td>Syphon bridge</td><td>—</td></tr>
+      <tr><td>editors</td><td>—</td></tr>
+      <tr><td>cue_player, following Live</td><td>✓</td></tr>
+    </table>
+    <p>Resolume's Lumiverse sends Art-Net to the venue's node. Only the player
+    runs, the Mac is kept awake, and nothing can edit the plan. It checks strictly
+    and asks before starting if anything is wrong.</p>
+  </div>
+</div>
+<p>Both run <code>python3 preflight.py</code> first — you can run it on its own
+any time. It checks that the plan maps, that Resolume answers and holds every
+clip the plan fires, and that Live answers with the tempo you expect.</p>
+<div class="note">Both launchers stop anything left over from an earlier run
+first, so a forgotten player can't hold the port. Test reuses a previz that is
+already open instead of starting a second Blender.</div>
+
+<h3>The status dots</h3>
+<p>The top bar of every page shows <b>Resolume · Live · Player · Blender ·
+Art-Net · Screen</b>. Green is fine, amber is fine but worth a look (Live
+stopped), red is broken, grey is unknown. Hover a dot for what it's doing and
+how to fix it.</p>
+
+<h3>Panic, and crashes</h3>
+<p>In the player's window (the terminal the launcher opened):</p>
+<ul>
+  <li><b>p</b> — <b>panic</b>. Sends the safe look from the <code>"panic"</code>
+    block in <code>osc_map.json</code> (a cue value per lane, e.g.
+    <code>"lights": "Amber wash"</code>) and holds: no cues, no automation. Lanes
+    it doesn't name stay where they are. The Player dot turns into a red PANIC.</li>
+  <li><b>r</b> — <b>resume</b>. Back on the plan exactly where the music is, as
+    if you had jumped there.</li>
+</ul>
+<p>In Live mode, if the player dies it's restarted within a second and picks
+up where the music is. A panic survives that restart: it keeps holding until
+you press r.</p>
+
+<h2>Who talks to who</h2>
+<svg viewBox="0 0 860 450" font-family="Helvetica,Arial" font-size="12.5">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 z" fill="#5c6472"/>
+    </marker>
+  </defs>
+  <g stroke="#5c6472" stroke-width="1.4" fill="none" marker-end="url(#a)">
+    <path d="M170,62 L250,62"/>
+    <path d="M390,84 L390,150"/>
+    <path d="M170,172 L250,172"/>
+    <path d="M390,206 L390,300"/>
+    <path d="M170,322 L250,322"/>
+    <path d="M530,312 L588,312 L588,178 L620,178"/>
+    <path d="M680,200 L680,250"/>
+    <path d="M790,200 L790,360"/>
+  </g>
+  <g fill="#e7e8ec">
+    <rect x="20" y="40" width="150" height="44" rx="8" fill="#20232a" stroke="#39404d"/>
+    <text x="95" y="60" text-anchor="middle">Ableton Live</text>
+    <text x="95" y="75" text-anchor="middle" fill="#9AA0AC" font-size="11">locators = the structure</text>
+
+    <rect x="20" y="150" width="150" height="44" rx="8" fill="#20232a" stroke="#39404d"/>
+    <text x="95" y="170" text-anchor="middle">a bounce</text>
+    <text x="95" y="185" text-anchor="middle" fill="#9AA0AC" font-size="11">mp3 in audio/</text>
+
+    <rect x="20" y="300" width="150" height="44" rx="8" fill="#20232a" stroke="#39404d"/>
+    <text x="95" y="320" text-anchor="middle">AbletonOSC</text>
+    <text x="95" y="335" text-anchor="middle" fill="#9AA0AC" font-size="11">where the playhead is</text>
+
+    <rect x="250" y="40" width="280" height="44" rx="8" fill="#20232a" stroke="#39404d"/>
+    <text x="390" y="60" text-anchor="middle">sync_show.py → show.json</text>
+    <text x="390" y="75" text-anchor="middle" fill="#9AA0AC" font-size="11">the music's structure, in bars</text>
+
+    <rect x="250" y="150" width="280" height="56" rx="8" fill="#252a33" stroke="#4a5262"/>
+    <text x="390" y="172" text-anchor="middle">the editors, in this browser</text>
+    <text x="390" y="190" text-anchor="middle" fill="#9AA0AC" font-size="11">cues.json · looks.json · rig.json</text>
+
+    <rect x="250" y="300" width="280" height="44" rx="8" fill="#20232a" stroke="#39404d"/>
+    <text x="390" y="320" text-anchor="middle">cue_player.py</text>
+    <text x="390" y="335" text-anchor="middle" fill="#9AA0AC" font-size="11">fires each cue at its bar</text>
+
+    <rect x="620" y="150" width="210" height="50" rx="8" fill="#2a2f3a" stroke="#5b8cff"/>
+    <text x="725" y="172" text-anchor="middle">Resolume</text>
+    <text x="725" y="188" text-anchor="middle" fill="#9AA0AC" font-size="11">the only master of the rig</text>
+
+    <rect x="620" y="250" width="210" height="44" rx="8" fill="#20232a" stroke="#39404d"/>
+    <text x="725" y="270" text-anchor="middle">the real rig</text>
+    <text x="725" y="285" text-anchor="middle" fill="#9AA0AC" font-size="11">screen + 6 RGBW pars</text>
+
+    <rect x="620" y="360" width="210" height="50" rx="8" fill="#20232a" stroke="#39404d"/>
+    <text x="725" y="382" text-anchor="middle">Blender previz</text>
+    <text x="725" y="398" text-anchor="middle" fill="#9AA0AC" font-size="11">the same room, same signals</text>
+  </g>
+  <g fill="#7c8698" font-size="11">
+    <text x="210" y="54" text-anchor="middle">reads the .als</text>
+    <text x="210" y="164" text-anchor="middle">plays in the timeline</text>
+    <text x="210" y="314" text-anchor="middle">OSC 11000/11001</text>
+    <text x="398" y="120" text-anchor="middle">sections to hang cues on</text>
+    <text x="398" y="262" text-anchor="middle">the plan: cues.json</text>
+    <text x="596" y="130" text-anchor="middle">OSC 7000: fire this clip</text>
+    <text x="672" y="228" text-anchor="end">Art-Net</text>
+    <text x="782" y="286" text-anchor="end">Art-Net + Syphon</text>
+  </g>
+</svg>
+
+<div class="note">
+  <b>The rule that holds it together:</b> Resolume is the only thing that drives
+  the rig. Blender watches the same Art-Net and the same Syphon feed the real
+  fixtures get, so the previz shows what the room will really do — never a
+  separate guess.<br><br>
+  One shortcut to that rule: while you are <i>designing</i> a look in the floor
+  plan, the editor sends it straight to Blender, so you can build looks with
+  Resolume closed. The moment real DMX arrives, it takes over.
+</div>
+
+<h2>What each tool is for</h2>
+<table>
+  <tr><th>Tool</th><th>Its job</th><th>Not its job</th></tr>
+  <tr><td><b>Ableton Live</b></td><td>The music, and the structure via locators. Master clock on the night.</td><td>Holding the visual plan, or OSC automation.</td></tr>
+  <tr><td><b>The editors</b><br><span style="color:var(--dim)">this browser</span></td><td>Planning: where the pars stand, what the looks are, what happens when, and the automation curves. On the night, a live mirror of the show.</td><td>Sending OSC. A browser tab can be throttled or closed; the player can't.</td></tr>
+  <tr><td><b>cue_player.py</b></td><td>The engine on the night: follows Live's playhead, fires cues, plays the automation curves into Resolume.</td><td>Deciding anything — it plays exactly what the files say.</td></tr>
+  <tr><td><b>Blender</b></td><td>How it will really look: haze, beams, the screen lighting you. Renders.</td><td>Placing lights by hand — the floor plan does that.</td></tr>
+  <tr><td><b>Resolume</b></td><td>Playing the visuals and driving the fixtures. One master.</td><td>Deciding <i>when</i> things happen — that's the plan.</td></tr>
+  <tr><td><b>TouchDesigner</b></td><td>Generative content, fed into Resolume.</td><td>Talking to the lights directly.</td></tr>
+</table>
+
+<h2>Installs</h2>
+<table>
+  <tr><th>What</th><th>Needed for</th><th>How</th></tr>
+  <tr><td>Blender</td><td>the previz</td><td>blender.org. <code>Test.command</code> finds it.</td></tr>
+  <tr><td>Resolume Arena</td><td>screen + DMX</td><td>Syphon output device, and a Lumiverse on Art-Net.</td></tr>
+  <tr><td><code>uv</code></td><td>the Syphon bridge only</td><td><code>curl -LsSf https://astral.sh/uv/install.sh | sh</code></td></tr>
+  <tr><td>Python 3</td><td>the editors, the player</td><td>ships with macOS</td></tr>
+  <tr><td>AbletonOSC</td><td>following Live's playhead</td><td>a Live Control Surface; enable it in Preferences → Link/Tempo/MIDI</td></tr>
+</table>
+<p>Everything else lives in the project folder, including three.js. First run of
+the bridge needs internet once, then it is cached.</p>
+
+<h2>The room</h2>
+<table>
+  <tr><th>What</th><th>Value</th><th>How we know</th></tr>
+  <tr><td>Screen width</td><td><b>11.5 m</b></td><td>measured by hand</td></tr>
+  <tr><td>Screen height</td><td>6.0 m</td><td>derived: the screen reads 1.93:1 in <code>cinerama-full.MOV</code>, about the 1.85:1 flat format</td></tr>
+  <tr><td>Screen bottom</td><td>1.3 m above the stage floor</td><td>from the video</td></tr>
+  <tr><td>Room</td><td>15 m wide, 20 m deep, 8.5 m high</td><td>estimates from the video — the screen plus ~1.7 m of wall each side</td></tr>
+  <tr><td>Screen to first row</td><td>4 m</td><td>your measurement</td></tr>
+</table>
+<p>All of it lives in the CONFIG block at the top of <code>build_venue.py</code>.
+Change a number, rebuild, and the previz, the floor plan, the browser's 3D view
+and the printable plan all follow.</p>
+
+<h2>Driving the pars</h2>
+<p>Resolume drives DMX by sampling pixels, so the pars need pixels of their own.
+They do <b>not</b> need video: a Solid Color layer whose opacity you automate
+<i>is</i> a fade. Video is for movement.</p>
+
+<h3>The control band</h3>
+<p>Make the composition taller than the beamer output — 1920x1200 with the
+projector mapped to the top 1920x1080 — and keep the bottom <b>1920x120</b> for
+the lights. Nobody sees it. If your Lumiverse's <b>Input Source</b> can be set to
+a layer or group instead of the whole composition, use that instead: same idea,
+nothing to project by accident.</p>
+<p>Fixtures sit left to right in <b>patch order</b>. A par gets one unit and
+samples its middle; a pixel bar gets two units and samples each of its 18 pixels
+across its cell. With 8 pars and 4 bars that's 16 units of 120 px.
+<code>band.py</code> is the one place this is defined, and the loops and looks
+follow it. Print it for patching the Lumiverse:</p>
+<pre><code>python3 band.py
+
+PAR_01 … PAR_08   one par each 120 px: samples x 60, 180, 300 … 900
+BAR_01            cell  960-1200   18 pixels, x 967 → 1193
+BAR_02            cell 1200-1440   18 pixels, x 1207 → 1433
+BAR_03            cell 1440-1680   18 pixels, x 1447 → 1673
+BAR_04            cell 1680-1920   18 pixels, x 1687 → 1913</code></pre>
+<div class="note warn">The band used to be 6 cells of 320 px. If your Lumiverse
+was patched to that, move the fixtures to these points once.</div>
+
+<h3>Loops on the floor plan</h3>
+<p>Above the floor plan, <b>Live · Look · Loop</b> chooses what lights the plan
+and the 3D preview:</p>
+<table>
+  <tr><th></th><th>Shows</th></tr>
+  <tr><td><b>Live</b></td><td>what Resolume is actually sending, as the previz receives it. Needs Test mode running.</td></tr>
+  <tr><td><b>Look</b></td><td>the look selected in the side panel, as you design it. Picking a look switches to this.</td></tr>
+  <tr><td><b>Loop</b></td><td>a control-band loop, played in the browser and read at each fixture's sample points — what the Lumiverse will read. No Resolume needed.</td></tr>
+</table>
+<ul>
+  <li>In Loop: pick a loop (<kbd>[</kbd> <kbd>]</kbd> step through them), pause it,
+    set the bpm (it starts at <code>show.json</code>'s tempo), and <b>Tint</b>
+    (<kbd>T</kbd>) it the way a Solid Color layer or Colorize would.</li>
+  <li><b>Band</b> (<kbd>B</kbd>) folds open the band itself under the plan, with each
+    fixture's cell and a dot on every sample point — one per par, 18 per bar.</li>
+  <li>Keep editing while it plays: drag a par and see straight away how a chase
+    reads from its new spot.</li>
+  <li>Play <b>identify</b>: the fixtures should light one at a time,
+    PAR_01 … BAR_04. That's the patch check you'll do at the venue.</li>
+  <li><b>⤢</b> hides the side panel for a bigger picture. <code>/band?clip=chase</code>
+    opens straight into a loop.</li>
+  <li>A loop plays only in the browser; Blender shows what Resolume sends.</li>
+</ul>
+
+<h3>Looks as clips</h3>
+<p>A look designed in the floor plan is a colour per fixture. <b>Make clip</b>
+(in the floor plan's Looks panel, or on a Lights cue whose look isn't a clip
+yet) renders it onto the band as a still — each fixture's whole cell in its
+colour — saves it to <code>content/light-looks/</code> and loads it into the
+lights layer, named after the look. A Lights cue that names the look then fires
+it. Picking a look in the timeline's quick picker does this for you. Change a
+look? Make it again: it reloads into the same slot.</p>
+
+<h3>What to stack in it</h3>
+<table>
+  <tr><th>Layer</th><th>Source</th><th>Gives you</th></tr>
+  <tr><td>Base colour</td><td>Solid Color</td><td>the room's colour; fade its opacity for a fade</td></tr>
+  <tr><td>Looks</td><td>a still from <code>content/light-looks/</code></td><td>a designed look, a colour per fixture</td></tr>
+  <tr><td>Accent</td><td>Gradient</td><td>colour spread across the rig</td></tr>
+  <tr><td>Movement</td><td>a loop from <code>content/light-loops/</code></td><td>chases, pulses, strobes</td></tr>
+  <tr><td>Mirror</td><td>Video Router</td><td>the pars take the screen's own colours — blur it heavily</td></tr>
+</table>
+<p>The loops are white on black so the colour comes from underneath: one loop
+serves every mood. They are written at the tempo in <code>show.json</code> and loop cleanly, so Resolume can
+resync them to the composition tempo.</p>
+
+<h3>Check the patch with it</h3>
+<p>Play <code>identify.mp4</code>: the fixtures light one at a time — the eight
+pars, then the four bars — in patch order. Watch the previz or the real rig. If the order is wrong, the
+fixtures are in the wrong cells — not the pars.</p>
+
+<div class="note warn">
+  <b>Two traps.</b> A master fade pulls the lights down with the picture when the
+  fixtures sample the whole composition — fade the projector's layer or group
+  instead. And pixel values map straight to DMX, so the bottom of a fade gets
+  chunky: give the automation target a positive <code>curve</code> so more of the
+  fade happens where the pars actually respond.
+</div>
+
+<h2>The rig</h2>
+<table>
+  <tr><th>Fixture</th><th>What it is</th><th>Mode</th><th>In the show</th></tr>
+  <tr><td><b>Par</b><br><span style="color:var(--dim)">GM Light RGBW IP65 7x10</span></td>
+      <td>7 x 10 W RGBW, 25° beam, IP65</td>
+      <td><b>4 channels</b> R G B W<br><span style="color:var(--dim)">8ch adds dimmer + strobe, which pixel mapping cannot reach</span></td>
+      <td>8 of them, in a semicircle around you</td></tr>
+  <tr><td><b>Bar</b><br><span style="color:var(--dim)">Showtec Pixel Bar 18 Q4 Tour</span></td>
+      <td>18 x 8 W RGBW, 18° beam, 1.04 m long, IP20 (indoor)</td>
+      <td><b>72 channels</b> = 18 pixels x RGBW<br><span style="color:var(--dim)">6ch makes the whole bar one colour</span></td>
+      <td>4 of them, across the stage</td></tr>
+</table>
+<p>That is 8 x 4 + 4 x 72 = <b>320 channels</b>, so the whole rig fits in one
+universe with room to spare. Profiles live in <code>fixtures.json</code>, taken
+from the manufacturers' sheets in <code>content/</code>; the placement lives in
+<code>rig.json</code>.</p>
+<div class="note">
+  The bars are the reason to keep 72-channel mode: Resolume can run a chase
+  <i>along</i> a bar, because each of the 18 LEDs is its own pixel in the
+  Lumiverse. In the previz each pixel is its own little fixture too, so what you
+  see is per-LED, not an average.
+</div>
+
+<h3>Loading the clips</h3>
+<p>The media does not have to be dragged in by hand. With Arena's web server on
+(Preferences → Webserver → <b>Enable Webserver &amp; REST API</b>, port 8080),
+<code>arena_load.py</code> fills a layer's clip slots from a folder and writes
+what it did into <code>osc_map.json</code>:</p>
+<pre><code>python3 arena_load.py --list                      # layers and what is in them
+python3 arena_load.py --layer "LIGHTS" --dir content/light-loops --lane lights
+python3 arena_load.py --layer 4 --dir content/screen --lane screen --dry-run</code></pre>
+<p>After that a Lights cue that says <code>chase</code> simply fires the chase
+clip: the loader put the file in a slot and told the map where it is. The
+timeline's <b>What</b> box offers the names it knows, and tells you which layer
+and clip a cue will fire — or says the name is not mapped yet.</p>
+<p>Re-run it whenever the files change, after regenerating the loops at a new
+tempo say. It uses the same slots, so the cues stay valid.</p>
+
+<h3>Loading a clip from the timeline</h3>
+<p>Select a cue and use <b>Load clip</b> in the sidebar: it lists the files in
+that lane's folder, and picking one loads it into the lane's Resolume layer,
+maps it, and points the cue at it. One gesture instead of four.</p>
+<p>Which layer and folder each lane uses is the <code>lanes</code> block in
+<code>osc_map.json</code>:</p>
+<pre><code>"lanes": {
+  "lights": {"layer": 3, "dir": "content/light-loops"},
+  "screen": {"layer": 1, "dir": "content/screen"}
+}</code></pre>
+<p>A file already in the layer keeps its slot, so re-loading never scatters your
+clips. The sidebar then shows <code>→ Resolume layer 3, clip 6</code> under the
+cue, which is the quickest way to see a cue is wired up.</p>
+
+<h3>How it stays in time</h3>
+<p>Two different things, worth keeping apart:</p>
+<ul>
+  <li><b>When a clip starts</b> — the cue fires at its bar, because the player
+    follows Live's playhead. Arena's clip trigger quantisation can hold that to
+    the next beat or bar, which is tighter but lands slightly after the cue.</li>
+  <li><b>How it runs</b> — loaded clips are set to <b>BPM Sync</b>, snapping to
+    1 bar, so playback follows Arena's tempo. Turn on <b>Ableton Link</b> in
+    Arena and that tempo follows Live, so a 2-bar chase stays in time even when
+    the tempo changes. <code>--no-sync</code> leaves the transport alone.</li>
+</ul>
+<div class="note">
+  <b>Patching stays manual.</b> The Lumiverse and its fixtures live in Advanced
+  Output, which the API does not reach. Patch once, save the composition, and
+  check the order by playing <code>identify.mp4</code>.
+</div>
+
+<h2>Conventions</h2>
+
+<h3>Locators in Live</h3>
+<p>This is the contract between the music and the visuals.</p>
+<pre><code>&gt;&gt; Intermission     bar 1     a locator starting with &gt;&gt; starts a song
+Build 1             bar 17    plain names are its sections
+Drop 1              bar 33
+&gt;&gt; Afterglow        bar 129   next song</code></pre>
+<ul>
+  <li>Live allows one locator per position, so a song marker and its first section
+    cannot share a bar. The gap is called <b>Start</b> automatically.</li>
+  <li>Rename a section and every cue pointing at it is orphaned — on purpose,
+    so renaming is a decision, not an accident.</li>
+  <li>Rewrite the music inside a section as much as you like. The plan holds.</li>
+</ul>
+
+<h3>Names</h3>
+<ul>
+  <li><b>Looks</b> are named things — "Amber wash", "White snap". A Lights cue
+    names a look; it never describes a colour.</li>
+  <li><b>Screen and Lights cues</b> name a clip exactly as Resolume calls it. The
+    player finds it <b>by name</b> in the open composition, in the lane's layer.
+    Move a clip to another slot and its cues follow; rename it and they turn ✗.</li>
+  <li><b>Scenes</b> are Resolume <b>columns</b>, by name. Name a column in
+    Resolume ("Drop 1") and that is the scene.</li>
+  <li><b>Bounces</b> are dated: <code>Set_2026-09-21.mp3</code>.</li>
+  <li><b>Fixtures</b> are <code>PAR_01</code> … in the order they sit on the floor,
+    stage right to stage left.</li>
+</ul>
+
+<h3>Time</h3>
+<p>Cues are stored as <b>section + offset in bars</b>. Never seconds. That single
+choice is what lets the music change without breaking the plan.</p>
+
+<h2>The Resolume panel</h2>
+<p>Under the timeline is your composition as Arena shows it: columns along the
+top, layers as rows of thumbnails, the top layer on top. Each layer says which
+lane uses it (<i>→ lights</i>). It follows Arena live, so a clip you load or move
+there shows here within a second.</p>
+<ul>
+  <li><b>Drag a clip onto a lane</b> — a cue for that clip, at that bar.</li>
+  <li><b>Drag a column onto Scenes</b> — a scene cue that fires the whole row.</li>
+  <li><b>Drag onto a cue</b> — swaps its clip, keeping where and how long.</li>
+  <li><b>Click a clip</b> — selects every cue that uses it. The yellow badge says how many.</li>
+  <li>A clip playing in Resolume has a green edge.</li>
+</ul>
+<p>A cue on a lane whose layer isn't the clip's (a lights-layer clip on Screen)
+remembers its layer; the sidebar's <b>Layer</b> field shows and changes it.</p>
+
+<h3>Lanes that fold open</h3>
+<p>▸ next to a lane's name opens it (<kbd>alt</kbd>-click opens every lane). Each
+cue then shows its thumbnail, what it resolves to (<i>✓ Layer 1 · clip 4</i>),
+its length and whether the clip is BPM-synced, and its note. A scene shows what
+each layer switches to.</p>
+<table>
+  <tr><th>On a cue</th><th>Means</th></tr>
+  <tr><td>✓</td><td>Found in the open composition. It will fire.</td></tr>
+  <tr><td>✗ and stripes</td><td>Names something Resolume doesn't have, or a look that is only in the previz. It will do nothing. Drag the right clip onto it.</td></tr>
+  <tr><td>green glow</td><td>The lane's current cue, and Resolume is playing its clip right now.</td></tr>
+  <tr><td>dashed red</td><td>Live is playing, this is the current cue, but Resolume isn't playing its clip. Something is off.</td></tr>
+</table>
+<h3>Fades</h3>
+<p>Every cue can <b>fade in</b>, in bars. Drag the small ▾ on a cue's top edge to
+the right (a diagonal line shows the fade), use the fade chips in the quick
+picker, or the <b>Fade in</b> field. When the player fires the cue it first sets
+that layer's transition time in Resolume, so Resolume crossfades on its own clock
+— smooth, and in time. A scene fades every layer.</p>
+<ul>
+  <li>No fade is a cut. Jumping around the arrangement, and panic, always cut.</li>
+  <li>Resolume's longest transition is 10 s (5 bars at 120 bpm). Longer is capped,
+    and the sidebar says so. For long swells, draw an automation lane instead.</li>
+  <li>The crossfade uses the layer's blend mode: leave it on <b>Alpha</b>.</li>
+</ul>
+
+<h3>Working fast: the quick picker</h3>
+<p>What a cue fires, how it fades and its note, set on the cue itself:</p>
+<ul>
+  <li><b>Double-click a lane</b> — adds a cue and opens the picker on it. Type a
+    few letters, <kbd>enter</kbd>. That's a whole cue.</li>
+  <li><b>Enter</b> on a selected cue, or its ▾ button, opens the picker again.</li>
+  <li>It lists the clips in that cue's layer with thumbnails (columns, for
+    Scenes; looks too, for Lights). <kbd>↑</kbd><kbd>↓</kbd> and
+    <kbd>enter</kbd>; a name that isn't there is used as typed.</li>
+  <li>With several cues selected, the picker and fade chips change them all.</li>
+</ul>
+<p>The sidebar stays for the rest: song, section and offset (which dragging
+already sets), the layer, loading media files.</p>
+
+<div class="note">Arena closed? The panel and the player fall back to
+<code>composition.json</code>, the composition as last seen, so planning still
+works and your brother sees the same names. With no composition known at all,
+the player uses the positions in <code>osc_map.json</code>.</div>
+
+<h2>Cues and automation</h2>
+<p>The timeline has two kinds of lane, both anchored to sections in bars.</p>
+<div class="cols">
+  <div class="card">
+    <h3>Cue lanes — things that happen</h3>
+    <ul>
+      <li><b>Scenes</b> — a Resolume column, by its name (or a number): one
+        trigger changes a whole row.</li>
+      <li><b>Screen</b> — a clip, by name, in the screen layer.</li>
+      <li><b>Lights</b> — a control-band clip, by name. A look from the floor plan
+        shows in the previz but isn't a Resolume clip until one is made of it.</li>
+      <li><b>TD</b> — a TouchDesigner scene.</li>
+      <li><b>Notes</b> — for people, never sent.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Automation lanes — things that move</h3>
+    <ul>
+      <li>One OSC target per lane, picked from the library.</li>
+      <li>Double-click to add a point, drag to move it, double-click to remove it.</li>
+      <li>Each point either <b>ramps</b> to the next or <b>holds</b> until it.</li>
+      <li>Sent only when the value moves, so a flat stretch costs nothing.</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Shaping automation</h3>
+<p>Points anchor to sections like cues. What happens <i>between</i> two points
+is the first point's shape:</p>
+<table>
+  <tr><th>Shape</th><th>Does</th><th>How</th></tr>
+  <tr><td>straight</td><td>a steady ramp</td><td>the default</td></tr>
+  <tr><td>ease in / ease out</td><td>slow then fast / fast then slow</td><td><kbd>alt</kbd>-drag the line up or down to bend it any amount, or pick it in <b>To the next</b></td></tr>
+  <tr><td>S-curve</td><td>eases both ends; <kbd>alt</kbd>-drag makes it steeper</td><td><b>To the next</b></td></tr>
+  <tr><td>hold</td><td>stays, then jumps at the next point</td><td><b>To the next</b></td></tr>
+</table>
+<p>The timeline draws exactly what the player sends — they share one formula.</p>
+<ul>
+  <li><b>∿</b> in a lane's header draws a shape over a stretch: sine (breathing),
+    triangle, saw up (builds), saw down, square (on/off) or random (drifting),
+    every N bars, between two levels. It works on your selected points' stretch,
+    or the section under the playhead, and replaces the points there. The result
+    is ordinary points, so you can still edit them by hand.</li>
+  <li><kbd>⌘</kbd>-drag in a lane draws freehand; it's thinned to the few points
+    that keep its shape.</li>
+  <li><kbd>shift</kbd>-drag a point changes only its value, five times finer.</li>
+  <li>While dragging, the value shows by the cursor — in % and in the target's own units.</li>
+  <li><kbd>⌘C</kbd> / <kbd>⌘V</kbd> copy points and paste them at the playhead, in the same lanes.</li>
+</ul>
+
+<h3>Automating Resolume parameters</h3>
+<p>A lane's menu ends with <b>＋ a Resolume parameter…</b>, and the bottom row has
+<b>＋ from Resolume…</b>. Both list every parameter in the open composition that
+can move: the master, composition and layer opacity, and every parameter of every
+effect (<i>Layer 3 · Transform · Scale</i>). Type any words to find one.</p>
+<ul>
+  <li>It's stored by its <b>name</b> — layer, effect, parameter — not by an id, so it
+    survives Arena restarting. The player sends it by id over the REST API at
+    ~60 per second (about 0.2 ms each).</li>
+  <li>The button next to the lane's value (<i>80…150</i>) sets what 0% and 100%
+    mean in the parameter's own units. It starts at the full range, which is often
+    too wide: Scale goes to 1000, where 100 is normal size.</li>
+  <li>Two effects with the same name on one layer are <i>Blur</i> and <i>Blur #2</i>.
+    Rename or reorder effects in Resolume and the lane turns up as missing in
+    <code>preflight.py</code>; pick it again.</li>
+</ul>
+
+<h3>The address library</h3>
+<p><code>osc_map.json</code> holds every target once, the way Ableton's OSC
+Send device does — so it travels with the project instead of being rebuilt in
+every Live set:</p>
+<pre><code>"targets": [
+  {"name": "Master intensity", "address": "/composition/video/opacity",
+   "min": 0, "max": 1, "curve": 0},
+  {"name": "TD energy", "address": "/td/energy", "min": 0, "max": 1,
+   "curve": 0, "port": 9000}
+]</code></pre>
+<p>A Resolume parameter picked from the menu is saved there too, as
+<code>{"name": "Layer 3 · Transform · Scale", "resolume": ["layer", 3, "effect",
+"Transform", "Scale"], "min": 80, "max": 150}</code>. Raw OSC targets (for
+TouchDesigner, or anything else) are written by hand as above.</p>
+<ul>
+  <li><b>min / max</b> — what 0% and 100% on the lane become.</li>
+  <li><b>curve</b> — −1 to 1, for the whole target. Leave it at 0 and shape the
+    lanes instead; use it only to correct a response, like pars that barely
+    change in their bottom quarter.</li>
+  <li><b>host / port</b> — optional; default is Resolume from the top of the file.</li>
+</ul>
+<div class="note">The hand-written OSC targets in there now are
+<b>placeholders</b>. For Resolume, pick real parameters from the lane menu
+instead; keep OSC for TouchDesigner.</div>
+
+<h3>On the night</h3>
+<p><code>cue_player.py --follow</code> is the engine: it follows Live, fires the
+cues and plays the curves. Press <b>Follow Live</b> in the timeline and it
+becomes a mirror — the playhead follows the player, each lane shows the value
+being sent, and cues glow as they fire. The browser watches; it never sends.</p>
+<div class="note">Automation follows Live about 60 times a second: smooth for
+fades and builds, not beat-accurate. For anything locked to the beat, use
+Resolume's own BPM-synced effects over Ableton Link, and automate <i>how much</i>.</div>
+
+<h2>Working alone</h2>
+<div class="cols">
+  <div class="card">
+    <h3>A music session (Sil)</h3>
+    <ol>
+      <li>Write. Keep locators up to date as the arrangement changes.</li>
+      <li>Bounce the whole arrangement to <code>audio/</code>, dated.</li>
+      <li>Re-sync the structure:
+        <pre><code>python3 sync_show.py --als-dir ~/Music</code></pre></li>
+      <li>Read the diff it prints. It names what moved and what is now orphaned.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>A visual session</h3>
+    <ol>
+      <li>Double-click <code>Test.command</code>.</li>
+      <li><b>Floor plan</b> for where the pars stand and what the looks are.</li>
+      <li><b>Show timeline</b> to place cues against the music you can hear.</li>
+      <li>Check it in Blender, which lights the room with the look you are on.</li>
+      <li>Before stopping: <code>python3 cue_player.py --dry-run</code> to see the
+        whole show as a cue list, and catch anything that maps to nothing.</li>
+    </ol>
+  </div>
+</div>
+
+<h2>Working together</h2>
+<p>The folder is the project. Put it in Dropbox and you both have the same rig,
+looks, plan and bounces — no Ableton project to move.</p>
+<ul>
+  <li><b>Hand-off is a bounce plus a sync.</b> After a writing session, the new
+    mp3 and the refreshed <code>show.json</code> are all the other side needs.</li>
+  <li><b>Don't both edit the same file at once.</b> The editors save whole files,
+    so two people editing <code>cues.json</code> at the same time will make a
+    conflicted copy in Dropbox. One plans while the other writes.</li>
+  <li>An editor refuses to save over a file that changed since it loaded it, and
+    says <i>changed elsewhere — reload</i>. That protects you from a forgotten
+    tab wiping out newer work; reload the page and carry on.</li>
+  <li><b>Only the previz needs Blender.</b> Planning needs the browser and the bounce.</li>
+  <li><code>Test.command</code> tells the sync client to ignore <code>.live/</code>,
+    which is rewritten many times a second while the previz runs.</li>
+</ul>
+
+<h2>Show day</h2>
+<ol>
+  <li>Tape the floor from the plan: <code>patch/floorplan.svg</code> has distances
+    and angles from where you sit; <code>patch/patch.md</code> has the addresses.</li>
+  <li>Patch the pars, then check each one from Resolume before trusting anything.</li>
+  <li>Point Resolume's Art-Net at the real node instead of <code>127.0.0.1</code>.</li>
+  <li>Open Resolume with the show composition and the set in Live.</li>
+  <li>Double-click <code>Live.command</code>. Fix whatever it marks ✗, tick the
+    checklist it prints, press Enter, and play the set.</li>
+</ol>
+<div class="note warn">
+  <b>Wi-Fi is not for DMX.</b> Fine at home, cabled Ethernet on the day.
+</div>
+
+<h2>The files</h2>
+<table>
+  <tr><th>File</th><th>What it holds</th><th>Who writes it</th></tr>
+  <tr><td><code>show.json</code></td><td>setlist, tempo, sections in bars</td><td><code>sync_show.py</code>, from the .als</td></tr>
+  <tr><td><code>cues.json</code></td><td>the plan: what happens at which section</td><td>the show timeline</td></tr>
+  <tr><td><code>looks.json</code></td><td>named lighting looks</td><td>the floor plan page</td></tr>
+  <tr><td><code>rig.json</code></td><td>where the pars stand, and their addresses</td><td>the floor plan page</td></tr>
+  <tr><td><code>osc_map.json</code></td><td>lanes → layers, automation targets, the panic look, raw-OSC cues; positions only as a fallback</td><td>you, by hand</td></tr>
+  <tr><td><code>patch/</code></td><td>the paperwork: table, CSV, floor plan</td><td><code>export_patch.py</code></td></tr>
+  <tr><td><code>venue.blend</code></td><td>the room</td><td><code>build_venue.py</code> — generated, don't hand-edit</td></tr>
+  <tr><td><code>audio/</code></td><td>bounces</td><td>Live's export</td></tr>
+</table>
+
+<h2>Keys</h2>
+<div class="cols">
+  <div class="card">
+    <h3>Show timeline</h3>
+    <div class="kbdgrid">
+      <div>double-click</div><div>add a cue · on a cue, remove it</div>
+      <div>drag</div><div>move; sideways in time, up/down between lanes</div>
+      <div>edges</div><div>change how long it runs</div>
+      <div><kbd>alt</kbd>-drag</div><div>leave a copy behind</div>
+      <div>drag empty</div><div>box-select across lanes</div>
+      <div><kbd>space</kbd></div><div>play / pause the bounce</div>
+      <div><kbd>⌘Z</kbd></div><div>undo · <kbd>⇧⌘Z</kbd> redo</div>
+      <div><kbd>⌘C</kbd> <kbd>⌘V</kbd></div><div>copy, paste at the playhead</div>
+      <div><kbd>⌘D</kbd></div><div>duplicate after itself</div>
+      <div>arrows</div><div>nudge by the grid; up/down changes lane</div>
+      <div>automation</div><div>double-click adds or removes a point; drag moves it</div>
+      <div><kbd>alt</kbd>-drag a line</div><div>bend it: ease in / out</div>
+      <div><kbd>⌘</kbd>-drag a lane</div><div>draw freehand</div>
+      <div><kbd>shift</kbd>-drag a point</div><div>fine value, time locked</div>
+      <div>∿</div><div>draw a sine, saw, square or random shape over a stretch</div>
+      <div>Follow Live</div><div>mirror what the player is doing</div>
+      <div>▸ on a lane</div><div>fold open: thumbnail, target, ✓/✗ · <kbd>alt</kbd> all lanes</div>
+      <div>drag from panel</div><div>clip → lane, column → Scenes, onto a cue swaps it</div>
+      <div><kbd>enter</kbd> · ▾</div><div>quick picker: clip, fade, note — on the cue</div>
+      <div>▾ on top edge</div><div>drag right to fade the cue in</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Floor plan &amp; Blender</h3>
+    <div class="kbdgrid">
+      <div>drag a par</div><div>move it; the label shows distance and angle</div>
+      <div>handle</div><div>aim the beam</div>
+      <div><kbd>S</kbd></div><div>flip snapping while held</div>
+      <div><kbd>alt</kbd>-drag</div><div>pan the plan</div>
+      <div><kbd>opt 1-6</kbd></div><div>Blender: seat / plan cameras</div>
+      <div><kbd>opt H</kbd></div><div>Blender: haze on / off</div>
+      <div><kbd>opt L</kbd></div><div>Blender: live on / off</div>
+      <div><kbd>opt K</kbd></div><div>Blender: hide the controls list</div>
+    </div>
+  </div>
+</div>
+
+<h2>When something is wrong</h2>
+<table>
+  <tr><th>What you see</th><th>Why</th></tr>
+  <tr><td>Blender shows 0 Art-Net packets</td><td>Resolume holds the port too. It binds every local address, so this is rare — if it happens, bind Resolume's Art-Net node to one interface.</td></tr>
+  <tr><td>Screen stays on the test card</td><td>The bridge isn't running, or Resolume has no Syphon output device. <code>uv run syphon_bridge.py --list</code> shows what is being published.</td></tr>
+  <tr><td>Cues in the timeline are red</td><td>Their section was renamed or deleted in Live. The sidebar re-points them in one click.</td></tr>
+  <tr><td>A cue does nothing when played</td><td>It's striped with ✗: the name isn't in the open composition. Fold the lane open to see why. <code>--dry-run</code> lists them all.</td></tr>
+  <tr><td>The player sits at one bar</td><td>AbletonOSC isn't enabled as a Control Surface, or Live isn't playing.</td></tr>
+  <tr><td>Follow Live says <i>no player running</i></td><td>The timeline mirrors <code>cue_player</code>, not Live directly. <code>Test.command</code> starts it; on its own: <code>python3 cue_player.py --follow --preview</code>. Ableton Link has nothing to do with it — Link shares tempo, not the playhead's position.</td></tr>
+  <tr><td>Follow Live says <i>Live · stopped</i></td><td>All connected; Live just isn't playing. Press play.</td></tr>
+  <tr><td>Follow Live says <i>Live not reachable</i></td><td>The player is running but Live isn't answering: Live is closed, restarting, or AbletonOSC is off. The player keeps asking every two seconds and reconnects by itself when Live is back.</td></tr>
+  <tr><td>Live's tempo changed by itself</td><td>Ableton Link is on and another app in the session (Arena, TouchDesigner) has a different tempo. Link makes everyone agree, so Live follows. Set the tempo in Live, or turn Link off in the others.</td></tr>
+  <tr><td>A stray player won't stop</td><td>Either launcher stops leftovers when it starts. By hand: <code>pkill -f cue_player.py</code>.</td></tr>
+  <tr><td>The previz is dark</td><td>Nothing is sending. Design a look, or press Chase in Blender's Venue tab.</td></tr>
+</table>
+
+<h2>Why both Blender and the browser</h2>
+<p>The 3D view under the floor plan is a <b>map</b>: it answers where a par points
+and what it covers, while you drag. Blender is a <b>photograph</b>: haze, beam
+scattering, the screen lighting your face, soft shadows, and renders you can show
+someone. Rebuilding that in the browser would be weeks of shader work for a worse
+answer, so each stays where it is good.</p>
+
+</main>
+<script src="/lib/status.js"></script>
+</body>
+</html>

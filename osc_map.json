@@ -1,0 +1,133 @@
+{
+  "resolume": {
+    "host": "127.0.0.1",
+    "port": 7000
+  },
+  "//": "One entry per cue value, as 'lane:value'. Either {layer, clip} for Resolume's connect message, or a list of raw OSC messages.",
+  "cues": {
+    "screen:slow grain": {
+      "layer": 1,
+      "clip": 1
+    },
+    "screen:liquid": {
+      "layer": 1,
+      "clip": 2
+    },
+    "lights:Amber wash": {
+      "layer": 2,
+      "clip": 1
+    },
+    "lights:Deep blue": {
+      "layer": 2,
+      "clip": 2
+    },
+    "lights:White snap": {
+      "layer": 2,
+      "clip": 3
+    },
+    "lights:Sides only": [
+      {
+        "address": "/composition/layers/2/clips/4/connect",
+        "args": [
+          1
+        ]
+      },
+      {
+        "address": "/composition/layers/2/video/opacity",
+        "args": [
+          0.8
+        ]
+      }
+    ]
+  },
+  "//targets": "Automation targets, like the rows in Ableton's OSC Send: an address, the range the curve is scaled into, and a curve (-1..1, 0 = straight). host/port are optional and default to the resolume block. These are PLACEHOLDERS - replace them with your real parameters. The three 'Lights ...' targets are the control-band layers: base colour, movement loop, and the Video Router copy of the screen. Layer numbers are PLACEHOLDERS - set them to your real layers.",
+  "targets": [
+    {
+      "name": "Master intensity",
+      "address": "/composition/video/opacity",
+      "min": 0,
+      "max": 1,
+      "curve": 0
+    },
+    {
+      "name": "Layer 1 opacity",
+      "address": "/composition/layers/1/video/opacity",
+      "min": 0,
+      "max": 1,
+      "curve": 0
+    },
+    {
+      "name": "Layer 2 opacity",
+      "address": "/composition/layers/2/video/opacity",
+      "min": 0,
+      "max": 1,
+      "curve": 0
+    },
+    {
+      "name": "Strobe rate",
+      "address": "/composition/video/effects/strobe/effect/rate",
+      "min": 0,
+      "max": 1,
+      "curve": 0.5
+    },
+    {
+      "name": "Hue",
+      "address": "/composition/video/effects/huerotate/effect/huerotate",
+      "min": 0,
+      "max": 1,
+      "curve": 0
+    },
+    {
+      "name": "TD energy",
+      "address": "/td/energy",
+      "min": 0,
+      "max": 1,
+      "curve": 0,
+      "host": "127.0.0.1",
+      "port": 9000
+    },
+    {
+      "name": "Lights base",
+      "address": "/composition/layers/3/video/opacity",
+      "min": 0,
+      "max": 1,
+      "curve": 0.4
+    },
+    {
+      "name": "Lights movement",
+      "address": "/composition/layers/4/video/opacity",
+      "min": 0,
+      "max": 1,
+      "curve": 0.4
+    },
+    {
+      "name": "Lights mirror screen",
+      "address": "/composition/layers/5/video/opacity",
+      "min": 0,
+      "max": 1,
+      "curve": 0.4
+    }
+  ],
+  "//scenes": "Scenes lane: a cue whose value is a number fires that Resolume column. Name a scene here to give it a friendlier label.",
+  "scenes": {
+    "Intro": 1,
+    "Build": 2,
+    "Drop": 3,
+    "Breakdown": 4
+  },
+  "//lanes": "Where each timeline lane's clips live: the Resolume layer they load into, and the folder the picker browses. arena_load.py and the Load clip button in the timeline both use this.",
+  "lanes": {
+    "lights": {
+      "layer": 3,
+      "dir": "content/light-loops"
+    },
+    "screen": {
+      "layer": 1,
+      "dir": "content/screen"
+    }
+  },
+  "panic": {
+    "//": "What p (PANIC) in the player sends: a cue value per lane, exactly as in the timeline. Lanes left out hold where they are. PLACEHOLDER: pick a calm, safe look you have loaded.",
+    "lights": "Amber wash"
+  }
+}

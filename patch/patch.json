@@ -1,0 +1,282 @@
+{
+  "venue": {
+    "room": [
+      15.0,
+      20.0,
+      8.5
+    ],
+    "screen": [
+      11.5,
+      6.0,
+      1.3
+    ],
+    "performer_from_screen": 1.8,
+    "screen_to_first_row": 4.0
+  },
+  "fixtures": [
+    {
+      "name": "BAR_01",
+      "kind": "bar",
+      "profile": "showtec-pixelbar-18-q4",
+      "mode": "72ch",
+      "pixels": 18,
+      "universe": 0,
+      "address": 33,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 72,
+      "x": -4.2,
+      "y": -0.9,
+      "distance": 4.3,
+      "angle": -102.1,
+      "beam_deg": null,
+      "rot_deg": 0.0
+    },
+    {
+      "name": "BAR_02",
+      "kind": "bar",
+      "profile": "showtec-pixelbar-18-q4",
+      "mode": "72ch",
+      "pixels": 18,
+      "universe": 0,
+      "address": 105,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 72,
+      "x": -1.6,
+      "y": -0.9,
+      "distance": 1.84,
+      "angle": -119.4,
+      "beam_deg": null,
+      "rot_deg": 0.0
+    },
+    {
+      "name": "BAR_03",
+      "kind": "bar",
+      "profile": "showtec-pixelbar-18-q4",
+      "mode": "72ch",
+      "pixels": 18,
+      "universe": 0,
+      "address": 177,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 72,
+      "x": 1.591,
+      "y": 1.591,
+      "distance": 2.25,
+      "angle": 45.0,
+      "beam_deg": null,
+      "rot_deg": 15.0
+    },
+    {
+      "name": "BAR_04",
+      "kind": "bar",
+      "profile": "showtec-pixelbar-18-q4",
+      "mode": "72ch",
+      "pixels": 18,
+      "universe": 0,
+      "address": 249,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 72,
+      "x": 4.2,
+      "y": -0.9,
+      "distance": 4.3,
+      "angle": 102.1,
+      "beam_deg": null,
+      "rot_deg": 0.0
+    },
+    {
+      "name": "PAR_01",
+      "kind": "par",
+      "profile": "gm-par-rgbw-7x10",
+      "mode": "4ch",
+      "pixels": 1,
+      "universe": 0,
+      "address": 1,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 4,
+      "x": -1.1,
+      "y": -1.905,
+      "distance": 2.2,
+      "angle": -150.0,
+      "beam_deg": 25.0,
+      "rot_deg": null
+    },
+    {
+      "name": "PAR_02",
+      "kind": "par",
+      "profile": "gm-par-rgbw-7x10",
+      "mode": "4ch",
+      "pixels": 1,
+      "universe": 0,
+      "address": 5,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 4,
+      "x": -1.905,
+      "y": -1.1,
+      "distance": 2.2,
+      "angle": -120.0,
+      "beam_deg": 25.0,
+      "rot_deg": null
+    },
+    {
+      "name": "PAR_03",
+      "kind": "par",
+      "profile": "gm-par-rgbw-7x10",
+      "mode": "4ch",
+      "pixels": 1,
+      "universe": 0,
+      "address": 9,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 4,
+      "x": -2.2,
+      "y": 0.0,
+      "distance": 2.2,
+      "angle": -90.0,
+      "beam_deg": 25.0,
+      "rot_deg": null
+    },
+    {
+      "name": "PAR_04",
+      "kind": "par",
+      "profile": "gm-par-rgbw-7x10",
+      "mode": "4ch",
+      "pixels": 1,
+      "universe": 0,
+      "address": 13,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 4,
+      "x": -1.685,
+      "y": 1.414,
+      "distance": 2.2,
+      "angle": -50.0,
+      "beam_deg": 25.0,
+      "rot_deg": null
+    },
+    {
+      "name": "PAR_05",
+      "kind": "par",
+      "profile": "gm-par-rgbw-7x10",
+      "mode": "4ch",
+      "pixels": 1,
+      "universe": 0,
+      "address": 17,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 4,
+      "x": 1.685,
+      "y": 1.414,
+      "distance": 2.2,
+      "angle": 50.0,
+      "beam_deg": 25.0,
+      "rot_deg": null
+    },
+    {
+      "name": "PAR_06",
+      "kind": "par",
+      "profile": "gm-par-rgbw-7x10",
+      "mode": "4ch",
+      "pixels": 1,
+      "universe": 0,
+      "address": 21,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 4,
+      "x": 2.2,
+      "y": 0.0,
+      "distance": 2.2,
+      "angle": 90.0,
+      "beam_deg": 25.0,
+      "rot_deg": null
+    },
+    {
+      "name": "PAR_07",
+      "kind": "par",
+      "profile": "gm-par-rgbw-7x10",
+      "mode": "4ch",
+      "pixels": 1,
+      "universe": 0,
+      "address": 25,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 4,
+      "x": 1.905,
+      "y": -1.1,
+      "distance": 2.2,
+      "angle": 120.0,
+      "beam_deg": 25.0,
+      "rot_deg": null
+    },
+    {
+      "name": "PAR_08",
+      "kind": "par",
+      "profile": "gm-par-rgbw-7x10",
+      "mode": "4ch",
+      "pixels": 1,
+      "universe": 0,
+      "address": 29,
+      "channels": [
+        "r",
+        "g",
+        "b",
+        "w"
+      ],
+      "footprint": 4,
+      "x": 1.1,
+      "y": -1.905,
+      "distance": 2.2,
+      "angle": 150.0,
+      "beam_deg": 25.0,
+      "rot_deg": null
+    }
+  ]
+}

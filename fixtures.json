@@ -1,0 +1,40 @@
+{
+  "//": "Fixture profiles, from the manufacturers' sheets in ../content. Sizes in metres.",
+  "profiles": {
+    "gm-par-rgbw-7x10": {
+      "name": "GM Light LED PAR RGBW IP65 7x10",
+      "source": "content/Led par rgbw ip65 7x10.pdf",
+      "kind": "par",
+      "leds": 7,
+      "watts": 70,
+      "beam_deg": 25,
+      "ip": "IP65",
+      "body": {"diameter": 0.16, "depth": 0.20},
+      "modes": {
+        "4ch": {"channels": ["r", "g", "b", "w"], "footprint": 4},
+        "8ch": {"channels": ["dim", "r", "g", "b", "w", "strobe", "macro", "speed"],
+                "footprint": 8}
+      },
+      "default_mode": "4ch",
+      "//mode": "Resolume pixel-maps colour, so 4ch RGBW is the one to use; 8ch adds a master dimmer and strobe you would have to drive some other way."
+    },
+    "showtec-pixelbar-18-q4": {
+      "name": "Showtec Pixel Bar 18 Q4 Tour (41302)",
+      "source": "content/41302_MANUAL_GB_V2.pdf",
+      "kind": "bar",
+      "leds": 18,
+      "pixels": 18,
+      "watts": 144,
+      "beam_deg": 18,
+      "ip": "IP20",
+      "body": {"length": 1.04, "width": 0.09, "height": 0.144},
+      "modes": {
+        "3ch": {"channels": ["program", "speed", "strobe"], "footprint": 3},
+        "6ch": {"channels": ["r", "g", "b", "w", "dim", "strobe"], "footprint": 6},
+        "72ch": {"per_pixel": ["r", "g", "b", "w"], "pixels": 18, "footprint": 72}
+      },
+      "default_mode": "72ch",
+      "//mode": "72ch gives each of the 18 LEDs its own RGBW, which is what pixel mapping in Resolume wants. 6ch treats the whole bar as one colour."
+    }
+  }
+}

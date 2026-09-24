@@ -1,0 +1,2069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Show timeline</title>
+<style>
+  :root{
+    --bg:#15161a; --panel:#1d1f25; --line:#2c2f37; --text:#e7e8ec; --dim:#9AA0AC;
+    --accent:#ffd54a; --ok:#57c98a; --warn:#e2725b;
+    --screen:#5b8cff; --lights:#ffd54a; --td:#57c98a; --note:#b07de0; --scenes:#ff8a5b;
+    --auto:#6fd3e0;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:13px/1.5 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+    user-select:none;-webkit-user-select:none}
+  input,textarea{user-select:text;-webkit-user-select:text}
+  #app{display:flex;height:100%}
+  #main{flex:1;display:flex;flex-direction:column;min-width:0}
+  header{display:flex;gap:12px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}
+  header h1{font-size:14px;margin:0;white-space:nowrap}
+  header .sub{color:var(--dim);white-space:nowrap}
+  header a{color:var(--dim);text-decoration:none;border:1px solid var(--line);
+    border-radius:6px;padding:3px 9px;white-space:nowrap}
+  header a:hover{color:var(--text)}
+  #transport{display:flex;gap:8px;align-items:center}
+  #transport button{width:34px}
+  #transport.playing #play{background:var(--accent);color:#15161a}
+  #scroll{flex:1;overflow:auto;position:relative}
+  #tl{position:relative;min-width:100%;padding-bottom:10px}
+  .head{position:relative;height:24px;border-bottom:1px solid var(--line);cursor:col-resize}
+  .songs{background:#1a1c21}
+  .song{position:absolute;top:0;height:24px;padding:2px 8px;border-left:1px solid #39404d;
+    font-weight:600;white-space:nowrap;overflow:hidden;background:#20232a;pointer-events:none}
+  .sec{position:absolute;top:0;height:24px;padding:2px 6px;border-left:1px solid var(--line);
+    color:var(--dim);white-space:nowrap;overflow:hidden;pointer-events:none}
+  .sec.alt{background:#191b20}
+  .ruler{height:18px;background:#16181c}
+  .tick{position:absolute;top:0;height:18px;border-left:1px solid #343a45;
+    padding-left:3px;font-size:10px;color:#6d7482;pointer-events:none}
+  .lane{position:relative;height:44px;border-bottom:1px solid var(--line)}
+  .lane .name{position:absolute;left:0;top:0;z-index:3;padding:1px 8px;
+    background:var(--panel);color:var(--dim);border-right:1px solid var(--line);
+    border-bottom-right-radius:6px;pointer-events:none}
+  .cue{position:absolute;top:16px;height:24px;border-radius:4px;padding:2px 7px;
+    color:#15161a;font-weight:600;white-space:nowrap;overflow:hidden;cursor:grab;
+    box-shadow:0 1px 0 rgba(0,0,0,.4)}
+  .cue.sel{outline:2px solid #fff;outline-offset:1px;z-index:2}
+  .cue.orphan{background:var(--warn)!important;color:#fff}
+  .cue .grip{position:absolute;top:0;width:7px;height:100%;cursor:ew-resize}
+  .cue .grip.l{left:0}
+  .cue .grip.r{right:0}
+  .alane{position:relative;height:86px;border-bottom:1px solid var(--line);background:#17191d}
+  .alane svg{position:absolute;left:0;top:0;overflow:visible}
+  .alane .ahead{position:absolute;left:0;top:0;z-index:3;display:flex;gap:6px;align-items:center;
+    padding:2px 6px;background:var(--panel);border-right:1px solid var(--line);
+    border-bottom-right-radius:6px}
+  .alane .ahead select{width:auto;padding:1px 4px;font-size:12px}
+  .alane .ahead button{padding:0 6px;font-size:12px;line-height:18px}
+  .alane .ahead .val{color:var(--auto);font-variant-numeric:tabular-nums;min-width:34px}
+  .apt{cursor:grab}
+  .addlane{display:flex;gap:6px;align-items:center;padding:8px;color:var(--dim)}
+  .addlane select{width:auto}
+  .cue.fired{box-shadow:0 0 0 2px #fff, 0 0 14px rgba(255,255,255,.6)}
+  #follow.on{background:#e2725b;color:#fff;border-color:#e2725b}
+  .grid{position:absolute;top:0;bottom:0;width:1px;background:#1e2128;pointer-events:none}
+  .grid.strong{background:#282d36}
+  #playhead{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none;
+    box-shadow:0 0 8px rgba(255,255,255,.45);z-index:5}
+  #playhead::before{content:"";position:absolute;top:0;left:-5px;border-left:6px solid transparent;
+    border-right:6px solid transparent;border-top:8px solid #fff}
+  #marquee{position:absolute;border:1px dashed var(--accent);background:rgba(255,213,74,.08);
+    pointer-events:none;z-index:4}
+  aside{width:268px;flex:none;background:var(--panel);border-left:1px solid var(--line);
+    padding:14px;overflow-y:auto}
+  h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);
+    margin:16px 0 8px;font-weight:600}
+  .row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+  .row label{width:70px;color:var(--dim);flex:none}
+  input,select,textarea{width:100%;background:#121316;color:var(--text);border:1px solid var(--line);
+    border-radius:5px;padding:5px 7px;font:inherit}
+  textarea{height:60px;resize:vertical}
+  button{background:#282b33;color:var(--text);border:1px solid var(--line);border-radius:6px;
+    padding:6px 9px;font:inherit;cursor:pointer}
+  button:hover{background:#31353f}
+  button:disabled{opacity:.4;cursor:default}
+  button.danger:hover{background:#3a2420;border-color:var(--warn)}
+  .btns{display:flex;gap:6px;flex-wrap:wrap}
+  .sub{color:var(--dim)}
+  #status b{color:var(--ok)}
+  #status.err b{color:var(--warn)}
+  #lightstrip{display:flex;gap:4px;margin-top:2px}
+  #lightstrip div{width:20px;height:20px;border-radius:50%;border:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse}
+  td{padding:2px 0}
+
+  #nav{display:flex;gap:6px;align-items:center;padding:6px 10px;background:#131418;
+    border-bottom:1px solid var(--line);flex:none}
+  #nav a{color:var(--dim);text-decoration:none;border:1px solid var(--line);
+    border-radius:6px;padding:3px 10px;font-size:12px}
+  #nav a:hover{color:var(--text);background:#22252c}
+  #nav a.here{color:#15161a;background:var(--accent);border-color:var(--accent);font-weight:600}
+  /* lanes fold open to show what each cue really is */
+  .lane.open{height:98px}
+  .lane .name{pointer-events:none}
+  .fold{pointer-events:auto;background:none;border:none;color:var(--dim);padding:0 5px 0 0;
+    font-size:11px;cursor:pointer;line-height:inherit}
+  .fold:hover{color:var(--text);background:none}
+  .lane.open .cue{top:19px;height:74px;padding:4px 6px;display:flex;gap:7px;align-items:flex-start;
+    white-space:normal}
+  .cue img{width:64px;height:36px;object-fit:cover;border-radius:3px;flex:none;background:rgba(0,0,0,.25)}
+  .cue .info{min-width:0;display:flex;flex-direction:column;line-height:1.3}
+  .cue .info b,.cue .info i{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cue .info i{font-style:normal;font-weight:500;font-size:11px;opacity:.85}
+  .cue .info .bad{color:#8a1d0a;opacity:1;font-weight:700}
+  .cue.unres:not(.orphan){background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(0,0,0,.16) 6px 12px)}
+  .cue.live{box-shadow:0 0 0 2px var(--ok),0 0 14px rgba(87,201,138,.65)}
+  .cue.notlive{outline:2px dashed var(--warn);outline-offset:1px}
+  .cue.dropswap{outline:2px dashed #fff;outline-offset:2px}
+  .ghost{position:absolute;border:2px dashed #fff;border-radius:4px;pointer-events:none;
+    background:rgba(255,255,255,.08);z-index:6;color:#fff;font-size:11px;padding:2px 6px;white-space:nowrap}
+
+  /* the Resolume panel: the composition as Arena shows it, to drag from */
+  #rz{flex:none;border-top:1px solid var(--line);background:#17191d;display:flex;flex-direction:column;
+    max-height:42%}
+  #rz.folded #rz-grid{display:none}
+  #rz-head{display:flex;gap:8px;align-items:center;padding:5px 10px;white-space:nowrap;overflow:hidden}
+  #rz-head button{padding:0 6px;line-height:18px}
+  #rz-grid{overflow:auto;padding:0 10px 8px}
+  .rz-table{border-collapse:separate;border-spacing:4px}
+  .rz-table td,.rz-table th{padding:0;vertical-align:top}
+  .rz-col{background:#23262d;border:1px solid var(--line);border-radius:5px;padding:1px 7px;cursor:grab;
+    font-size:12px;width:92px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rz-col.unnamed{color:var(--dim);font-style:italic}
+  .rz-col.on{border-color:var(--ok);color:var(--ok)}
+  .rz-clip{width:92px;cursor:grab;border:1px solid var(--line);border-radius:5px;overflow:hidden;
+    background:#101114;position:relative}
+  .rz-clip img{display:block;width:92px;height:52px;object-fit:cover;background:#0c0d10;pointer-events:none}
+  .rz-clip span{display:block;padding:1px 5px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rz-clip.on{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok)}
+  .rz-clip.used::after{content:attr(data-used);position:absolute;top:3px;right:3px;background:var(--accent);
+    color:#15161a;border-radius:8px;font-size:10px;padding:0 5px;font-weight:700}
+  .rz-clip.missing span{color:var(--warn)}
+  .rz-empty{width:92px;height:71px;border:1px dashed #262930;border-radius:5px}
+  .rz-layer{color:var(--dim);font-size:12px;white-space:nowrap;padding-right:6px!important;text-align:right}
+  .rz-layer b{display:block;color:var(--text);font-weight:600}
+  /* automation tools */
+  .alane .ahead .tool{padding:0 6px;font-size:12px;line-height:18px}
+  #readout{position:fixed;z-index:60;pointer-events:none;background:#0d0e11;border:1px solid #3a3f4a;
+    color:var(--auto);font:12px ui-monospace,Menlo,monospace;padding:2px 6px;border-radius:5px}
+  #readout[hidden]{display:none}
+  .pop{position:fixed;z-index:55;background:var(--panel);border:1px solid #3a3f4a;border-radius:9px;
+    box-shadow:0 10px 30px rgba(0,0,0,.55);padding:10px;width:300px}
+  .pop[hidden]{display:none}
+  .pop h3{margin:0 0 8px;font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+  .pop .row label{width:78px}
+  #tp-list{max-height:300px;overflow-y:auto;margin-top:6px}
+  #tp-list .grp{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:8px 4px 2px}
+  #tp-list .it{padding:3px 6px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+  #tp-list .it:hover,#tp-list .it.hi{background:#2e3340}
+  #tp-list .it small{color:var(--dim);white-space:nowrap}
+  /* fades: Ableton's clip-fade handle, on the cue's top edge */
+  .cue .fadeov{position:absolute;left:0;top:0;bottom:0;pointer-events:none;
+    background:linear-gradient(to bottom right, transparent calc(50% - 1px), rgba(0,0,0,.55) 50%, transparent calc(50% + 1px)),
+               linear-gradient(to right, rgba(0,0,0,.35), rgba(0,0,0,0))}
+  .cue .fh{position:absolute;top:0;width:14px;height:11px;margin-left:-7px;cursor:ew-resize;z-index:2;
+    background:#fff;clip-path:polygon(0 0,100% 0,50% 100%);opacity:0}
+  .cue:hover .fh,.cue.sel .fh{opacity:.95}
+  .cue .pickbtn{position:absolute;right:8px;top:2px;z-index:2;border:none;padding:0 4px;line-height:16px;
+    font-size:10px;background:rgba(0,0,0,.25);color:#15161a;border-radius:3px;cursor:pointer}
+  .cue .pickbtn:hover{background:rgba(0,0,0,.4)}
+
+  /* the quick picker: what, fade and note, on the cue itself */
+  #pick{position:fixed;z-index:50;width:290px;background:var(--panel);border:1px solid #3a3f4a;border-radius:9px;
+    box-shadow:0 10px 30px rgba(0,0,0,.55);padding:8px;display:flex;flex-direction:column;gap:6px}
+  #pick[hidden]{display:none}
+  #pick-list{max-height:250px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+  .po{display:flex;gap:8px;align-items:center;padding:3px 6px;border-radius:5px;cursor:pointer}
+  .po.hi{background:#2e3340}
+  .po img,.po .noimg{width:40px;height:23px;object-fit:cover;border-radius:3px;flex:none;background:#0c0d10}
+  .po b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .po small{display:block;color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .po.look small{color:var(--accent)}
+  #pick-fade{display:flex;gap:4px;align-items:center;color:var(--dim);font-size:12px}
+  #pick-fade button{padding:1px 7px;font-size:12px}
+  #pick-fade button.on{background:var(--accent);color:#15161a;border-color:var(--accent)}
+  #pick .hint{color:var(--dim);font-size:11px}
+  .kbd{font:11px ui-monospace,Menlo,monospace;background:#121316;border:1px solid var(--line);
+    border-radius:4px;padding:0 4px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="main">
+<nav id="nav">
+  <a href="/" >Floor plan</a>
+  <a href="/show" class="here">Show timeline</a>
+  <a href="/docs">How it works</a>
+</nav>
+    <header>
+      <h1>Show timeline</h1>
+      <span id="transport">
+        <button id="play" title="space">▶</button>
+        <button id="follow" title="mirror what cue_player is doing" style="width:auto">Follow Live</button>
+        <select id="audio-file" style="width:auto;max-width:190px"></select>
+        <span class="sub" id="clock">—</span>
+        <label class="sub" title="seconds before bar 1 in the bounce">offset
+          <input id="audio-offset" type="number" step="0.01" style="width:60px"></label>
+      </span>
+      <span class="sub">snap</span>
+      <select id="snap" style="width:auto">
+        <option value="1">1 bar</option>
+        <option value="2">2</option>
+        <option value="4" selected>4</option>
+        <option value="8">8</option>
+        <option value="16">16</option>
+        <option value="0">off</option>
+      </select>
+      <span style="flex:1"></span>
+      <span class="sub" id="summary">loading</span>
+      <span class="sub" id="status">cues.json <b id="save">…</b></span>
+    </header>
+    <div id="scroll"><div id="tl"></div></div>
+    <section id="rz">
+      <div id="rz-head">
+        <button id="rz-fold" title="show or hide the Resolume panel">▾</button>
+        <b>Resolume</b> <span class="sub" id="rz-name">…</span>
+        <span style="flex:1"></span>
+        <span class="sub">drag a clip onto a lane · a column onto Scenes · onto a cue to swap it · click a clip to find its cues</span>
+      </div>
+      <div id="rz-grid"></div>
+    </section>
+  </div>
+  <aside>
+    <h2>Selected</h2>
+    <div id="none" class="sub">Nothing selected. Double-click a lane to add a cue.</div>
+    <p id="multi" class="sub" hidden><b id="multi-count"></b> cues selected — the
+      fields below apply to all of them.</p>
+    <div id="editor" hidden>
+      <div class="row"><label>Lane</label><select id="c-lane"></select></div>
+      <div class="row"><label>What</label><input id="c-value" type="text" list="look-names"
+        placeholder="clip, look or scene"><datalist id="look-names"></datalist></div>
+      <p class="sub" id="look-note"></p>
+      <div class="btns" id="make-row" style="margin:-4px 0 8px"><button id="make-clip"
+        title="render this look onto the control band and load it into the lights layer">Make it a clip</button></div>
+      <div class="row" id="layer-row"><label>Layer</label><select id="c-layer"></select></div>
+      <div class="row" id="load-row">
+        <label>Load clip</label>
+        <select id="media-file"><option value="">…</option></select>
+        <button id="media-load" title="load it into Resolume and use it for this cue">↓</button>
+      </div>
+      <p class="sub" id="media-note"></p>
+      <div class="row"><label>Song</label><select id="c-song"></select></div>
+      <div class="row"><label>Section</label><select id="c-section"></select></div>
+      <div class="row"><label>Offset</label><input id="c-offset" type="number" step="1"><span class="sub">bars</span></div>
+      <div class="row"><label>Length</label><input id="c-length" type="number" step="1" min="1"><span class="sub">bars</span></div>
+      <div class="row"><label>Fade in</label><input id="c-fade" type="number" step="0.5" min="0"><span class="sub" id="fade-secs">bars</span></div>
+      <textarea id="c-note" placeholder="intent, in words"></textarea>
+      <div class="btns" style="margin-top:6px">
+        <button id="dup" title="⌘D">Duplicate</button>
+        <button id="del" class="danger" title="delete, or double-click the cue">Delete</button>
+      </div>
+    </div>
+
+    <div id="pt-editor" hidden>
+      <h2>Automation points</h2>
+      <p class="sub"><b id="pt-count"></b> selected</p>
+      <div class="row"><label>Value</label><input id="pt-value" type="number" min="0" max="1" step="0.01"></div>
+      <div class="row"><label>To the next</label><select id="pt-shape">
+        <option value="linear">straight ramp</option>
+        <option value="in">ease in — slow, then fast</option>
+        <option value="out">ease out — fast, then slow</option>
+        <option value="s">S-curve — eases both ends</option>
+        <option value="hold">hold, then jump</option>
+        <option value="custom" disabled>custom bend (alt-drag)</option></select></div>
+      <div class="btns"><button id="pt-del" class="danger">Delete points</button></div>
+    </div>
+
+    <h2>Room now</h2>
+    <div id="lightstrip"></div>
+    <p class="sub" id="playing-look">—</p>
+
+    <h2>Setlist</h2>
+    <table id="setlist"></table>
+
+    <h2>View</h2>
+    <div class="row"><label>Zoom</label><input id="zoom" type="range" min="3" max="48" value="10"></div>
+    <p class="sub">
+      <span class="kbd">space</span> play · <span class="kbd">⌘Z</span> undo ·
+      <span class="kbd">⌘C</span>/<span class="kbd">⌘V</span> copy ·
+      <span class="kbd">⌘D</span> duplicate · <span class="kbd">⌘A</span> all ·
+      <span class="kbd">⌫</span> delete · arrows nudge · <span class="kbd">alt</span>-drag copies ·
+      double-click a cue to remove it · drag the ruler to scrub ·
+      ▸ on a lane shows each cue's clip (<span class="kbd">alt</span>-click: all lanes) ·
+      <span class="kbd">enter</span> or ▾ on a cue: pick its clip, fade and note right there ·
+      automation: <span class="kbd">alt</span>-drag a line to bend it ·
+      <span class="kbd">⌘</span>-drag to draw · <span class="kbd">shift</span>-drag a point for fine values ·
+      ∿ draws a shape ·
+      drag the ▾ on a cue's top edge to fade it in
+    </p>
+    <p class="sub" id="orphans"></p>
+  </aside>
+</div>
+<div id="readout" hidden></div>
+<div id="shape" class="pop" hidden>
+  <h3>Draw a shape</h3>
+  <div class="row"><label>Shape</label><select id="sh-kind">
+    <option value="sine">sine — breathing</option><option value="triangle">triangle</option>
+    <option value="saw">saw up — builds</option><option value="sawdown">saw down</option>
+    <option value="square">square — on / off</option><option value="random">random — drifting</option></select></div>
+  <div class="row"><label>Every</label><input id="sh-every" type="number" step="0.5" min="0.25" value="2"><span class="sub">bars</span></div>
+  <div class="row"><label>Between</label><input id="sh-lo" type="number" min="0" max="100" step="5" value="20">
+    <span class="sub">and</span><input id="sh-hi" type="number" min="0" max="100" step="5" value="80"><span class="sub">%</span></div>
+  <div class="row"><label>From bar</label><input id="sh-from" type="number" step="1">
+    <span class="sub">to</span><input id="sh-to" type="number" step="1"></div>
+  <p class="sub" id="sh-note" style="margin:4px 0 8px"></p>
+  <div class="btns"><button id="sh-apply" class="primary">Draw it</button><button id="sh-cancel">Cancel</button></div>
+</div>
+<div id="tpick" class="pop" hidden>
+  <h3>Automate a Resolume parameter</h3>
+  <input id="tp-q" placeholder="layer, effect or parameter…" autocomplete="off">
+  <div id="tp-list"></div>
+</div>
+<div id="pick" hidden>
+  <input id="pick-q" placeholder="clip, look or scene…" autocomplete="off">
+  <div id="pick-list"></div>
+  <div id="pick-fade">fade in
+    <button data-f="0">cut</button><button data-f="0.5">½</button><button data-f="1">1</button>
+    <button data-f="2">2</button><button data-f="4">4</button> bars</div>
+  <input id="pick-note" placeholder="note — intent, in words" autocomplete="off">
+  <div class="hint">↑↓ choose · enter set · tab to note · esc close</div>
+</div>
+<script>
+const el = id => document.getElementById(id);
+// the version of each file this page loaded, so a stale tab cannot overwrite
+// someone else's newer work
+const fileMtime = {};
+let stale = false;
+async function loadJson(name, fallback){
+  try{
+    const r = await fetch(name, {cache:"no-store"});
+    fileMtime[name] = r.headers.get("X-File-Mtime");
+    if (!r.ok) throw new Error(r.statusText);
+    return await r.json();
+  }catch(e){ return fallback; }
+}
+async function postJson(name, body){
+  const r = await fetch(name, {method:"POST",
+    headers:{"Content-Type":"application/json",
+             ...(fileMtime[name] ? {"X-If-Mtime": fileMtime[name]} : {})},
+    body: JSON.stringify(body, null, 2)});
+  const out = await r.json().catch(() => ({}));
+  if (r.status === 409){
+    stale = true;
+    throw new Error("changed elsewhere — reload");
+  }
+  if (!r.ok) throw new Error(out.error || r.statusText);
+  fileMtime[name] = r.headers.get("X-File-Mtime");
+  return out;
+}
+const LANES = [["scenes","Scenes","--scenes"],["screen","Screen","--screen"],
+               ["lights","Lights","--lights"],["td","TD","--td"],["note","Notes","--note"]];
+let show = null, cues = {cues: []}, looks = {looks: []}, rigNames = [];
+let selSet = new Set(), primary = null, pxPerBar = 10;
+let undo = [], redo = [], clipboard = [];
+let mapping = {targets: []}, selPts = new Set(), autoRows = [];
+let following = false, liveState = null;
+let comp = null;                                 // Resolume's composition, as the server last saw it
+let openLanes = new Set();
+try { openLanes = new Set(JSON.parse(localStorage.getItem("tl-open") || "[]")); } catch(e){}
+const esc = s => String(s ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[ch]);
+
+// ---------------------------------------------------------------- helpers ---
+const bpb = () => (show && show.beats_per_bar) || 4;
+const sectionsOf = song => (show.songs.find(s => s.name === song) || {}).sections || [];
+const sectionAt = (song, name) => sectionsOf(song).find(s => s.name === name);
+const byId = id => cues.cues.find(c => c.id === id);
+const selected = () => cues.cues.filter(c => selSet.has(c.id));
+function cueBar(c){
+  const s = sectionAt(c.song, c.section);
+  return s ? s.bar + (c.offset_bars || 0) : null;
+}
+const barToX = bar => (bar - 1) * pxPerBar;
+const xToBar = x => x / pxPerBar + 1;
+function snapBar(bar){
+  const g = +el("snap").value;
+  return g ? Math.round((bar - 1) / g) * g + 1 : Math.round(bar);
+}
+function placeOf(bar){
+  let best = null;
+  for (const g of show.songs)
+    for (const s of g.sections)
+      if (s.bar <= bar + 1e-6 && (!best || s.bar > best.s.bar)) best = {g, s};
+  return best;
+}
+function anchor(c, bar){            // re-anchor a cue to whatever section it now sits in
+  const at = placeOf(bar);
+  if (!at) return;
+  c.song = at.g.name; c.section = at.s.name;
+  c.offset_bars = Math.round(bar - at.s.bar);
+}
+const newId = () => "c" + Math.random().toString(36).slice(2, 9);
+const APAD = 12;                               // px above and below the curve
+function ptBar(p){ const s = sectionAt(p.song, p.section); return s ? s.bar + (+p.offset_bars || 0) : null; }
+function anchorPt(p, bar){
+  const at = placeOf(bar); if (!at) return;
+  p.song = at.g.name; p.section = at.s.name;
+  p.offset_bars = Math.round((bar - at.s.bar) * 100) / 100;
+}
+function allPoints(){
+  const out = [];
+  (cues.automation || []).forEach(a => (a.points || []).forEach(p => out.push({a, p})));
+  return out;
+}
+function sortedPts(a){
+  return (a.points || []).filter(p => ptBar(p) !== null).sort((x, y) => ptBar(x) - ptBar(y));
+}
+// the same as cue_player.bend(): how far along a segment the value is
+function bend(t, shape, curve){
+  if (shape === "hold") return 0;
+  t = Math.max(0, Math.min(1, t));
+  if (shape === "s"){
+    const k = 1 + 3 * (curve ? Math.abs(curve) : 0.5);
+    return t < 0.5 ? 0.5 * Math.pow(2 * t, k) : 1 - 0.5 * Math.pow(2 - 2 * t, k);
+  }
+  return curve ? Math.pow(t, Math.pow(6, curve)) : t;
+}
+function valueAt(a, bar){
+  const pts = sortedPts(a);
+  if (!pts.length) return null;
+  if (bar <= ptBar(pts[0])) return pts[0].value;
+  for (let i = 0; i < pts.length - 1; i++){
+    const b0 = ptBar(pts[i]), b1 = ptBar(pts[i+1]);
+    if (bar >= b0 && bar < b1){
+      if (b1 === b0) return pts[i+1].value;
+      return pts[i].value + (pts[i+1].value - pts[i].value) *
+             bend((bar - b0) / (b1 - b0), pts[i].shape, +pts[i].curve || 0);
+    }
+  }
+  return pts[pts.length - 1].value;
+}
+const targetOf = a => (mapping.targets || []).find(t => t.name === a.target);
+function nativeOf(a, v){                         // 0..1 -> the target's own units
+  const t = targetOf(a);
+  if (!t) return null;
+  const lo = +(t.min ?? 0), hi = +(t.max ?? 1);
+  return lo + (hi - lo) * Math.pow(v, Math.pow(4, +t.curve || 0));
+}
+function segmentAt(a, bar){
+  const pts = sortedPts(a);
+  for (let i = 0; i < pts.length - 1; i++)
+    if (bar >= ptBar(pts[i]) && bar < ptBar(pts[i+1])) return {p: pts[i], next: pts[i+1]};
+  return null;
+}
+const snapPtBar = bar => (+el("snap").value ? Math.round(bar) : Math.round(bar * 4) / 4);
+
+// -------------------------------------------------- what a cue really is ---
+// The same rule as cue_player.resolve(): clips and scenes are found by NAME in
+// the composition, so a clip that moves slot in Resolume keeps its cues.
+const laneLayer = lane => ((mapping.lanes || {})[lane] || {}).layer;
+function findLayer(ref){
+  if (!comp || ref === undefined || ref === null || ref === "") return null;
+  return comp.layers.find(l => l.index === +ref ||
+                               (typeof ref === "string" && l.name.toLowerCase() === ref.toLowerCase()));
+}
+function laneForLayer(index){
+  const hit = Object.entries(mapping.lanes || {}).find(([, v]) => +v.layer === +index);
+  return hit ? hit[0] : null;
+}
+function resolveCue(c){
+  if (c.lane === "note") return {ok: null, text: "note"};
+  const entry = (mapping.cues || {})[`${c.lane}:${c.value || ""}`];
+  if (Array.isArray(entry))
+    return {ok: true, text: `raw OSC · ${entry.length} message${entry.length > 1 ? "s" : ""}`};
+  if (!c.value) return {ok: false, text: "nothing chosen yet"};
+  const isLook = c.lane === "lights" && looks.looks.some(l => l.name === c.value);
+  if (comp && comp.name){
+    if (c.lane === "scenes"){
+      const v = String(c.value).trim();
+      let col = comp.columns.find(x => x.name.toLowerCase() === v.toLowerCase());
+      if (!col && /^\d+$/.test(v)) col = comp.columns.find(x => x.index === +v);
+      if (!col && (mapping.scenes || {})[v]) col = comp.columns.find(x => x.index === mapping.scenes[v]);
+      if (!col) return {ok: false, text: `no column called “${v}” — name one in Resolume`};
+      const inCol = comp.layers.slice().reverse().map(l => {
+        const k = l.clips.find(x => x.index === col.index);
+        return k ? `${l.name.replace(/^Layer /, "L")} ${k.name}` : null;
+      }).filter(Boolean);
+      return {ok: true, text: `column ${col.index}`, column: col,
+              columnClips: inCol.join(" · ") || "an empty column: it clears every layer"};
+    }
+    const ref = c.layer || laneLayer(c.lane);
+    if (ref){
+      const L = findLayer(ref);
+      if (!L) return {ok: false, text: `no layer ${ref} in ${comp.name}`};
+      const clip = L.clips.find(x => x.name === c.value);
+      if (!clip) return isLook ? {ok: false, look: true, text: `a look: previz only, no clip in ${L.name}`}
+                               : {ok: false, text: `no clip called “${c.value}” in ${L.name}`};
+      if (clip.missing) return {ok: false, clip, layer: L, text: `${L.name} · clip ${clip.index} · media file missing`};
+      return {ok: true, clip, layer: L, text: `${L.name} · clip ${clip.index}`};
+    }
+  }
+  if (entry) return {ok: true, text: `layer ${entry.layer} · clip ${entry.clip} (by position: Resolume not seen)`};
+  if (isLook) return {ok: false, look: true, text: "a look: previz only"};
+  return {ok: false, text: comp && comp.name ? "this lane has no layer: set one, or map it in osc_map.json"
+                                             : "Resolume not seen yet"};
+}
+const isOn = state => /^Connected/.test(state || "");
+const thumbUrl = clip => clip && clip.id ? `/arena/thumb/${clip.id}?v=${clip.thumb || ""}` : "";
+function cueDetail(c, r, bar){
+  const img = r.clip ? `<img src="${thumbUrl(r.clip)}" onerror="this.style.visibility='hidden'">` : "";
+  const mark = r.ok === false ? "✗ " : r.ok ? "✓ " : "";
+  const sync = r.clip && r.clip.transport
+    ? ` · ${r.clip.transport === "BPM Sync" ? "BPM Sync" + (r.clip.beatsnap && r.clip.beatsnap !== "None" ? ", " + r.clip.beatsnap : "") : r.clip.transport + " (not synced)"}`
+    : "";
+  const lines = [
+    `<b>${bar === null ? "? " : ""}${esc(c.value || "cue")}</b>`,
+    `<i class="${r.ok === false ? "bad" : ""}">${mark}${esc(r.text)}</i>`,
+    r.column ? `<i>${esc(r.columnClips)}</i>`
+             : `<i>${c.length_bars || 8} bars${c.fade_bars ? ` · fade ${c.fade_bars}` : ""}${esc(sync)}</i>`,
+    c.note ? `<i>“${esc(c.note)}”</i>` : ""];
+  return img + `<div class="info">${lines.join("")}</div>`;
+}
+
+// ------------------------------------------------------------------- data ---
+async function load(){
+  show = await (await fetch("show.json", {cache:"no-store"})).json();
+  cues = await loadJson("cues.json", {cues: []});
+  if (!Array.isArray(cues.cues)) cues.cues = [];
+  cues.cues.forEach(c => c.id = c.id || newId());
+  if (!Array.isArray(cues.automation)) cues.automation = [];
+  cues.automation.forEach(a => { a.id = a.id || newId();
+                                 (a.points || []).forEach(p => p.id = p.id || newId()); });
+  try { mapping = await (await fetch("osc_map.json", {cache:"no-store"})).json(); }
+  catch(e){ mapping = {targets: []}; }
+  looks = await loadJson("looks.json", {looks: []});
+  if (!Array.isArray(looks.looks)) looks.looks = [];
+  try {
+    const rig = await (await fetch("rig.json", {cache:"no-store"})).json();
+    rigNames = (rig.fixtures || []).map(f => f.name);
+  } catch(e){ rigNames = []; }
+  el("summary").textContent =
+    `${show.songs.length} songs · ${show.total_bars.toFixed(0)} bars · ` +
+    `${(show.total_seconds/60).toFixed(1)} min · ${show.tempo} bpm` +
+    (show.source.startsWith("example") ? " · placeholder" : "");
+  el("save").textContent = "loaded";
+  draw();
+}
+
+let saveTimer = null;
+function save(){
+  clearTimeout(saveTimer);
+  el("save").textContent = "saving";
+  saveTimer = setTimeout(async () => {
+    if (stale) return;
+    try{
+      await postJson("cues.json", cues);
+      el("save").textContent = "saved"; el("status").classList.remove("err");
+    }catch(e){ el("save").textContent = e.message; el("status").classList.add("err"); }
+  }, 200);
+}
+
+function snapshot(){ return JSON.stringify({c: cues.cues, a: cues.automation}); }
+function restore(json){ const d = JSON.parse(json); cues.cues = d.c; cues.automation = d.a || []; }
+function mark(){                     // snapshot before a change
+  undo.push(snapshot());
+  if (undo.length > 200) undo.shift();
+  redo.length = 0;
+}
+function step(from, to){
+  if (!from.length) return;
+  to.push(snapshot());
+  restore(from.pop());
+  selPts = new Set([...selPts].filter(id => allPoints().some(p => p.p.id === id)));
+  selSet = new Set([...selSet].filter(byId));
+  primary = primary ? byId(primary.id) : null;
+  draw(); save();
+}
+
+// ------------------------------------------------------------------- draw ---
+let laneRows = [];
+function draw(sidebar){
+  const tl = el("tl");
+  const keepPlayhead = el("playhead");
+  tl.innerHTML = "";
+  tl.style.width = barToX(show.total_bars + 4) + "px";
+
+  const gridStep = pxPerBar < 6 ? 16 : pxPerBar < 14 ? 4 : 1;
+  for (let bar = 1; bar <= show.total_bars + 1; bar += gridStep){
+    const d = document.createElement("div");
+    d.className = "grid" + ((bar - 1) % 16 === 0 ? " strong" : "");
+    d.style.left = barToX(bar) + "px";
+    tl.appendChild(d);
+  }
+
+  const songs = document.createElement("div"); songs.className = "head songs";
+  const secs = document.createElement("div"); secs.className = "head";
+  const ruler = document.createElement("div"); ruler.className = "head ruler";
+  show.songs.forEach(g => {
+    const start = g.sections[0] ? g.sections[0].bar : 1;
+    const d = document.createElement("div");
+    d.className = "song";
+    d.style.left = barToX(start) + "px";
+    d.style.width = g.bars * pxPerBar + "px";
+    d.textContent = `${g.name} · ${g.bars.toFixed(0)} bars · ${(g.seconds/60).toFixed(1)} min`;
+    songs.appendChild(d);
+    g.sections.forEach((s, i) => {
+      const e = document.createElement("div");
+      e.className = "sec" + (i % 2 ? " alt" : "");
+      e.style.left = barToX(s.bar) + "px";
+      e.style.width = s.bars * pxPerBar + "px";
+      e.textContent = `${s.name} · ${s.bars.toFixed(0)}`;
+      secs.appendChild(e);
+    });
+  });
+  const everyBars = pxPerBar < 6 ? 16 : pxPerBar < 14 ? 8 : 4;
+  for (let bar = 1; bar <= show.total_bars; bar += everyBars){
+    const t = document.createElement("div");
+    t.className = "tick"; t.style.left = barToX(bar) + "px"; t.textContent = bar;
+    ruler.appendChild(t);
+  }
+  tl.append(songs, secs, ruler);
+
+  laneRows = [];
+  LANES.forEach(([id, label, varName]) => {
+    const open = openLanes.has(id) && id !== "note";
+    const lane = document.createElement("div");
+    lane.className = "lane" + (open ? " open" : ""); lane.dataset.lane = id;
+    const n = document.createElement("span"); n.className = "name";
+    n.innerHTML = (id === "note" ? "" :
+      `<button class="fold" data-fold="${id}" title="${open ? "fold" : "show each cue's clip"}">${open ? "▾" : "▸"}</button>`) + label;
+    lane.appendChild(n);
+    cues.cues.filter(c => c.lane === id).forEach(c => {
+      const bar = cueBar(c);
+      const res = resolveCue(c);
+      const d = document.createElement("div");
+      d.className = "cue" + (selSet.has(c.id) ? " sel" : "") + (bar === null ? " orphan" : "") +
+                    (res.ok === false ? " unres" : "");
+      d.style.background = `var(${varName})`;
+      d.style.left = barToX(bar === null ? show.total_bars + 1 : bar) + "px";
+      d.style.width = Math.max(16, (c.length_bars || 8) * pxPerBar) + "px";
+      if (open) d.innerHTML = cueDetail(c, res, bar);
+      else d.textContent = (res.ok === false && bar !== null ? "✗ " : "") +
+                           (bar === null ? `? ${c.value || ""}` : (c.value || "cue"));
+      d.title = (c.note ? c.note + "\n" : "") +
+                (bar === null ? `${c.song}/${c.section} is gone`
+                              : `${c.song} / ${c.section} +${c.offset_bars || 0} · ` +
+                                `${c.length_bars || 8} bars`) +
+                (res.ok === null ? "" : `\n${res.ok ? "✓" : "✗"} ${res.text}`);
+      d.dataset.id = c.id;
+      const fb = Math.min(+c.fade_bars || 0, c.length_bars || 8);
+      if (fb > 0){
+        const ov = document.createElement("div"); ov.className = "fadeov";
+        ov.style.width = fb * pxPerBar + "px";
+        d.appendChild(ov);
+      }
+      if (c.lane !== "note"){
+        const fh = document.createElement("div"); fh.className = "fh"; fh.dataset.grip = "fade";
+        fh.style.left = Math.max(5, fb * pxPerBar) + "px";
+        fh.title = fb ? `fade in ${fb} bar${fb === 1 ? "" : "s"}: drag to change` : "drag right to fade in";
+        d.appendChild(fh);
+      }
+      if (selSet.has(c.id) && (c.length_bars || 8) * pxPerBar > 60){
+        const pb = document.createElement("button"); pb.className = "pickbtn"; pb.dataset.pick = c.id;
+        pb.textContent = "▾"; pb.title = "pick clip, fade and note (enter)";
+        d.appendChild(pb);
+      }
+      const l = document.createElement("div"); l.className = "grip l"; l.dataset.grip = "l";
+      const r = document.createElement("div"); r.className = "grip r"; r.dataset.grip = "r";
+      d.append(l, r);
+      lane.appendChild(d);
+    });
+    tl.appendChild(lane);
+    laneRows.push({id, el: lane});
+  });
+  autoRows = [];
+  const W = barToX(show.total_bars + 4);
+  (cues.automation || []).forEach(a => {
+    const lane = document.createElement("div");
+    lane.className = "alane"; lane.dataset.alane = a.id;
+    const H = 86;
+    const head = document.createElement("div"); head.className = "ahead";
+    head.innerHTML = `<select data-target="${a.id}">` +
+      (mapping.targets || []).map(t =>
+        `<option ${t.name===a.target?"selected":""}>${t.name}</option>`).join("") +
+      (!(mapping.targets || []).some(t => t.name === a.target)
+        ? `<option selected>${a.target} (missing)</option>` : "") +
+      `<option value="__resolume__">＋ a Resolume parameter…</option>` +
+      `</select><span class="val" data-val="${a.id}"></span>` +
+      (targetOf(a) ? `<button class="tool" data-range="${a.id}" title="what 0% and 100% of this lane mean, in the target's own units">` +
+        `${+(+(targetOf(a).min ?? 0)).toFixed(2)}…${+(+(targetOf(a).max ?? 1)).toFixed(2)}</button>` : "") +
+      `<button class="tool" data-shape="${a.id}" title="draw a shape: sine, saw, square, random…">∿</button>` +
+      `<button data-rmlane="${a.id}" title="remove this lane">✕</button>`;
+    lane.appendChild(head);
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", W); svg.setAttribute("height", H);
+    const y = v => APAD + (1 - v) * (H - 2 * APAD);
+    // guides at 0, 50, 100%
+    [0, 0.5, 1].forEach(v => {
+      const g = document.createElementNS(svg.namespaceURI, "line");
+      g.setAttribute("x1", 0); g.setAttribute("x2", W);
+      g.setAttribute("y1", y(v)); g.setAttribute("y2", y(v));
+      g.setAttribute("stroke", v === 0.5 ? "#23262d" : "#2a2e37");
+      g.setAttribute("stroke-dasharray", v === 0.5 ? "3 5" : "");
+      svg.appendChild(g);
+    });
+    const pts = sortedPts(a);
+    if (pts.length){
+      let d = `M0,${y(pts[0].value)} L${barToX(ptBar(pts[0]))},${y(pts[0].value)}`;
+      for (let i = 0; i < pts.length; i++){
+        const x = barToX(ptBar(pts[i])), v = pts[i].value;
+        const next = pts[i+1];
+        if (next){
+          const nx = barToX(ptBar(next));
+          const sh = pts[i].shape, cv = +pts[i].curve || 0;
+          if (sh === "hold") d += ` L${nx},${y(v)} L${nx},${y(next.value)}`;
+          else if (sh === "s" || cv){
+            const n = Math.max(8, Math.min(64, Math.round((nx - x) / 3)));
+            for (let k = 1; k <= n; k++){
+              const t = k / n;
+              d += ` L${x + (nx - x) * t},${y(v + (next.value - v) * bend(t, sh, cv))}`;
+            }
+          } else d += ` L${nx},${y(next.value)}`;
+        } else {
+          d += ` L${W},${y(v)}`;
+        }
+      }
+      const fill = document.createElementNS(svg.namespaceURI, "path");
+      fill.setAttribute("d", d + ` L${W},${H} L0,${H} Z`);
+      fill.setAttribute("fill", "rgba(111,211,224,.08)");
+      svg.appendChild(fill);
+      const path = document.createElementNS(svg.namespaceURI, "path");
+      path.setAttribute("d", d); path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "var(--auto)"); path.setAttribute("stroke-width", "1.8");
+      svg.appendChild(path);
+    }
+    (a.points || []).forEach(p => {
+      const b = ptBar(p);
+      if (b === null) return;
+      const c = document.createElementNS(svg.namespaceURI, "circle");
+      c.setAttribute("cx", barToX(b)); c.setAttribute("cy", y(p.value));
+      c.setAttribute("r", selPts.has(p.id) ? 6 : 4.5);
+      c.setAttribute("fill", selPts.has(p.id) ? "#fff" : "var(--auto)");
+      c.setAttribute("stroke", "#15161a"); c.setAttribute("stroke-width", "1.5");
+      c.setAttribute("class", "apt");
+      c.dataset.pt = p.id; c.dataset.alane = a.id;
+      svg.appendChild(c);
+    });
+    if (drag && drag.kind === "pencil" && drag.lane === a.id && drag.samples.length > 1){
+      const pen = document.createElementNS(svg.namespaceURI, "path");
+      pen.setAttribute("d", drag.samples.map(([b, v], i) => `${i ? "L" : "M"}${barToX(b)},${y(v)}`).join(" "));
+      pen.setAttribute("fill", "none"); pen.setAttribute("stroke", "#fff");
+      pen.setAttribute("stroke-width", "1.5"); pen.setAttribute("stroke-dasharray", "4 3");
+      svg.appendChild(pen);
+    }
+    lane.title = "double-click: add a point · alt-drag a line: bend it · ⌘-drag: draw";
+    lane.appendChild(svg);
+    tl.appendChild(lane);
+    autoRows.push({a, el: lane, H});
+  });
+
+  const add = document.createElement("div"); add.className = "addlane";
+  add.innerHTML = `automation lane for <select id="new-target">` +
+    (mapping.targets || []).map(t => `<option>${esc(t.name)}</option>`).join("") +
+    `</select><button id="add-auto">+ add</button>` +
+    `<button id="add-auto-rz" title="pick any parameter in the open composition">＋ from Resolume…</button>` +
+    `<span class="sub">targets live in osc_map.json</span>`;
+  tl.appendChild(add);
+
+  if (keepPlayhead) tl.appendChild(keepPlayhead);
+  if (sidebar !== false) drawSidebar();
+  paintStates();
+  if (pick) requestAnimationFrame(placePick);
+}
+
+// fold a lane open to see what each cue is; alt-click folds every lane
+el("tl").addEventListener("click", e => {
+  const f = e.target.closest("[data-fold]");
+  if (!f) return;
+  const id = f.dataset.fold, opening = !openLanes.has(id);
+  const ids = e.altKey ? LANES.map(l => l[0]).filter(x => x !== "note") : [id];
+  ids.forEach(x => opening ? openLanes.add(x) : openLanes.delete(x));
+  try { localStorage.setItem("tl-open", JSON.stringify([...openLanes])); } catch(err){}
+  draw();
+});
+
+// lane header controls (they are rebuilt on every draw, so delegate)
+el("tl").addEventListener("change", e => {
+  const id = e.target.dataset && e.target.dataset.target;
+  if (!id) return;
+  const a = cues.automation.find(a => a.id === id);
+  if (!a) return;
+  if (e.target.value === "__resolume__"){ e.target.value = a.target; openTargetPicker(e.target, a); return; }
+  mark(); a.target = e.target.value.replace(/ \(missing\)$/, ""); draw(); save();
+});
+el("tl").addEventListener("click", e => {
+  if (e.target.id === "add-auto-rz"){ openTargetPicker(e.target, null); return; }
+  const rg = e.target.dataset && e.target.dataset.range;
+  if (rg){ const a = cues.automation.find(x => x.id === rg); if (a) editRange(a); return; }
+  const sh = e.target.dataset && e.target.dataset.shape;
+  if (sh){ const a = cues.automation.find(x => x.id === sh); if (a) openShape(e.target, a); return; }
+  if (e.target.id === "add-auto"){
+    mark();
+    cues.automation.push({id: newId(), target: el("new-target").value, points: []});
+    draw(); save();
+  }
+  const rm = e.target.dataset && e.target.dataset.rmlane;
+  if (rm){
+    const a = cues.automation.find(a => a.id === rm);
+    if (a && (!(a.points || []).length || confirm(`Remove the ${a.target} lane and its ${a.points.length} points?`))){
+      mark(); cues.automation = cues.automation.filter(x => x.id !== rm); draw(); save();
+    }
+  }
+});
+
+function drawSidebar(){
+  el("setlist").innerHTML = show.songs.map(g =>
+    `<tr><td>${g.name}</td><td style="text-align:right;color:var(--dim)">${g.bars.toFixed(0)} bars</td>
+     <td style="text-align:right;color:var(--dim)">${(g.seconds/60).toFixed(1)}m</td></tr>`).join("");
+
+  const orph = cues.cues.filter(c => cueBar(c) === null);
+  el("orphans").innerHTML = orph.length
+    ? `<b style="color:var(--warn)">${orph.length} cue(s)</b> point at a section that is
+       gone. Click to re-point:<br>` +
+      orph.map(c => `<button data-orphan="${c.id}" style="margin:4px 4px 0 0">
+                     ${c.value || c.lane} — ${c.song}/${c.section}</button>`).join("")
+    : "";
+  el("orphans").querySelectorAll("[data-orphan]").forEach(b => b.onclick = () => {
+    const c = byId(b.dataset.orphan);
+    if (!c) return;
+    mark();
+    const g = show.songs.find(g => g.name === c.song) || show.songs[0];
+    c.song = g.name; c.section = (g.sections[0] || {}).name; c.offset_bars = 0;
+    select([c.id]);
+    draw(); save();
+  });
+
+  const pts = allPoints().filter(x => selPts.has(x.p.id));
+  el("pt-editor").hidden = !pts.length;
+  if (pts.length){
+    el("pt-count").textContent = pts.length + (pts.length === 1 ? " point" : " points");
+    el("pt-value").value = pts.length === 1 ? pts[0].p.value.toFixed(2) : "";
+    const q = pts[0].p, cv = +q.curve || 0;
+    el("pt-shape").value = q.shape === "hold" ? "hold" : q.shape === "s" ? "s"
+      : Math.abs(cv) < 0.04 ? "linear" : Math.abs(Math.abs(cv) - 0.6) < 0.01 ? (cv > 0 ? "in" : "out") : "custom";
+  }
+
+  const list = selected();
+  const many = list.length > 1;
+  el("editor").hidden = !list.length;
+  el("none").hidden = !!list.length;
+  el("multi").hidden = !many;
+  el("multi-count").textContent = list.length;
+  const c = (primary && byId(primary.id)) || list[0];
+  if (!c) return;
+  for (const id of ["c-song","c-section","c-offset"])
+    el(id).closest(".row").style.display = many ? "none" : "";
+  el("c-lane").innerHTML = LANES.map(([id,label]) =>
+    `<option value="${id}" ${c.lane===id?"selected":""}>${label}</option>`).join("");
+  el("c-song").innerHTML = show.songs.map(g =>
+    `<option ${g.name===c.song?"selected":""}>${g.name}</option>`).join("");
+  el("c-section").innerHTML = sectionsOf(c.song).map(s =>
+    `<option ${s.name===c.section?"selected":""}>${s.name}</option>`).join("");
+  // everything this lane can fire: clips the loader mapped, plus looks for lights
+  const mapped = Object.keys((mapping && mapping.cues) || {})
+    .filter(k => k.startsWith(c.lane + ":"))
+    .map(k => k.slice(c.lane.length + 1));
+  const inLayer = c.lane === "scenes" ? (comp && comp.columns || []).map(x => x.name)
+    : ((findLayer(c.layer || laneLayer(c.lane)) || {}).clips || []).map(x => x.name);
+  const offered = [...new Set([...inLayer, ...mapped,
+                   ...(c.lane === "lights" ? looks.looks.map(l => l.name) : [])])];
+  el("look-names").innerHTML = offered.map(n => `<option value="${n}">`).join("");
+  const r = resolveCue(c);
+  el("look-note").innerHTML = r.ok === null ? "" :
+    `<span style="color:${r.ok ? "var(--ok)" : "var(--warn)"}">${r.ok ? "✓" : "✗"}</span> ` +
+    (r.ok ? "→ Resolume " : "") + esc(r.text) + (r.columnClips ? `<br>${esc(r.columnClips)}` : "");
+  const clipLane = ["screen", "lights", "td"].includes(c.lane);
+  el("layer-row").style.display = clipLane && !many ? "" : "none";
+  if (clipLane){
+    const dflt = laneLayer(c.lane);
+    const Ld = findLayer(dflt);
+    el("c-layer").innerHTML =
+      `<option value="">${dflt ? `lane's own (${Ld ? Ld.name : "layer " + dflt})` : "none — set one"}</option>` +
+      ((comp && comp.layers) || []).slice().reverse().map(l =>
+        `<option value="${l.index}" ${+c.layer === l.index ? "selected" : ""}>${esc(l.name)}</option>`).join("");
+  }
+  el("c-value").value = c.value || "";
+  fillMedia(c.lane);
+  el("c-offset").value = c.offset_bars || 0;
+  el("c-length").value = c.length_bars || 8;
+  el("c-fade").value = c.fade_bars || 0;
+  el("c-fade").closest(".row").style.display = c.lane === "note" ? "none" : "";
+  const fs = (+c.fade_bars || 0) * bpb() * 60 / show.tempo;
+  el("fade-secs").textContent = fs ? `bars · ${fs.toFixed(1)}s` + (fs > 10 ? " → 10s, Resolume's max" : "") : "bars";
+  el("make-row").style.display = r.look && !many ? "" : "none";
+  el("c-note").value = c.note || "";
+  if (c.lane === "lights" && c.value) previewLook(c.value);
+}
+
+// ----------------------------------------------------------- loading clips --
+// The picker lists the files in this lane's folder. Choosing one loads it into
+// the lane's Resolume layer, maps it to its name, and points the cue at it.
+let mediaLane = null;
+async function fillMedia(lane){
+  const laneHasMedia = ["lights", "screen", "td"].includes(lane);
+  el("load-row").style.display = laneHasMedia ? "" : "none";
+  el("media-note").textContent = "";
+  if (!laneHasMedia || mediaLane === lane) return;
+  mediaLane = lane;
+  try{
+    const r = await (await fetch(`media/list?lane=${lane}`, {cache:"no-store"})).json();
+    el("media-file").innerHTML = `<option value="">pick a file…</option>` +
+      (r.files || []).map(f => `<option>${f}</option>`).join("");
+    el("media-note").textContent = (r.files || []).length
+      ? `${r.dir} → Resolume layer ${r.layer}`
+      : `nothing in ${r.dir || "the lane's folder"}`;
+  }catch(e){ el("media-note").textContent = "cannot list files"; }
+}
+
+el("media-load").onclick = async () => {
+  const file = el("media-file").value;
+  const c = (primary && byId(primary.id)) || selected()[0];
+  if (!file || !c) return;
+  el("media-note").textContent = "loading into Resolume…";
+  try{
+    const r = await fetch("media/load", {method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({lane: c.lane, file})});
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.statusText);
+    mark();
+    selected().forEach(x => x.value = out.name);       // whole selection, like the other fields
+    mapping = await (await fetch("osc_map.json", {cache:"no-store"})).json();
+    draw(); save();
+    el("media-note").textContent = `loaded into layer ${out.layer}, clip ${out.clip}`;
+  }catch(e){ el("media-note").textContent = e.message; }
+};
+
+// -------------------------------------------------------------- selection ---
+function select(ids, keep){
+  if (!keep) selSet = new Set();
+  ids.forEach(id => selSet.add(id));
+  primary = byId(ids[ids.length - 1]) || primary;
+}
+function toggle(id){
+  selSet.has(id) ? selSet.delete(id) : selSet.add(id);
+  primary = byId(id);
+}
+
+// ----------------------------------------------------------------- editing --
+function addCue(lane, bar){
+  const at = placeOf(bar);
+  if (!at) return null;
+  mark();
+  const c = {id:newId(), lane, song:"", section:"", offset_bars:0,
+             length_bars:+el("snap").value || 8, value:"", note:""};
+  anchor(c, bar);
+  cues.cues.push(c);
+  select([c.id]);
+  draw(); save();
+  openPick(c);
+  return c;
+}
+function addPoint(laneEl, x, y){
+  const row = autoRows.find(r => r.el === laneEl);
+  if (!row) return;
+  const v = Math.max(0, Math.min(1, 1 - (y - laneEl.offsetTop - APAD) / (row.H - 2 * APAD)));
+  const p = {id:newId(), song:"", section:"", offset_bars:0, value:Math.round(v * 100) / 100};
+  anchorPt(p, snapPtBar(xToBar(x)));
+  if (!p.section) return;
+  mark();
+  row.a.points = row.a.points || [];
+  row.a.points.push(p);
+  selPts = new Set([p.id]); selSet.clear();
+  draw(); save();
+}
+
+function removeSelected(){
+  if (!selected().length) return;
+  mark();
+  cues.cues = cues.cues.filter(c => !selSet.has(c.id));
+  selSet.clear(); primary = null;
+  draw(); save();
+}
+function duplicateSelected(){
+  const list = selected();
+  if (!list.length) return;
+  mark();
+  const made = [];
+  list.forEach(c => {
+    const bar = cueBar(c);
+    const copy = Object.assign({}, c, {id:newId()});
+    if (bar !== null) anchor(copy, bar + (c.length_bars || 8));
+    cues.cues.push(copy); made.push(copy.id);
+  });
+  select(made);
+  draw(); save();
+}
+let clipPts = [], lastCopied = "cues";
+function copySelected(){
+  if (!selected().length && selPts.size){           // automation points, with their lane
+    clipPts = allPoints().filter(x => selPts.has(x.p.id) && ptBar(x.p) !== null)
+                         .map(x => ({lane: x.a.id, p: Object.assign({}, x.p), bar: ptBar(x.p)}));
+    lastCopied = "points";
+    if (clipPts.length) el("save").textContent = `copied ${clipPts.length} point${clipPts.length > 1 ? "s" : ""}`;
+    return;
+  }
+  clipboard = selected().map(c => Object.assign({}, c));
+  lastCopied = "cues";
+  if (clipboard.length) el("save").textContent = `copied ${clipboard.length}`;
+}
+function pastePoints(){
+  const at = snapPtBar(timeToBar(audio.currentTime));
+  const first = Math.min(...clipPts.map(q => q.bar));
+  mark();
+  const made = [];
+  clipPts.forEach(q => {
+    const a = cues.automation.find(l => l.id === q.lane);
+    if (!a) return;
+    const p = Object.assign({}, q.p, {id: newId()});
+    anchorPt(p, at + (q.bar - first));
+    if (!p.section) return;
+    a.points = a.points || []; a.points.push(p); made.push(p.id);
+  });
+  selPts = new Set(made); selSet.clear();
+  draw(); save();
+}
+function pasteAtPlayhead(){
+  if (lastCopied === "points" && clipPts.length) return pastePoints();
+  if (!clipboard.length) return;
+  mark();
+  const at = snapBar(timeToBar(audio.currentTime));
+  const first = Math.min(...clipboard.map(c => cueBar(c) ?? at));
+  const made = [];
+  clipboard.forEach(c => {
+    const copy = Object.assign({}, c, {id:newId()});
+    anchor(copy, at + ((cueBar(c) ?? at) - first));
+    cues.cues.push(copy); made.push(copy.id);
+  });
+  select(made);
+  draw(); save();
+}
+function nudge(bars, laneStep){
+  const list = selected();
+  if (!list.length) return;
+  mark();
+  list.forEach(c => {
+    if (bars){
+      const bar = cueBar(c);
+      if (bar !== null) anchor(c, Math.max(1, bar + bars));
+    }
+    if (laneStep){
+      const i = LANES.findIndex(l => l[0] === c.lane);
+      c.lane = LANES[Math.max(0, Math.min(LANES.length - 1, i + laneStep))][0];
+    }
+  });
+  draw(); save();
+}
+
+// --------------------------------------------------------------- pointers ---
+let drag = null, marquee = null, lastDown = {t: 0, key: "", x: 0, y: 0};
+const DOUBLE_MS = 380;
+const tlPoint = e => {
+  const r = el("tl").getBoundingClientRect();
+  return [e.clientX - r.left, e.clientY - r.top];
+};
+
+el("tl").addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  e.preventDefault();                       // this also suppresses native dblclick
+  const [x, y] = tlPoint(e);
+  const add = e.shiftKey || e.metaKey;
+  if (e.target.closest(".ahead") || e.target.closest(".addlane") || e.target.closest(".fold")) return;   // lane controls
+  if (e.target.closest(".pickbtn")){ const c = byId(e.target.dataset.pick); if (c) openPick(c); return; }
+  const cueEl = e.target.closest(".cue");
+  const head = e.target.closest(".head");
+  const laneEl = e.target.closest(".lane");
+  const ptEl = e.target.classList && e.target.classList.contains("apt") ? e.target : null;
+  const aLaneEl = e.target.closest(".alane");
+
+  // double-click, detected by hand: add on a lane, remove on a cue
+  const key = ptEl ? "pt:" + ptEl.dataset.pt : aLaneEl ? "alane:" + aLaneEl.dataset.alane
+            : cueEl ? "cue:" + cueEl.dataset.id : laneEl ? "lane:" + laneEl.dataset.lane : "";
+  const now = performance.now();
+  const isDouble = key && key === lastDown.key && now - lastDown.t < DOUBLE_MS &&
+                   Math.abs(x - lastDown.x) < 6 && Math.abs(y - lastDown.y) < 6;
+  lastDown = {t: now, key, x, y};
+  if (isDouble){
+    lastDown.t = 0;                         // a third click starts over
+    drag = null;
+    if (ptEl){ selPts = new Set([ptEl.dataset.pt]); removePoints(); }
+    else if (aLaneEl){ addPoint(aLaneEl, x, y); }
+    else if (cueEl){ select([cueEl.dataset.id]); removeSelected(); }
+    else if (laneEl){ addCue(laneEl.dataset.lane, snapBar(xToBar(x))); }
+    return;
+  }
+
+  if (ptEl){                                        // grab one or more points
+    const id = ptEl.dataset.pt;
+    if (add) selPts.has(id) ? selPts.delete(id) : selPts.add(id);
+    else if (!selPts.has(id)) selPts = new Set([id]);
+    if (!add) selSet.clear();
+    const row = autoRows.find(r => r.a.id === ptEl.dataset.alane);
+    drag = {kind:"points", pending:true, x0:x, y0:y, H: row ? row.H : 86,
+            start: allPoints().filter(q => selPts.has(q.p.id))
+                              .map(q => ({p:q.p, bar:ptBar(q.p), value:q.p.value}))};
+    draw();
+    try { el("tl").setPointerCapture(e.pointerId); } catch (err) {}
+    return;
+  }
+
+  if (aLaneEl && !ptEl && (e.altKey || e.metaKey)){
+    const a = cues.automation.find(x => x.id === aLaneEl.dataset.alane);
+    const row = autoRows.find(r => r.el === aLaneEl);
+    if (a && row && e.altKey){                        // bend the segment under the pointer
+      const seg = segmentAt(a, xToBar(x));
+      if (seg && seg.p.shape !== "hold"){
+        drag = {kind:"curve", pending:true, x0:x, y0:y, a, p:seg.p,
+                dir: Math.sign(seg.next.value - seg.p.value) || 1, c0: +seg.p.curve || 0};
+        try { el("tl").setPointerCapture(e.pointerId); } catch (err) {}
+      }
+      return;
+    }
+    if (a && row && e.metaKey){                       // draw with the pencil
+      mark();
+      drag = {kind:"pencil", lane:a.id, a, row, samples:[]};
+      penSample(x, y);
+      try { el("tl").setPointerCapture(e.pointerId); } catch (err) {}
+      return;
+    }
+  }
+  if (head){                                        // scrub, like Live's ruler
+    drag = {kind:"scrub"};
+    seekToBar(Math.max(1, xToBar(x)));
+  } else if (cueEl && e.target.dataset.grip === "fade"){
+    const c = byId(cueEl.dataset.id);
+    if (!selSet.has(c.id)) select([c.id]);
+    drag = {kind:"fade", pending:true, x0:x,
+            start: selected().map(c => ({c, fade:+c.fade_bars || 0, len:c.length_bars || 8}))};
+    draw();
+  } else if (cueEl && e.target.dataset.grip){
+    const c = byId(cueEl.dataset.id);
+    if (!selSet.has(c.id)) select([c.id]);
+    drag = {kind:"resize", pending:true, side:e.target.dataset.grip, x0:x,
+            start: selected().map(c => ({c, bar:cueBar(c), len:c.length_bars || 8}))};
+    draw();
+  } else if (cueEl){
+    const c = byId(cueEl.dataset.id);
+    if (add) toggle(c.id);
+    else if (!selSet.has(c.id)) select([c.id]);
+    else primary = c;
+    drag = {kind:"move", pending:true, x0:x, y0:y, alt:e.altKey, copied:false, lane0: laneIndexAt(y),
+            start: selected().map(c => ({c, bar:cueBar(c),
+                                         lane:LANES.findIndex(l => l[0] === c.lane)}))};
+    draw();
+  } else {
+    if (!add){ selSet.clear(); primary = null; selPts.clear(); }
+    marquee = {x0:x, y0:y, base:[...selSet], basePts:[...selPts]};
+    drag = {kind:"marquee"};
+    draw();
+  }
+  try { el("tl").setPointerCapture(e.pointerId); } catch (err) {}
+});
+
+el("tl").addEventListener("pointermove", e => {
+  if (!drag) return;
+  const [x, y] = tlPoint(e);
+  if (drag.pending){
+    if (Math.abs(x - drag.x0) < 3 && Math.abs(y - (drag.y0 ?? y)) < 3) return;
+    mark();                                 // a real drag: now it is worth undoing
+    drag.pending = false;
+  }
+
+  if (drag.kind === "scrub"){ seekToBar(Math.max(1, xToBar(x))); return; }
+
+  if (drag.kind === "marquee"){
+    const bar0 = xToBar(Math.min(marquee.x0, x)), bar1 = xToBar(Math.max(marquee.x0, x));
+    const top = Math.min(marquee.y0, y), bottom = Math.max(marquee.y0, y);
+    const hit = [];
+    laneRows.forEach(({id, el: lane}) => {
+      const t = lane.offsetTop, b = t + lane.offsetHeight;
+      if (b < top || t > bottom) return;
+      cues.cues.filter(c => c.lane === id).forEach(c => {
+        const bar = cueBar(c);
+        if (bar === null) return;
+        if (bar + (c.length_bars || 8) >= bar0 && bar <= bar1) hit.push(c.id);
+      });
+    });
+    selSet = new Set([...marquee.base, ...hit]);
+    primary = byId(hit[hit.length - 1]) || primary;
+    const hitPts = [];
+    autoRows.forEach(({a, el: lane, H}) => {
+      const t = lane.offsetTop;
+      (a.points || []).forEach(p => {
+        const b = ptBar(p); if (b === null) return;
+        const py = t + APAD + (1 - p.value) * (H - 2 * APAD);
+        if (b >= bar0 && b <= bar1 && py >= top && py <= bottom) hitPts.push(p.id);
+      });
+    });
+    selPts = new Set([...(marquee.basePts || []), ...hitPts]);
+    draw();
+    const box = document.createElement("div");
+    box.id = "marquee";
+    box.style.left = Math.min(marquee.x0, x) + "px";
+    box.style.top = Math.min(marquee.y0, y) + "px";
+    box.style.width = Math.abs(x - marquee.x0) + "px";
+    box.style.height = Math.abs(y - marquee.y0) + "px";
+    el("tl").appendChild(box);
+    return;
+  }
+
+  if (drag.kind === "points"){
+    const fine = e.shiftKey;                        // shift: value only, a fifth as fast
+    const dBar = fine ? 0 : xToBar(x) - xToBar(drag.x0);
+    const dVal = -(y - drag.y0) / (drag.H - 2 * APAD) * (fine ? 0.2 : 1);
+    drag.start.forEach(({p, bar, value}) => {
+      if (bar !== null) anchorPt(p, Math.max(1, snapPtBar(bar + dBar)));
+      p.value = Math.round(Math.max(0, Math.min(1, value + dVal)) * 1000) / 1000;
+    });
+    draw(); save();
+    const q = drag.start[0];
+    if (q){ const a = cues.automation.find(l => (l.points || []).includes(q.p)); readout(e, a, q.p.value); }
+    return;
+  }
+
+  if (drag.kind === "curve"){
+    let c = drag.c0 + drag.dir * (y - drag.y0) / 80;
+    if (drag.p.shape === "s") c = Math.max(0.05, Math.min(1, Math.abs(drag.c0 || 0.5) - (y - drag.y0) / 80));
+    c = Math.max(-1, Math.min(1, c));
+    if (Math.abs(c) < 0.04 && drag.p.shape !== "s") delete drag.p.curve;
+    else drag.p.curve = Math.round(c * 100) / 100;
+    draw(); save();
+    readoutText(e, drag.p.shape === "s" ? `S-curve ${Math.round(Math.abs(c) * 100)}%`
+      : !drag.p.curve ? "straight" : drag.p.curve > 0 ? `ease in ${Math.round(c * 100)}%` : `ease out ${Math.round(-c * 100)}%`);
+    return;
+  }
+
+  if (drag.kind === "pencil"){
+    penSample(x, y);
+    draw();
+    const last = drag.samples[drag.samples.length - 1];
+    if (last) readout(e, drag.a, last[1]);
+    return;
+  }
+
+  if (drag.kind === "fade"){
+    const delta = (x - drag.x0) / pxPerBar;
+    drag.start.forEach(({c, fade, len}) => {
+      const f = Math.max(0, Math.min(len, Math.round((fade + delta) * 2) / 2));
+      if (f) c.fade_bars = f; else delete c.fade_bars;
+    });
+    draw(); save();
+    return;
+  }
+
+  if (drag.kind === "resize"){
+    const deltaBars = xToBar(x) - xToBar(drag.x0);
+    drag.start.forEach(({c, bar, len}) => {
+      if (drag.side === "r"){
+        c.length_bars = Math.max(1, Math.round(len + deltaBars));
+      } else if (bar !== null){
+        const nb = Math.max(1, snapBar(bar + deltaBars));
+        const newLen = Math.max(1, Math.round(len + (bar - nb)));
+        anchor(c, nb); c.length_bars = newLen;
+      }
+    });
+    draw(); save();
+    return;
+  }
+
+  if (drag.kind === "move"){
+    if (drag.alt && !drag.copied){                 // alt-drag leaves a copy behind
+      drag.copied = true;
+      const made = drag.start.map(s => {
+        const copy = Object.assign({}, s.c, {id:newId()});
+        cues.cues.push(copy);
+        return {c: copy, bar: s.bar, lane: s.lane};
+      });
+      drag.start = made;
+      select(made.map(m => m.c.id));
+    }
+    const deltaBars = xToBar(x) - xToBar(drag.x0);
+    const here = laneIndexAt(y);
+    const laneStep = here === null || drag.lane0 === null ? 0 : here - drag.lane0;
+    drag.start.forEach(({c, bar, lane}) => {
+      if (bar !== null) anchor(c, Math.max(1, snapBar(bar + deltaBars)));
+      const li = Math.max(0, Math.min(LANES.length - 1, lane + laneStep));
+      c.lane = LANES[li][0];
+    });
+    draw(); save();
+  }
+});
+
+function laneIndexAt(y){
+  const i = laneRows.findIndex(({el: l}) => y >= l.offsetTop && y < l.offsetTop + l.offsetHeight);
+  if (i >= 0) return LANES.findIndex(l => l[0] === laneRows[i].id);
+  if (!laneRows.length) return null;
+  const last = laneRows[laneRows.length - 1].el;
+  return y < laneRows[0].el.offsetTop ? 0 : y >= last.offsetTop + last.offsetHeight ? LANES.length - 1 : null;
+}
+
+const endDrag = () => {
+  const wasMarquee = drag && drag.kind === "marquee";
+  if (drag && drag.kind === "pencil") commitPencil(drag);
+  drag = null; marquee = null;
+  el("readout").hidden = true;
+  if (wasMarquee) draw();
+};
+
+// ------------------------------------------------------- automation tools ---
+function readoutText(e, text){
+  const r = el("readout");
+  r.textContent = text; r.hidden = false;
+  r.style.left = e.clientX + 14 + "px"; r.style.top = e.clientY - 26 + "px";
+}
+function readout(e, a, v){
+  const n = a ? nativeOf(a, v) : null;
+  const t = a ? targetOf(a) : null;
+  const unit = t && (+t.max - +t.min !== 1 || +t.min !== 0) && n !== null ? `  → ${+n.toFixed(3)}` : "";
+  readoutText(e, `${Math.round(v * 100)}%${unit}`);
+}
+function penSample(x, y){
+  // look the lane up each time: every draw() replaces its element
+  const row = autoRows.find(r => r.a.id === drag.lane) || drag.row;
+  const v = Math.max(0, Math.min(1, 1 - (y - row.el.offsetTop - APAD) / (row.H - 2 * APAD)));
+  const b = Math.max(1, xToBar(x));
+  const last = drag.samples[drag.samples.length - 1];
+  if (!last || Math.abs(barToX(b) - barToX(last[0])) >= 2) drag.samples.push([b, v]);
+}
+function simplify(pts, eps){                        // Ramer–Douglas–Peucker, in pixels
+  if (pts.length < 3) return pts;
+  const [ax, ay] = pts[0], [bx, by] = pts[pts.length - 1];
+  let far = 0, idx = 0;
+  for (let i = 1; i < pts.length - 1; i++){
+    const [px, py] = pts[i];
+    const d = Math.abs((by - ay) * px - (bx - ax) * py + bx * ay - by * ax) / (Math.hypot(by - ay, bx - ax) || 1);
+    if (d > far){ far = d; idx = i; }
+  }
+  if (far <= eps) return [pts[0], pts[pts.length - 1]];
+  return simplify(pts.slice(0, idx + 1), eps).slice(0, -1).concat(simplify(pts.slice(idx), eps));
+}
+function commitPencil(d){
+  // the stroke may go either way; keep it in time order, one value per spot
+  const s = d.samples.slice().sort((p, q) => p[0] - q[0]);
+  if (s.length < 2){ undo.pop(); return; }
+  const H = (autoRows.find(r => r.a.id === d.lane) || d.row).H - 2 * APAD;
+  const px = simplify(s.map(([b, v]) => [barToX(b), v * H]), 2.5);
+  const b0 = s[0][0], b1 = s[s.length - 1][0];
+  d.a.points = (d.a.points || []).filter(p => { const b = ptBar(p); return b === null || b < b0 || b > b1; });
+  const made = [];
+  px.forEach(([xx, vv]) => {
+    const p = {id: newId(), song: "", section: "", offset_bars: 0, value: Math.round(vv / H * 1000) / 1000};
+    anchorPt(p, xToBar(xx));
+    if (p.section){ d.a.points.push(p); made.push(p.id); }
+  });
+  selPts = new Set(made); selSet.clear();
+  draw(); save();
+}
+
+// a lane's range: 0% and 100% in the target's own units (Scale 80…150, not 0…1000)
+async function editRange(a){
+  const t = targetOf(a); if (!t) return;
+  const got = prompt(`${t.name}\n0% and 100% of this lane, in its own units (min, max):`,
+                     `${+(t.min ?? 0)}, ${+(t.max ?? 1)}`);
+  if (got === null) return;
+  const [lo, hi] = got.split(/[,;\s]+/).map(Number);
+  if (!isFinite(lo) || !isFinite(hi) || lo === hi){ alert("Two different numbers, like 80, 150"); return; }
+  try {
+    const r = await fetch("/targets/range", {method: "POST", headers: {"Content-Type": "application/json"},
+                                             body: JSON.stringify({name: t.name, min: lo, max: hi})});
+    if (!r.ok) throw new Error((await r.json()).error);
+    mapping = await (await fetch("osc_map.json", {cache: "no-store"})).json();
+    draw();
+  } catch(e){ el("save").textContent = "range: " + e.message; }
+}
+
+// ∿ — draw a repeating shape over a stretch of bars
+let shapeLane = null;
+function openShape(btn, a){
+  shapeLane = a;
+  const mine = (a.points || []).filter(p => selPts.has(p.id)).map(ptBar).filter(b => b !== null);
+  let from, to;
+  if (mine.length > 1){ from = Math.min(...mine); to = Math.max(...mine); }
+  else {
+    const at = placeOf(Math.max(1, lastBar ?? 1)) || placeOf(1);
+    from = at.s.bar; to = at.s.bar + at.s.bars;
+  }
+  el("sh-from").value = Math.round(from); el("sh-to").value = Math.round(to);
+  el("sh-note").textContent = `${a.target}: replaces the points in that stretch` +
+    (mine.length > 1 ? " (your selected points)" : " (the section under the playhead)");
+  const P = el("shape"), r = btn.getBoundingClientRect();
+  P.hidden = false;
+  P.style.left = Math.min(r.left, innerWidth - P.offsetWidth - 8) + "px";
+  P.style.top = Math.min(r.bottom + 6, innerHeight - P.offsetHeight - 8) + "px";
+  el("sh-kind").focus();
+}
+el("sh-cancel").onclick = () => { el("shape").hidden = true; };
+el("sh-apply").onclick = () => {
+  const a = shapeLane; if (!a) return;
+  const kind = el("sh-kind").value, P = Math.max(0.25, +el("sh-every").value || 2);
+  const lo = Math.max(0, Math.min(1, (+el("sh-lo").value || 0) / 100));
+  const hi = Math.max(0, Math.min(1, (+el("sh-hi").value || 0) / 100));
+  const F = +el("sh-from").value, T = +el("sh-to").value;
+  if (!(T > F)){ el("sh-note").textContent = "‘to’ has to be after ‘from’"; return; }
+  const out = [], eps = 1 / 16;
+  const push = (bar, value, shape, curve) => { if (bar <= T + 1e-6) out.push({bar, value, shape, curve}); };
+  for (let k = 0, b = F; b < T - 1e-6; k++, b = F + k * P){
+    if (kind === "sine"){ push(b, lo, "s", 1/3); push(b + P / 2, hi, "s", 1/3); }
+    else if (kind === "triangle"){ push(b, lo); push(b + P / 2, hi); }
+    else if (kind === "saw"){ push(b, lo); push(b + P - eps, hi, "hold"); }
+    else if (kind === "sawdown"){ push(b, hi); push(b + P - eps, lo, "hold"); }
+    else if (kind === "square"){ push(b, hi, "hold"); push(b + P / 2, lo, "hold"); }
+    else if (kind === "random"){ push(b, lo + Math.random() * (hi - lo), "s", 1/3); }
+  }
+  // end on the shape's own next value, so the stretch closes cleanly
+  const endV = {sine: lo, triangle: lo, saw: lo, sawdown: hi, square: hi, random: lo + Math.random() * (hi - lo)}[kind];
+  push(T, endV);
+  mark();
+  a.points = (a.points || []).filter(p => { const b = ptBar(p); return b === null || b < F || b > T; });
+  const made = [];
+  out.forEach(o => {
+    const p = {id: newId(), song: "", section: "", offset_bars: 0, value: Math.round(o.value * 1000) / 1000};
+    if (o.shape) p.shape = o.shape;
+    if (o.curve) p.curve = Math.round(o.curve * 100) / 100;
+    anchorPt(p, o.bar);
+    if (p.section){ a.points.push(p); made.push(p.id); }
+  });
+  selPts = new Set(made); selSet.clear();
+  el("shape").hidden = true;
+  draw(); save();
+};
+
+// ＋ a Resolume parameter: any range parameter in the open composition
+let tpFor = null, tpParams = [], tpHi = 0;
+async function openTargetPicker(anchorEl, lane){
+  tpFor = lane;
+  const P = el("tpick"), r = anchorEl.getBoundingClientRect();
+  P.hidden = false;
+  P.style.left = Math.min(r.left, innerWidth - P.offsetWidth - 8) + "px";
+  P.style.top = Math.min(r.bottom + 6, innerHeight - 380) + "px";
+  el("tp-q").value = ""; tpHi = 0;
+  el("tp-list").innerHTML = `<div class="sub" style="padding:6px">asking Resolume…</div>`;
+  el("tp-q").focus();
+  try {
+    const out = await (await fetch("/arena/params", {cache: "no-store"})).json();
+    tpParams = out.params || [];
+    if (!out.live){ el("tp-list").innerHTML = `<div class="sub" style="padding:6px">Resolume isn't answering: open Arena with its web server on.</div>`; return; }
+  } catch(e){ tpParams = []; }
+  drawTargetPicker();
+}
+function tpFiltered(){
+  const q = el("tp-q").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return tpParams.filter(p => q.every(w => p.label.toLowerCase().includes(w)));
+}
+function drawTargetPicker(){
+  const list = tpFiltered();
+  tpHi = Math.min(tpHi, Math.max(0, list.length - 1));
+  let html = "", grp = null;
+  list.forEach((p, i) => {
+    if (p.group !== grp){ grp = p.group; html += `<div class="grp">${esc(grp)}</div>`; }
+    const used = (mapping.targets || []).some(t => JSON.stringify(t.resolume) === JSON.stringify(p.path));
+    html += `<div class="it ${i === tpHi ? "hi" : ""}" data-i="${i}"><span>${esc(p.label.startsWith(p.group + " · ") ? p.label.slice(p.group.length + 3) : p.label)}${used ? " ✓" : ""}</span>` +
+            `<small>${+(+p.min).toFixed(2)}…${+(+p.max).toFixed(2)}</small></div>`;
+  });
+  el("tp-list").innerHTML = html || `<div class="sub" style="padding:6px">nothing matches</div>`;
+  const hi = el("tp-list").querySelector(".hi"); if (hi) hi.scrollIntoView({block: "nearest"});
+}
+async function chooseTarget(p){
+  if (!p) return;
+  el("tpick").hidden = true;
+  try {
+    const r = await fetch("/targets/add", {method: "POST", headers: {"Content-Type": "application/json"},
+                                           body: JSON.stringify({path: p.path})});
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.statusText);
+    mapping = await (await fetch("osc_map.json", {cache: "no-store"})).json();
+    mark();
+    if (tpFor) tpFor.target = out.name;
+    else cues.automation.push({id: newId(), target: out.name, points: []});
+    draw(); save();
+  } catch(e){ el("save").textContent = "target: " + e.message; el("status").classList.add("err"); }
+}
+el("tp-q").addEventListener("input", () => { tpHi = 0; drawTargetPicker(); });
+el("tp-q").addEventListener("keydown", e => {
+  const list = tpFiltered();
+  if (e.key === "ArrowDown"){ e.preventDefault(); tpHi = Math.min(list.length - 1, tpHi + 1); drawTargetPicker(); }
+  else if (e.key === "ArrowUp"){ e.preventDefault(); tpHi = Math.max(0, tpHi - 1); drawTargetPicker(); }
+  else if (e.key === "Enter"){ e.preventDefault(); chooseTarget(list[tpHi]); }
+  else if (e.key === "Escape"){ e.preventDefault(); el("tpick").hidden = true; }
+});
+el("tp-list").addEventListener("pointerdown", e => {
+  const d = e.target.closest(".it"); if (!d) return;
+  e.preventDefault(); chooseTarget(tpFiltered()[+d.dataset.i]);
+});
+document.addEventListener("pointerdown", e => {
+  if (!e.target.closest("#tpick") && !e.target.closest("[data-target]") && !e.target.closest("#add-auto-rz")) el("tpick").hidden = true;
+  if (!e.target.closest("#shape") && !e.target.closest("[data-shape]")) el("shape").hidden = true;
+}, true);
+el("tl").addEventListener("pointerup", endDrag);
+el("tl").addEventListener("pointercancel", endDrag);
+
+// zoom with ⌘-scroll, keeping the bar under the pointer where it is
+el("scroll").addEventListener("wheel", e => {
+  if (!e.metaKey && !e.ctrlKey) return;
+  e.preventDefault();
+  const view = el("scroll"), r = view.getBoundingClientRect();
+  const x = e.clientX - r.left + view.scrollLeft;
+  const bar = xToBar(x);
+  pxPerBar = Math.max(3, Math.min(48, pxPerBar * (e.deltaY < 0 ? 1.1 : 1/1.1)));
+  el("zoom").value = pxPerBar;
+  draw();
+  view.scrollLeft = barToX(bar) - (e.clientX - r.left);
+}, {passive:false});
+el("zoom").addEventListener("input", () => { pxPerBar = +el("zoom").value; draw(); });
+el("snap").addEventListener("change", () => el("snap").blur());
+
+// ------------------------------------------------------------- inspector ----
+const GROUP_FIELDS = ["c-value","c-lane","c-length","c-note","c-fade"];
+function bind(id, apply){
+  el(id).addEventListener("change", () => {
+    const list = selected();
+    if (!list.length) return;
+    mark();
+    const targets = GROUP_FIELDS.includes(id) ? list
+                    : [(primary && byId(primary.id)) || list[0]];
+    targets.forEach(c => apply(c, el(id).value));
+    draw(); save();
+  });
+}
+bind("c-lane", (c,v) => c.lane = v);
+bind("c-value", (c,v) => c.value = v);
+bind("c-layer", (c,v) => { if (v && +v !== +laneLayer(c.lane)) c.layer = +v; else delete c.layer; });
+bind("c-length", (c,v) => c.length_bars = Math.max(1, Math.round(+v)));
+bind("c-note", (c,v) => c.note = v);
+bind("c-fade", (c,v) => { const f = Math.max(0, Math.round(+v * 2) / 2); if (f) c.fade_bars = f; else delete c.fade_bars; });
+el("make-clip").onclick = () => { const c = (primary && byId(primary.id)) || selected()[0]; if (c) makeClips([c.value]); };
+bind("c-song", (c,v) => { c.song = v; const s = sectionsOf(v)[0]; if (s) c.section = s.name; });
+bind("c-section", (c,v) => c.section = v);
+bind("c-offset", (c,v) => c.offset_bars = Math.round(+v));
+el("del").onclick = removeSelected;
+el("pt-value").addEventListener("change", () => {
+  const pts = allPoints().filter(x => selPts.has(x.p.id)); if (!pts.length) return;
+  mark(); const v = Math.max(0, Math.min(1, +el("pt-value").value));
+  pts.forEach(x => x.p.value = v); draw(); save();
+});
+el("pt-shape").addEventListener("change", () => {
+  const pts = allPoints().filter(x => selPts.has(x.p.id)); if (!pts.length) return;
+  const v = el("pt-shape").value;
+  const preset = {linear: ["linear", 0], in: ["linear", 0.6], out: ["linear", -0.6], s: ["s", 0.5], hold: ["hold", 0]}[v];
+  if (!preset) return;
+  mark();
+  pts.forEach(x => {
+    if (preset[0] === "linear") delete x.p.shape; else x.p.shape = preset[0];
+    if (preset[1]) x.p.curve = preset[1]; else delete x.p.curve;
+  });
+  draw(); save();
+});
+el("pt-del").onclick = () => removePoints();
+function removePoints(){
+  if (!selPts.size) return;
+  mark();
+  cues.automation.forEach(a => a.points = (a.points || []).filter(p => !selPts.has(p.id)));
+  selPts.clear(); draw(); save();
+}
+el("dup").onclick = duplicateSelected;
+
+// -------------------------------------------------------------- keyboard ----
+addEventListener("keydown", e => {
+  if (/input|textarea|select/i.test(e.target.tagName)){
+    if (e.key === "Escape"){ e.target.blur(); el("shape").hidden = true; el("tpick").hidden = true; }
+    return;
+  }
+  const k = e.key.toLowerCase();
+  if (e.metaKey || e.ctrlKey){
+    if (k === "z"){ e.preventDefault(); e.shiftKey ? step(redo, undo) : step(undo, redo); return; }
+    if (k === "a"){ e.preventDefault(); select(cues.cues.map(c => c.id)); draw(); return; }
+    if (k === "c"){ e.preventDefault(); copySelected(); return; }
+    if (k === "v"){ e.preventDefault(); pasteAtPlayhead(); return; }
+    if (k === "d"){ e.preventDefault(); duplicateSelected(); return; }
+    return;
+  }
+  if (e.code === "Space"){ e.preventDefault(); el("play").onclick(); return; }
+  if (k === "escape"){ if (pick){ closePick(); return; } selSet.clear(); selPts.clear(); primary = null; draw(); return; }
+  if (k === "enter" && selected().length){ e.preventDefault(); openPick((primary && byId(primary.id)) || selected()[0]); return; }
+  if (k === "backspace" || k === "delete"){
+    e.preventDefault();
+    if (selPts.size) removePoints();
+    if (selected().length) removeSelected();
+    return;
+  }
+  const grid = +el("snap").value || 1;
+  if (k === "arrowleft"){ e.preventDefault(); nudge(e.shiftKey ? -1 : -grid, 0); }
+  if (k === "arrowright"){ e.preventDefault(); nudge(e.shiftKey ? 1 : grid, 0); }
+  if (k === "arrowup"){ e.preventDefault(); nudge(0, -1); }
+  if (k === "arrowdown"){ e.preventDefault(); nudge(0, 1); }
+});
+
+// ------------------------------------------------------------ quick picker --
+// Everything you set on nearly every cue, on the cue: what it fires, how it
+// fades in, and a note. The sidebar still has the rest.
+let pick = null;                     // {id, opts, hi}
+function pickOptions(c){
+  const opts = [];
+  if (c.lane === "scenes"){
+    ((comp && comp.columns) || []).forEach(col => opts.push({value: col.name, label: col.name,
+      sub: `column ${col.index}${col.named ? "" : " · unnamed in Resolume"}`}));
+  } else if (c.lane !== "note"){
+    const L = findLayer(c.layer || laneLayer(c.lane));
+    ((L && L.clips) || []).forEach(k => opts.push({value: k.name, label: k.name, clip: k,
+      sub: `${L.name} · clip ${k.index}${k.missing ? " · media missing" : ""}`}));
+    if (c.lane === "lights")
+      looks.looks.forEach(l => { if (!opts.some(o => o.value === l.name))
+        opts.push({value: l.name, label: l.name, look: true,
+                   sub: comp && comp.live ? "look · choosing it makes it a clip" : "look · previz only until Arena is open"}); });
+    Object.entries(mapping.cues || {}).forEach(([k, v]) => {
+      if (Array.isArray(v) && k.startsWith(c.lane + ":") && !opts.some(o => o.value === k.slice(c.lane.length + 1)))
+        opts.push({value: k.slice(c.lane.length + 1), label: k.slice(c.lane.length + 1), sub: "raw OSC"});
+    });
+  }
+  return opts;
+}
+function openPick(c){
+  if (!c) return;
+  if (!selSet.has(c.id)) { select([c.id]); draw(); }
+  pick = {id: c.id, opts: pickOptions(c), hi: 0};
+  el("pick").hidden = false;
+  el("pick-q").value = "";
+  el("pick-q").placeholder = c.lane === "note" ? "note text…" : c.lane === "scenes" ? "column…" : "clip or look…";
+  el("pick-list").style.display = c.lane === "note" ? "none" : "";
+  el("pick-fade").style.display = c.lane === "note" ? "none" : "";
+  el("pick-note").style.display = c.lane === "note" ? "none" : "";
+  el("pick-note").value = c.note || "";
+  const cur = pick.opts.findIndex(o => o.value === c.value);
+  pick.hi = Math.max(0, cur);
+  drawPick(); placePick();
+  el("pick-q").focus();
+}
+function closePick(){ pick = null; el("pick").hidden = true; }
+function pickFiltered(){
+  const q = el("pick-q").value.trim().toLowerCase();
+  return q ? pick.opts.filter(o => o.label.toLowerCase().includes(q)) : pick.opts;
+}
+function drawPick(){
+  if (!pick) return;
+  const c = byId(pick.id);
+  if (!c){ closePick(); return; }
+  const list = pickFiltered();
+  pick.hi = Math.min(pick.hi, Math.max(0, list.length - 1));
+  const q = el("pick-q").value.trim();
+  el("pick-list").innerHTML = list.map((o, i) =>
+    `<div class="po ${i === pick.hi ? "hi" : ""} ${o.look ? "look" : ""}" data-i="${i}">` +
+    (o.clip ? `<img src="${thumbUrl(o.clip)}" onerror="this.style.visibility='hidden'">` : `<span class="noimg"></span>`) +
+    `<div style="min-width:0"><b>${esc(o.label)}${o.value === c.value ? " ✓" : ""}</b><small>${esc(o.sub)}</small></div></div>`
+  ).join("") || `<div class="hint" style="padding:4px 6px">${q ? `enter uses “${esc(q)}” as typed` :
+      c.lane === "scenes" ? "no columns seen in Resolume" : "nothing in this layer yet: load a clip, or type a name"}</div>`;
+  const f = +c.fade_bars || 0;
+  el("pick-fade").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.f === f));
+  const hi = el("pick-list").querySelector(".hi");
+  if (hi) hi.scrollIntoView({block: "nearest"});
+}
+function placePick(){
+  if (!pick) return;
+  const d = document.querySelector(`.cue[data-id="${pick.id}"]`);
+  if (!d){ return; }
+  const r = d.getBoundingClientRect(), P = el("pick");
+  const left = Math.min(Math.max(8, r.left), innerWidth - P.offsetWidth - 8);
+  const below = r.bottom + 6, above = r.top - P.offsetHeight - 6;
+  P.style.left = left + "px";
+  P.style.top = (below + P.offsetHeight < innerHeight - 8 || above < 8 ? below : above) + "px";
+}
+function choosePick(opt){
+  const c = byId(pick.id);
+  const v = opt ? opt.value : el("pick-q").value.trim();
+  if (!c || !v){ closePick(); return; }
+  mark();
+  selected().filter(x => x.lane === c.lane).forEach(x => x.value = v);
+  draw(); save();
+  closePick();
+  if (opt && opt.look && comp && comp.live) makeClips([v]);
+}
+el("pick-q").addEventListener("input", () => { if (pick){ pick.hi = 0; drawPick(); } });
+el("pick-q").addEventListener("keydown", e => {
+  if (!pick) return;
+  const list = pickFiltered();
+  if (e.key === "ArrowDown"){ e.preventDefault(); pick.hi = Math.min(list.length - 1, pick.hi + 1); drawPick(); }
+  else if (e.key === "ArrowUp"){ e.preventDefault(); pick.hi = Math.max(0, pick.hi - 1); drawPick(); }
+  else if (e.key === "Enter"){ e.preventDefault();
+    const q = el("pick-q").value.trim().toLowerCase();
+    const exact = list.find(o => o.label.toLowerCase() === q);
+    choosePick(exact || (list.length ? list[pick.hi] : null)); }
+  else if (e.key === "Escape"){ e.preventDefault(); closePick(); }
+});
+el("pick-list").addEventListener("pointerdown", e => {
+  const d = e.target.closest(".po"); if (!d || !pick) return;
+  e.preventDefault(); choosePick(pickFiltered()[+d.dataset.i]);
+});
+el("pick-fade").addEventListener("click", e => {
+  const b = e.target.closest("button[data-f]"); if (!b || !pick) return;
+  const c = byId(pick.id); if (!c) return;
+  mark();
+  const f = +b.dataset.f;
+  selected().forEach(x => { if (f) x.fade_bars = f; else delete x.fade_bars; });
+  draw(); save(); drawPick(); placePick();
+  el("pick-q").focus();                         // keep typing where you were
+});
+el("pick-note").addEventListener("keydown", e => {
+  if (e.key === "Enter" || e.key === "Escape"){ e.preventDefault(); e.target.blur(); closePick(); }
+});
+el("pick-note").addEventListener("change", () => {
+  const c = pick && byId(pick.id); if (!c) return;
+  mark(); c.note = el("pick-note").value; draw(); save();
+});
+document.addEventListener("pointerdown", e => {
+  if (pick && !e.target.closest("#pick") && !e.target.closest(".pickbtn")) closePick();
+}, true);
+el("scroll").addEventListener("scroll", placePick);
+
+async function makeClips(names){
+  el("save").textContent = "making clip…";
+  try {
+    const r = await fetch("/looks/clip", {method: "POST", headers: {"Content-Type": "application/json"},
+                                           body: JSON.stringify({looks: names})});
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.statusText);
+    el("save").textContent = out.made.map(m => `${m.name} → layer ${m.layer} clip ${m.clip}`).join(", ");
+    compShape = "";                                // pick up the new clip right away
+    setTimeout(pollCompOnce, 300);
+  } catch(e){ el("save").textContent = "make clip: " + e.message; el("status").classList.add("err"); }
+}
+
+// --------------------------------------------------------- Resolume panel --
+let compShape = "", dragItem = null, panelStale = false;
+async function pollCompOnce(){ return pollComp(true); }
+async function pollComp(once){
+  try {
+    const v = await (await fetch("/arena/composition", {cache: "no-store"})).json();
+    const shape = JSON.stringify([v.name, v.live, v.layers.map(l => [l.name, l.clips.map(c =>
+      [c.index, c.name, c.thumb, c.missing, c.transport, c.beatsnap])]), v.columns.map(c => c.name)]);
+    comp = v;
+    if (shape !== compShape){
+      compShape = shape;
+      if (dragItem) panelStale = true;            // don't pull the clip out from under a drag
+      else { buildPanel(); if (show) draw(!isTyping()); }
+    }
+    paintStates();
+  } catch(e){}
+  if (!once) setTimeout(pollComp, document.hidden ? 3000 : 1000);
+}
+const isTyping = () => /input|textarea|select/i.test((document.activeElement || {}).tagName || "");
+
+function usage(){
+  const n = {};
+  cues.cues.forEach(c => {
+    const r = resolveCue(c);
+    if (r.clip) n[`${r.layer.index}:${r.clip.index}`] = (n[`${r.layer.index}:${r.clip.index}`] || 0) + 1;
+    if (r.column) n[`col:${r.column.index}`] = (n[`col:${r.column.index}`] || 0) + 1;
+  });
+  return n;
+}
+
+function buildPanel(){
+  const live = comp && comp.live;
+  el("rz-name").textContent = !comp || !comp.name
+    ? "not seen yet: open Arena with Preferences → Webserver on"
+    : `${comp.name}` + (live ? "" : " · as last seen, Arena isn't answering");
+  if (!comp || !comp.layers.length){ el("rz-grid").innerHTML = ""; return; }
+  const used = usage();
+  const ncol = Math.max(comp.columns.length, 0, ...comp.layers.flatMap(l => l.clips.map(c => c.index)));
+  let html = `<table class="rz-table"><tr><th></th>`;
+  for (let i = 1; i <= ncol; i++){
+    const col = comp.columns.find(c => c.index === i) || {index: i, name: `Column ${i}`, named: false};
+    html += `<th><div class="rz-col ${col.named ? "" : "unnamed"}" draggable="true" data-col="${i}"
+      data-name="${esc(col.name)}" title="${esc(col.name)}: drag onto Scenes to fire the whole row` +
+      `${col.named ? "" : "\nname it in Resolume (right-click the column) to use it by name"}` +
+      `${used["col:" + i] ? `\nused by ${used["col:" + i]} cue(s)` : ""}">${esc(col.name)}</div></th>`;
+  }
+  html += `</tr>`;
+  comp.layers.slice().reverse().forEach(l => {        // top layer on top, as in Arena
+    const lane = laneForLayer(l.index);
+    html += `<tr><td class="rz-layer"><b>${esc(l.name)}</b>${lane ? `→ ${lane}` : ""}</td>`;
+    for (let i = 1; i <= ncol; i++){
+      const c = l.clips.find(x => x.index === i);
+      if (!c){ html += `<td><div class="rz-empty"></div></td>`; continue; }
+      const u = used[`${l.index}:${c.index}`];
+      html += `<td><div class="rz-clip ${u ? "used" : ""} ${c.missing ? "missing" : ""}" draggable="true"
+        data-layer="${l.index}" data-clip="${c.index}" data-name="${esc(c.name)}" ${u ? `data-used="${u}"` : ""}
+        title="${esc(c.name)} · ${esc(l.name)} clip ${c.index}` +
+        `${c.seconds ? ` · ${c.seconds}s` : ""} · ${esc(c.transport || "")}` +
+        `${c.missing ? "\nMEDIA FILE MISSING" : ""}${u ? `\nused by ${u} cue(s): click to select them` : ""}">` +
+        `<img src="${thumbUrl(c)}" onerror="this.style.visibility='hidden'"><span>${esc(c.name)}</span></div></td>`;
+    }
+    html += `</tr>`;
+  });
+  el("rz-grid").innerHTML = html + `</table>`;
+  paintStates();
+}
+
+// what is playing in Resolume right now, on the panel and on the cues
+function paintStates(){
+  if (!comp) return;
+  document.querySelectorAll(".rz-clip").forEach(d => {
+    const L = comp.layers.find(l => l.index === +d.dataset.layer);
+    const c = L && L.clips.find(x => x.index === +d.dataset.clip);
+    d.classList.toggle("on", !!(c && isOn(c.state)));
+  });
+  document.querySelectorAll(".rz-col").forEach(d => {
+    const c = comp.columns.find(x => x.index === +d.dataset.col);
+    d.classList.toggle("on", !!(c && isOn(c.state)));
+  });
+  // the cue each lane is on at the playhead; while Live is really playing, a
+  // cue whose clip isn't playing in Resolume gets a dashed warning
+  const bar = lastBar ?? 1;
+  const current = {};
+  cues.cues.forEach(c => {
+    const b = cueBar(c);
+    if (b === null || b > bar + 1e-6 || c.lane === "note") return;
+    if (!current[c.lane] || b > cueBar(current[c.lane])) current[c.lane] = c;
+  });
+  const playing = liveFresh() && liveState.playing;
+  document.querySelectorAll(".cue").forEach(d => {
+    const c = byId(d.dataset.id);
+    if (!c) return;
+    const r = resolveCue(c);
+    const on = r.clip ? isOn(r.clip.state) : r.column ? isOn(r.column.state) : false;
+    const isCurrent = current[c.lane] === c;
+    d.classList.toggle("live", on && isCurrent);
+    d.classList.toggle("notlive", !!(playing && isCurrent && r.ok && !on && comp.live));
+  });
+}
+
+el("rz-fold").onclick = () => {
+  const folded = el("rz").classList.toggle("folded");
+  el("rz-fold").textContent = folded ? "▸" : "▾";
+  try { localStorage.setItem("rz-folded", folded ? "1" : ""); } catch(e){}
+};
+try { if (localStorage.getItem("rz-folded")){ el("rz").classList.add("folded"); el("rz-fold").textContent = "▸"; } } catch(e){}
+
+el("rz-grid").addEventListener("click", e => {          // find the cues that use this clip
+  const d = e.target.closest(".rz-clip, .rz-col");
+  if (!d) return;
+  const ids = cues.cues.filter(c => {
+    const r = resolveCue(c);
+    return d.dataset.col ? r.column && r.column.index === +d.dataset.col
+                         : r.clip && r.layer.index === +d.dataset.layer && r.clip.index === +d.dataset.clip;
+  }).map(c => c.id);
+  select(ids); draw();
+  const first = ids.map(byId).map(cueBar).filter(b => b !== null).sort((a, b) => a - b)[0];
+  if (first) el("scroll").scrollLeft = barToX(first) - 80;
+});
+
+el("rz-grid").addEventListener("dragstart", e => {
+  const clip = e.target.closest(".rz-clip"), col = e.target.closest(".rz-col");
+  if (clip) dragItem = {kind: "clip", layer: +clip.dataset.layer, name: clip.dataset.name};
+  else if (col) dragItem = {kind: "column", name: col.dataset.name};
+  else return;
+  e.dataTransfer.setData("text/plain", dragItem.name);
+  e.dataTransfer.effectAllowed = "copy";
+});
+el("rz-grid").addEventListener("dragend", () => {
+  dragItem = null; clearGhost();
+  if (panelStale){ panelStale = false; buildPanel(); draw(!isTyping()); }
+});
+
+function dropTarget(e){
+  if (!dragItem || !show) return null;
+  const [x] = tlPoint(e);
+  const laneEl = e.target.closest(".lane");
+  if (!laneEl) return null;
+  let lane = laneEl.dataset.lane;
+  if (dragItem.kind === "column") lane = "scenes";
+  else if (lane === "scenes" || lane === "note") lane = laneForLayer(dragItem.layer) || "screen";
+  const cueEl = e.target.closest(".cue");
+  const hit = cueEl && byId(cueEl.dataset.id);
+  const swap = hit && hit.lane === lane ? hit : null;
+  const bar = swap ? cueBar(swap) : snapBar(Math.max(1, xToBar(x)));
+  return placeOf(bar) ? {lane, bar, swap} : null;
+}
+function clearGhost(){
+  document.querySelectorAll(".ghost").forEach(g => g.remove());
+  document.querySelectorAll(".dropswap").forEach(g => g.classList.remove("dropswap"));
+}
+function showGhost(t){
+  clearGhost();
+  if (t.swap){
+    const d = document.querySelector(`.cue[data-id="${t.swap.id}"]`);
+    if (d) d.classList.add("dropswap");
+    return;
+  }
+  const row = laneRows.find(r => r.id === t.lane);
+  if (!row) return;
+  const g = document.createElement("div");
+  g.className = "ghost";
+  g.style.left = barToX(t.bar) + "px";
+  g.style.top = row.el.offsetTop + 16 + "px";
+  g.style.height = row.el.offsetHeight - 20 + "px";
+  g.style.width = Math.max(16, (+el("snap").value || 8) * pxPerBar) + "px";
+  g.textContent = `${dragItem.name} · bar ${t.bar.toFixed(0)}`;
+  el("tl").appendChild(g);
+}
+el("tl").addEventListener("dragover", e => {
+  const t = dropTarget(e);
+  if (!t){ clearGhost(); return; }
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "copy";
+  showGhost(t);
+});
+el("tl").addEventListener("dragleave", e => {
+  if (!e.relatedTarget || !el("tl").contains(e.relatedTarget)) clearGhost();
+});
+el("tl").addEventListener("drop", e => {
+  const t = dropTarget(e);
+  clearGhost();
+  if (!t) return;
+  e.preventDefault();
+  mark();
+  const layerOf = lane => dragItem.kind === "clip" && dragItem.layer !== +laneLayer(lane) ? dragItem.layer : null;
+  if (t.swap){                                    // onto a cue: same place, new clip
+    t.swap.value = dragItem.name;
+    const L = layerOf(t.swap.lane);
+    if (L) t.swap.layer = L; else delete t.swap.layer;
+    select([t.swap.id]);
+  } else {
+    const c = {id: newId(), lane: t.lane, song: "", section: "", offset_bars: 0,
+               length_bars: +el("snap").value || 8, value: dragItem.name, note: ""};
+    const L = layerOf(t.lane);
+    if (L) c.layer = L;
+    anchor(c, t.bar);
+    cues.cues.push(c);
+    select([c.id]);
+  }
+  dragItem = null;
+  if (panelStale){ panelStale = false; }
+  buildPanel(); draw(); save();
+});
+
+// ------------------------------------------------------------------ audio ---
+const audio = new Audio();
+audio.preload = "metadata";
+const secPerBar = () => 60 / show.tempo * bpb();
+const offset = () => (cues.audio && cues.audio.offset_seconds) || 0;
+const timeToBar = t => (t - offset()) / secPerBar() + 1;
+const barToTime = bar => offset() + (bar - 1) * secPerBar();
+
+async function loadAudio(){
+  let files = [];
+  try { files = (await (await fetch("audio/list")).json()).files || []; } catch(e){}
+  cues.audio = cues.audio || {};
+  const chosen = files.includes(cues.audio.file) ? cues.audio.file : files[files.length - 1];
+  el("audio-file").innerHTML = files.length
+    ? files.map(f => `<option ${f===chosen?"selected":""}>${f}</option>`).join("")
+    : `<option value="">no bounce in audio/</option>`;
+  el("audio-offset").value = offset();
+  if (chosen){ cues.audio.file = chosen; audio.src = "audio/" + encodeURIComponent(chosen); }
+  el("play").disabled = !chosen;
+}
+el("audio-file").addEventListener("change", () => {
+  cues.audio.file = el("audio-file").value;
+  audio.src = "audio/" + encodeURIComponent(cues.audio.file); save();
+});
+el("audio-offset").addEventListener("change", () => {
+  cues.audio.offset_seconds = +el("audio-offset").value || 0; save();
+});
+el("play").onclick = () => audio.paused ? audio.play() : audio.pause();
+audio.addEventListener("play", () => el("transport").classList.add("playing"));
+audio.addEventListener("pause", () => el("transport").classList.remove("playing"));
+function seekToBar(bar){ audio.currentTime = Math.max(0, barToTime(bar)); }
+
+// -------------------------------------------------------------- follow live --
+el("follow").onclick = () => {
+  following = !following;
+  el("follow").classList.toggle("on", following);
+  if (following && !audio.paused) audio.pause();
+};
+async function pollPlayer(){
+  if (following){
+    try {
+      liveState = await (await fetch("player.json", {cache:"no-store"})).json();
+    } catch(e){ liveState = null; }
+  }
+  setTimeout(pollPlayer, following ? 60 : 500);
+}
+const liveFresh = () => following && liveState && liveState.t && Date.now()/1000 - liveState.t < 2;
+
+// ---------------------------------------------------------------- playhead --
+let playhead = null, lastBar = null, shownLook = null;
+function tick(){
+  requestAnimationFrame(tick);
+  if (!show) return;
+  const live = liveFresh();
+  const bar = live ? liveState.bar : timeToBar(audio.currentTime);
+  el("follow").textContent = !following ? "Follow Live"
+    : !live ? "no player running"
+    : liveState.live_connected === false ? "Live not reachable"
+    : liveState.playing === false ? "● Live · stopped" : "● Live";
+  el("follow").title = following && !live
+    ? "Follow Live mirrors cue_player, not Live itself. Start it with:\n" +
+      "Test.command (or: python3 cue_player.py --follow --preview)"
+    : "mirror what cue_player is doing";
+  if (!playhead || !playhead.isConnected){
+    playhead = document.createElement("div"); playhead.id = "playhead";
+    el("tl").appendChild(playhead);
+  }
+  playhead.style.left = barToX(bar) + "px";
+  const at = placeOf(bar);
+  const t = Math.max(0, live ? (bar - 1) * secPerBar() : audio.currentTime);
+  el("clock").textContent =
+    `${String(Math.floor(t/60)).padStart(2,"0")}:${(t%60).toFixed(1).padStart(4,"0")} · ` +
+    `bar ${bar.toFixed(0)}` + (at ? ` · ${at.g.name} / ${at.s.name}` : "");
+  // current value of each automation lane, next to its name
+  autoRows.forEach(({a}) => {
+    const v = live && liveState.values && a.id in liveState.values ? liveState.values[a.id]
+                                                                   : valueAt(a, bar);
+    const tag = document.querySelector(`[data-val="${a.id}"]`);
+    if (tag) tag.textContent = v === null || v === undefined ? "" : Math.round(v * 100) + "%";
+  });
+  // flash what the player just fired
+  if (live && liveState.recent){
+    const ids = new Set(liveState.recent.slice(-3).map(r => r.id));
+    document.querySelectorAll(".cue").forEach(c => c.classList.toggle("fired", ids.has(c.dataset.id)));
+  }
+  if (!audio.paused || live){
+    const view = el("scroll"), x = barToX(bar);
+    if (x < view.scrollLeft + 60 || x > view.scrollLeft + view.clientWidth - 140)
+      view.scrollLeft = x - view.clientWidth / 3;
+  }
+  if (lastBar === null || Math.abs(bar - lastBar) > 0.02){
+    showRoomAt(bar, lastBar === null || Math.abs(bar - lastBar) > 2);
+    lastBar = bar;
+  }
+}
+
+function previewLook(name){
+  const l = looks.looks.find(l => l.name === name);
+  fetch("preview.json", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({look:name || null, fixtures: l ? (l.fixtures || {}) : {},
+                          hold:true, t:Date.now()/1000})}).catch(() => {});
+}
+
+function showRoomAt(bar, jumped){
+  let best = null;
+  for (const c of cues.cues){
+    if (c.lane !== "lights") continue;
+    const b = cueBar(c);
+    if (b !== null && b <= bar + 1e-6 && (!best || b > cueBar(best))) best = c;
+  }
+  const name = best ? best.value : null;
+  if (name === shownLook && !jumped) return;
+  shownLook = name;
+  const look = looks.looks.find(l => l.name === name);
+  el("playing-look").textContent = name ? `${name}${look ? "" : "  (not in looks.json)"}` : "—";
+  const fixtures = (look && look.fixtures) || {};
+  const names = rigNames.length ? rigNames : Object.keys(fixtures).sort();
+  el("lightstrip").innerHTML = names.map(n => {
+    const v = fixtures[n] || {r:0,g:0,b:0,w:0,dim:0};
+    const k = (v.dim ?? 0) / 255;
+    const c = [v.r + (v.w||0), v.g + (v.w||0)*0.92, v.b + (v.w||0)*0.82]
+      .map(x => Math.round(Math.min(255, x) * k));
+    return `<div title="${n}" style="background:rgb(${c.join(",")})"></div>`;
+  }).join("");
+  if (name) previewLook(name);
+}
+
+load().then(() => buildPanel()).then(loadAudio).then(tick);
+pollPlayer();
+pollComp();
+</script>
+<script src="/lib/status.js"></script>
+</body>
+</html>

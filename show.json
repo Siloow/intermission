@@ -1,0 +1,80 @@
+{
+  "source": "/Users/sil/Music/Ableton/VisTest/VisTest Project/VisTest.als",
+  "extracted": "2026-09-21T01:07:37",
+  "tempo": 120.0,
+  "signature": [
+    4,
+    4
+  ],
+  "beats_per_bar": 4.0,
+  "total_bars": 64.0,
+  "total_seconds": 128.0,
+  "songs": [
+    {
+      "name": "Test One",
+      "start_beat": 0.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 0.0,
+          "end_beat": 64.0,
+          "bars": 16.0,
+          "bar": 1.0,
+          "seconds": 32.0
+        },
+        {
+          "name": "Build 1",
+          "start_beat": 64.0,
+          "end_beat": 128.0,
+          "bars": 16.0,
+          "bar": 17.0,
+          "seconds": 32.0
+        },
+        {
+          "name": "Drop 1",
+          "start_beat": 128.0,
+          "end_beat": 192.0,
+          "bars": 16.0,
+          "bar": 33.0,
+          "seconds": 32.0
+        },
+        {
+          "name": "Breakdown",
+          "start_beat": 192.0,
+          "end_beat": 208.0,
+          "bars": 4.0,
+          "bar": 49.0,
+          "seconds": 8.0
+        }
+      ],
+      "end_beat": 208.0,
+      "bars": 52.0,
+      "seconds": 104.0
+    },
+    {
+      "name": "Test Two",
+      "start_beat": 208.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 208.0,
+          "end_beat": 224.0,
+          "bars": 4.0,
+          "bar": 53.0,
+          "seconds": 8.0
+        },
+        {
+          "name": "Drop",
+          "start_beat": 224.0,
+          "end_beat": 256.0,
+          "bars": 8.0,
+          "bar": 57.0,
+          "seconds": 16.0
+        }
+      ],
+      "end_beat": 256.0,
+      "bars": 12.0,
+      "seconds": 24.0
+    }
+  ]
+}

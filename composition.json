@@ -1,0 +1,245 @@
+{
+ "name": "Example",
+ "layers": [
+  {
+   "index": 1,
+   "name": "Layer 1",
+   "clips": [
+    {
+     "index": 1,
+     "name": "FogAndDust",
+     "id": 1621342719991,
+     "thumb": "1790210323643257",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 2,
+     "name": "NeonRoom2",
+     "id": 1621342720001,
+     "thumb": "1790210323643257",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 3,
+     "name": "IntoTheGlow",
+     "id": 1621342720011,
+     "thumb": "1790210323643258",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 6.03,
+     "missing": false
+    },
+    {
+     "index": 4,
+     "name": "NoHopeJustFear",
+     "id": 1621342720021,
+     "thumb": "1790210323643258",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 5.0,
+     "missing": false
+    },
+    {
+     "index": 5,
+     "name": "IntoTheGlow",
+     "id": 1621342720031,
+     "thumb": "1790210323643258",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 6.03,
+     "missing": false
+    }
+   ]
+  },
+  {
+   "index": 2,
+   "name": "Layer 2",
+   "clips": [
+    {
+     "index": 1,
+     "name": "Trinity",
+     "id": 1621342720041,
+     "thumb": "1790210323643260",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 2,
+     "name": "Enter5",
+     "id": 1621342720051,
+     "thumb": "1790210323643260",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 3,
+     "name": "Cyberspace",
+     "id": 1621342720061,
+     "thumb": "1790210323643261",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 10.0,
+     "missing": false
+    },
+    {
+     "index": 4,
+     "name": "Ethnik2",
+     "id": 1621342720071,
+     "thumb": "1790210323643261",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 5,
+     "name": "Galactucity",
+     "id": 1621342720081,
+     "thumb": "1790210323643261",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 12.0,
+     "missing": false
+    }
+   ]
+  },
+  {
+   "index": 3,
+   "name": "Layer 3",
+   "clips": [
+    {
+     "index": 1,
+     "name": "SpaceUniverse",
+     "id": 1621342719981,
+     "thumb": "1790210323643262",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 4.03,
+     "missing": false
+    },
+    {
+     "index": 2,
+     "name": "Ethnik2",
+     "id": 1621342720091,
+     "thumb": "1790210323643262",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 3,
+     "name": "Tank",
+     "id": 1621342720101,
+     "thumb": "1790210323643263",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 3.0,
+     "missing": false
+    },
+    {
+     "index": 4,
+     "name": "OrganicMotions",
+     "id": 1621342720111,
+     "thumb": "1790210323643263",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 10.0,
+     "missing": false
+    },
+    {
+     "index": 5,
+     "name": "Metalive",
+     "id": 1621342720121,
+     "thumb": "1790210323643263",
+     "state": "Disconnected",
+     "transport": "Timeline",
+     "beatsnap": "None",
+     "seconds": 8.0,
+     "missing": false
+    }
+   ]
+  }
+ ],
+ "columns": [
+  {
+   "index": 1,
+   "name": "Column 1",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 2,
+   "name": "Column 2",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 3,
+   "name": "Column 3",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 4,
+   "name": "Column 4",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 5,
+   "name": "Column 5",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 6,
+   "name": "Column 6",
+   "named": false,
+   "state": "Empty"
+  },
+  {
+   "index": 7,
+   "name": "Column 7",
+   "named": false,
+   "state": "Empty"
+  },
+  {
+   "index": 8,
+   "name": "Column 8",
+   "named": false,
+   "state": "Empty"
+  },
+  {
+   "index": 9,
+   "name": "Column 9",
+   "named": false,
+   "state": "Empty"
+  }
+ ],
+ "saved": "2026-09-24 03:58"
+}

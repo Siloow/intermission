@@ -1,0 +1,166 @@
+{
+  "audio": {
+    "file": "VisTest_2026-09-21.mp3",
+    "offset_seconds": 0
+  },
+  "cues": [
+    {
+      "id": "t2",
+      "lane": "screen",
+      "song": "Test One",
+      "section": "Start",
+      "offset_bars": 0,
+      "length_bars": 16,
+      "value": "slow grain",
+      "note": ""
+    },
+    {
+      "id": "t5",
+      "lane": "screen",
+      "song": "Test One",
+      "section": "Build 1",
+      "offset_bars": 12,
+      "length_bars": 16,
+      "value": "liquid",
+      "note": ""
+    },
+    {
+      "id": "t6",
+      "lane": "lights",
+      "song": "Test One",
+      "section": "Breakdown",
+      "offset_bars": 0,
+      "length_bars": 16,
+      "value": "Metalive",
+      "note": "middle dark",
+      "fade_bars": 0.5
+    },
+    {
+      "id": "t7",
+      "lane": "note",
+      "song": "Test Two",
+      "section": "Drop",
+      "offset_bars": 0,
+      "length_bars": 8,
+      "value": "hold",
+      "note": "let it sit too long on purpose"
+    },
+    {
+      "id": "t8",
+      "lane": "lights",
+      "song": "Test Two",
+      "section": "Drop",
+      "offset_bars": 8,
+      "length_bars": 15,
+      "value": "White snap",
+      "note": "second song"
+    },
+    {
+      "id": "s1",
+      "lane": "scenes",
+      "song": "Test One",
+      "section": "Drop 1",
+      "offset_bars": 4,
+      "length_bars": 30,
+      "value": "Drop",
+      "note": "whole row changes"
+    },
+    {
+      "id": "ckw83zaa",
+      "lane": "td",
+      "song": "Test One",
+      "section": "Start",
+      "offset_bars": 0,
+      "length_bars": 17,
+      "value": "SpaceUniverse",
+      "note": "",
+      "layer": 3
+    },
+    {
+      "id": "cyf58r56",
+      "lane": "td",
+      "song": "Test One",
+      "section": "Build 1",
+      "offset_bars": 4,
+      "length_bars": 16,
+      "value": "NoHopeJustFear",
+      "note": "",
+      "layer": 1
+    },
+    {
+      "id": "c5k2xo9s",
+      "lane": "scenes",
+      "song": "Test One",
+      "section": "Start",
+      "offset_bars": 8,
+      "length_bars": 4,
+      "value": "Column 1",
+      "note": ""
+    }
+  ],
+  "automation": [
+    {
+      "id": "a1",
+      "target": "Master intensity",
+      "points": [
+        {
+          "id": "p1",
+          "song": "Test One",
+          "section": "Start",
+          "offset_bars": 0,
+          "value": 0.2
+        },
+        {
+          "id": "p2",
+          "song": "Test One",
+          "section": "Build 1",
+          "offset_bars": 0,
+          "value": 1
+        },
+        {
+          "id": "p3",
+          "song": "Test One",
+          "section": "Breakdown",
+          "offset_bars": 0,
+          "value": 1,
+          "shape": "hold"
+        },
+        {
+          "id": "p4",
+          "song": "Test Two",
+          "section": "Drop",
+          "offset_bars": 0,
+          "value": 0.771
+        },
+        {
+          "id": "p5",
+          "song": "Test Two",
+          "section": "Drop",
+          "offset_bars": 0,
+          "value": 1
+        },
+        {
+          "id": "c5gkt8ha",
+          "song": "Test One",
+          "section": "Drop 1",
+          "offset_bars": 8,
+          "value": 0.21
+        },
+        {
+          "id": "c7e3rxnw",
+          "song": "Test Two",
+          "section": "Drop",
+          "offset_bars": 4,
+          "value": 0.443
+        },
+        {
+          "id": "cn8ew7f1",
+          "song": "Test One",
+          "section": "Drop 1",
+          "offset_bars": 0,
+          "value": 0
+        }
+      ]
+    }
+  ]
+}

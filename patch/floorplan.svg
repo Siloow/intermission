@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="572" viewBox="0 0 880 572" font-family="Helvetica,Arial" font-size="13">
+<rect width="880" height="572" fill="#fff"/>
+<text x="20" y="34" font-size="17" font-weight="bold">Floor plan - view from above</text>
+<text x="20" y="56" fill="#666">metres from the performer; the audience is at the bottom</text>
+<line x1="210.0" y1="194.0" x2="670.0" y2="194.0" stroke="#111" stroke-width="6"/>
+<text x="440.0" y="182.0" text-anchor="middle">screen (12 m)</text>
+<line x1="190.0" y1="354.0" x2="690.0" y2="354.0" stroke="#aaa" stroke-width="3" stroke-dasharray="8 6"/>
+<text x="440.0" y="374.0" text-anchor="middle" fill="#888">first row of seats (4.0 m from the screen)</text>
+<line x1="200.0" y1="170.0" x2="200.0" y2="402.0" stroke="#eee"/>
+<line x1="240.0" y1="170.0" x2="240.0" y2="402.0" stroke="#eee"/>
+<line x1="280.0" y1="170.0" x2="280.0" y2="402.0" stroke="#eee"/>
+<line x1="320.0" y1="170.0" x2="320.0" y2="402.0" stroke="#eee"/>
+<line x1="360.0" y1="170.0" x2="360.0" y2="402.0" stroke="#eee"/>
+<line x1="400.0" y1="170.0" x2="400.0" y2="402.0" stroke="#eee"/>
+<line x1="440.0" y1="170.0" x2="440.0" y2="402.0" stroke="#eee"/>
+<line x1="480.0" y1="170.0" x2="480.0" y2="402.0" stroke="#eee"/>
+<line x1="520.0" y1="170.0" x2="520.0" y2="402.0" stroke="#eee"/>
+<line x1="560.0" y1="170.0" x2="560.0" y2="402.0" stroke="#eee"/>
+<line x1="600.0" y1="170.0" x2="600.0" y2="402.0" stroke="#eee"/>
+<line x1="640.0" y1="170.0" x2="640.0" y2="402.0" stroke="#eee"/>
+<line x1="680.0" y1="170.0" x2="680.0" y2="402.0" stroke="#eee"/>
+<circle cx="440.0" cy="266.0" r="11" fill="#222"/>
+<text x="440.0 " y="294.0" text-anchor="middle">you</text>
+<line x1="251.2" y1="230.0" x2="292.8" y2="230.0" stroke="#333" stroke-width="10" stroke-linecap="round"/>
+<line x1="251.2" y1="230.0" x2="292.8" y2="230.0" stroke="#6fd3e0" stroke-width="5" stroke-linecap="round"/>
+<text x="272.0" y="218.0" text-anchor="middle" font-size="11">BAR_01 @33</text>
+<line x1="917.2" y1="230.0" x2="958.8" y2="230.0" stroke="#333" stroke-width="10" stroke-linecap="round"/>
+<line x1="917.2" y1="230.0" x2="958.8" y2="230.0" stroke="#6fd3e0" stroke-width="5" stroke-linecap="round"/>
+<text x="938.0" y="218.0" text-anchor="middle" font-size="11">BAR_02 @105</text>
+<line x1="1045.5487428131876" y1="324.25656386186756" x2="1085.7312571868126" y2="335.0234361381324" stroke="#333" stroke-width="10" stroke-linecap="round"/>
+<line x1="1045.5487428131876" y1="324.25656386186756" x2="1085.7312571868126" y2="335.0234361381324" stroke="#6fd3e0" stroke-width="5" stroke-linecap="round"/>
+<text x="1065.64" y="317.64" text-anchor="middle" font-size="11">BAR_03 @177</text>
+<line x1="1149.2" y1="230.0" x2="1190.8" y2="230.0" stroke="#333" stroke-width="10" stroke-linecap="round"/>
+<line x1="1149.2" y1="230.0" x2="1190.8" y2="230.0" stroke="#6fd3e0" stroke-width="5" stroke-linecap="round"/>
+<text x="1170.0" y="218.0" text-anchor="middle" font-size="11">BAR_04 @249</text>
+<line x1="1002.0" y1="266.0" x2="958.0" y2="189.8" stroke="#ddd"/>
+<circle cx="958.0" cy="189.8" r="13" fill="#ffd54a" stroke="#333" stroke-width="2"/>
+<text x="958.0" y="194.8" text-anchor="middle" font-size="11" font-weight="bold">1</text>
+<text x="932.0" y="193.8" text-anchor="end">PAR_01  2.2 m  -150°</text>
+<line x1="1002.0" y1="266.0" x2="925.8" y2="222.0" stroke="#ddd"/>
+<circle cx="925.8" cy="222.0" r="13" fill="#ffd54a" stroke="#333" stroke-width="2"/>
+<text x="925.8" y="227.0" text-anchor="middle" font-size="11" font-weight="bold">5</text>
+<text x="899.8" y="226.0" text-anchor="end">PAR_02  2.2 m  -120°</text>
+<line x1="1002.0" y1="266.0" x2="914.0" y2="266.0" stroke="#ddd"/>
+<circle cx="914.0" cy="266.0" r="13" fill="#ffd54a" stroke="#333" stroke-width="2"/>
+<text x="914.0" y="271.0" text-anchor="middle" font-size="11" font-weight="bold">9</text>
+<text x="888.0" y="270.0" text-anchor="end">PAR_03  2.2 m  -90°</text>
+<line x1="1002.0" y1="266.0" x2="934.6000000000001" y2="322.56" stroke="#ddd"/>
+<circle cx="934.6000000000001" cy="322.56" r="13" fill="#ffd54a" stroke="#333" stroke-width="2"/>
+<text x="934.6000000000001" y="327.56" text-anchor="middle" font-size="11" font-weight="bold">13</text>
+<text x="908.6000000000001" y="326.56" text-anchor="end">PAR_04  2.2 m  -50°</text>
+<line x1="1002.0" y1="266.0" x2="1069.4" y2="322.56" stroke="#ddd"/>
+<circle cx="1069.4" cy="322.56" r="13" fill="#ffd54a" stroke="#333" stroke-width="2"/>
+<text x="1069.4" y="327.56" text-anchor="middle" font-size="11" font-weight="bold">17</text>
+<text x="1095.4" y="326.56" text-anchor="start">PAR_05  2.2 m  +50°</text>
+<line x1="1002.0" y1="266.0" x2="1090.0" y2="266.0" stroke="#ddd"/>
+<circle cx="1090.0" cy="266.0" r="13" fill="#ffd54a" stroke="#333" stroke-width="2"/>
+<text x="1090.0" y="271.0" text-anchor="middle" font-size="11" font-weight="bold">21</text>
+<text x="1116.0" y="270.0" text-anchor="start">PAR_06  2.2 m  +90°</text>
+<line x1="1002.0" y1="266.0" x2="1078.2" y2="222.0" stroke="#ddd"/>
+<circle cx="1078.2" cy="222.0" r="13" fill="#ffd54a" stroke="#333" stroke-width="2"/>
+<text x="1078.2" y="227.0" text-anchor="middle" font-size="11" font-weight="bold">25</text>
+<text x="1104.2" y="226.0" text-anchor="start">PAR_07  2.2 m  +120°</text>
+<line x1="1002.0" y1="266.0" x2="1046.0" y2="189.8" stroke="#ddd"/>
+<circle cx="1046.0" cy="189.8" r="13" fill="#ffd54a" stroke="#333" stroke-width="2"/>
+<text x="1046.0" y="194.8" text-anchor="middle" font-size="11" font-weight="bold">29</text>
+<text x="1072.0" y="193.8" text-anchor="start">PAR_08  2.2 m  +150°</text>
+<text x="20" y="552" fill="#666">numbers in the circles are DMX addresses (universe 0)</text>
+</svg>

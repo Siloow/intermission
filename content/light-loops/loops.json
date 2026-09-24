@@ -1,0 +1,70 @@
+{
+ "bpm": 120.0,
+ "fps": 60,
+ "size": [
+  1920,
+  120
+ ],
+ "loops": [
+  {
+   "file": "wave.mp4",
+   "name": "wave",
+   "bars": 2,
+   "what": "a smooth sine travelling left to right"
+  },
+  {
+   "file": "chase.mp4",
+   "name": "chase",
+   "bars": 2,
+   "what": "a soft head sweeping left to right"
+  },
+  {
+   "file": "pingpong.mp4",
+   "name": "pingpong",
+   "bars": 4,
+   "what": "a head sweeping out and back"
+  },
+  {
+   "file": "breathe.mp4",
+   "name": "breathe",
+   "bars": 4,
+   "what": "the whole rig swelling and falling"
+  },
+  {
+   "file": "pulse.mp4",
+   "name": "pulse",
+   "bars": 1,
+   "what": "a hit on every beat, decaying"
+  },
+  {
+   "file": "strobe.mp4",
+   "name": "strobe",
+   "bars": 1,
+   "what": "eighth-note strobe"
+  },
+  {
+   "file": "alternate.mp4",
+   "name": "alternate",
+   "bars": 1,
+   "what": "odd and even pars flipping each beat"
+  },
+  {
+   "file": "build.mp4",
+   "name": "build",
+   "bars": 4,
+   "what": "brighter and busier toward the end"
+  },
+  {
+   "file": "hue-sweep.mp4",
+   "name": "hue-sweep",
+   "bars": 4,
+   "what": "colour travelling across the pars"
+  },
+  {
+   "file": "identify.mp4",
+   "name": "identify",
+   "bars": 4,
+   "what": "one fixture at a time, in patch order, to check it"
+  }
+ ]
+}
