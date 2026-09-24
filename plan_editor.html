@@ -107,6 +107,7 @@
         </span>
         <span class="readout" id="room-note"></span>
         <span class="spacer"></span>
+        <button id="to-blender" title="show what Look and Loop preview in the Blender previz too, over what Resolume sends — Resolume takes it back when you switch to Live or close this tab">→ Blender</button>
         <button id="band-toggle" title="B — the control band, with where each fixture samples it">Band</button>
         <button id="focus" class="icon" title="hide the inspector">⤢</button>
       </div>
@@ -679,12 +680,8 @@ function pushPreview(){
   window.__look = l ? (l.fixtures || {}) : null;
   window.__lookName = l ? l.name : "";
   document.dispatchEvent(new CustomEvent("look:changed"));
-  clearTimeout(previewTimer);
-  previewTimer = setTimeout(() => {
-    fetch("preview.json", {method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({look: l ? l.name : null, fixtures: l ? (l.fixtures || {}) : {},
-                            hold: true, t: Date.now()/1000})}).catch(() => {});
-  }, 120);
+  // Blender hears about it from roomFrame(), which keeps sending while the
+  // plan shows a look or a loop
 }
 
 function hexToRgb(hex){
@@ -837,6 +834,45 @@ function paintRoom(){
   }
 }
 
+// what the plan shows goes to the Blender previz too, over Resolume, while this
+// is on and the plan shows a look or a loop. Sent ~12 times a second; Blender
+// lets go by itself a couple of seconds after it stops hearing from us.
+let toBlender = true, blenderSentT = 0, blenderWasOn = false;
+try { toBlender = localStorage.getItem("to-blender") !== "0"; } catch(e){}
+function sendToBlender(){
+  const now = performance.now();
+  const on = toBlender && roomSource !== "live" && !document.hidden && !(roomSource === "look" && !curLook());
+  if (!on){
+    if (blenderWasOn){                                   // let go straight away
+      blenderWasOn = false;
+      fetch("preview.json", {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({look: null, fixtures: {}, override: false, t: Date.now() / 1000})}).catch(() => {});
+    }
+    return;
+  }
+  if (now - blenderSentT < 80) return;
+  blenderSentT = now; blenderWasOn = true;
+  const fixtures = {};
+  for (const [k, v] of Object.entries(roomTable() || {})){
+    fixtures[k] = {r: Math.round(v.r || 0), g: Math.round(v.g || 0), b: Math.round(v.b || 0),
+                   w: Math.round(v.w || 0), dim: Math.round(v.dim ?? 255)};
+    if (v.pixels) fixtures[k].pixels = v.pixels.map(p => p.map(x => Math.round(x)));
+  }
+  const label = roomSource === "loop" ? `loop: ${window.__roomLabel || ""}` : (curLook() ? curLook().name : "no look");
+  fetch("preview.json", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({look: label, fixtures, override: true, t: Date.now() / 1000})}).catch(() => {});
+}
+el("to-blender").onclick = () => {
+  toBlender = !toBlender;
+  try { localStorage.setItem("to-blender", toBlender ? "1" : "0"); } catch(e){}
+  el("to-blender").classList.toggle("on", toBlender);
+};
+el("to-blender").classList.toggle("on", toBlender);
+addEventListener("pagehide", () => {
+  if (blenderWasOn) navigator.sendBeacon("preview.json", new Blob([JSON.stringify(
+    {look: null, fixtures: {}, override: false, t: Date.now() / 1000})], {type: "application/json"}));
+});
+
 function roomFrame(){
   requestAnimationFrame(roomFrame);
   if (roomSource === "loop") band.frame();
@@ -851,6 +887,7 @@ function roomFrame(){
   }
   window.__roomColours = roomSource === "live" ? null : roomTable();
   paintRoom();
+  sendToBlender();
   if (!el("bandstrip").hidden) band.drawStrip(el("band"), true);
   el("loop-count").textContent = band.counter();
   el("loop-play").textContent = band.paused ? "▶" : "❚❚";

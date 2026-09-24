@@ -9,7 +9,7 @@
      "index": 1,
      "name": "FogAndDust",
      "id": 1621342719991,
-     "thumb": "1790224877146495",
+     "thumb": "1790225701328002",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -20,7 +20,7 @@
      "index": 2,
      "name": "NeonRoom2",
      "id": 1621342720001,
-     "thumb": "1790224877146513",
+     "thumb": "1790225701328005",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -31,7 +31,7 @@
      "index": 3,
      "name": "IntoTheGlow",
      "id": 1621342720011,
-     "thumb": "1790224877146517",
+     "thumb": "1790225701328005",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -42,7 +42,7 @@
      "index": 4,
      "name": "NoHopeJustFear",
      "id": 1621342720021,
-     "thumb": "1790224877146518",
+     "thumb": "1790225701328006",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -53,7 +53,7 @@
      "index": 5,
      "name": "IntoTheGlow",
      "id": 1621342720031,
-     "thumb": "1790224877146518",
+     "thumb": "1790225701328006",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -70,7 +70,7 @@
      "index": 1,
      "name": "Trinity",
      "id": 1621342720041,
-     "thumb": "1790224877146519",
+     "thumb": "1790225701328009",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -81,7 +81,7 @@
      "index": 2,
      "name": "Enter5",
      "id": 1621342720051,
-     "thumb": "1790224877146529",
+     "thumb": "1790225701328010",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -92,7 +92,7 @@
      "index": 3,
      "name": "Cyberspace",
      "id": 1621342720061,
-     "thumb": "1790224877146529",
+     "thumb": "1790225701328010",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -103,7 +103,7 @@
      "index": 4,
      "name": "Ethnik2",
      "id": 1621342720071,
-     "thumb": "1790224877146529",
+     "thumb": "1790225701328010",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -114,7 +114,7 @@
      "index": 5,
      "name": "Galactucity",
      "id": 1621342720081,
-     "thumb": "1790224877146530",
+     "thumb": "1790225701328010",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -131,8 +131,8 @@
      "index": 1,
      "name": "SpaceUniverse",
      "id": 1621342719981,
-     "thumb": "1790224877146908",
-     "state": "Connected",
+     "thumb": "1790225701268342",
+     "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
      "seconds": 4.03,
@@ -142,7 +142,7 @@
      "index": 2,
      "name": "Ethnik2",
      "id": 1621342720091,
-     "thumb": "1790224877146916",
+     "thumb": "1790225701268342",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -153,7 +153,7 @@
      "index": 3,
      "name": "Tank",
      "id": 1621342720101,
-     "thumb": "1790224877146917",
+     "thumb": "1790225701259553",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -164,7 +164,7 @@
      "index": 4,
      "name": "OrganicMotions",
      "id": 1621342720111,
-     "thumb": "1790224877146918",
+     "thumb": "1790225703095364",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
@@ -175,10 +175,428 @@
      "index": 5,
      "name": "Metalive",
      "id": 1621342720121,
-     "thumb": "1790224877146918",
+     "thumb": "1790225703095366",
      "state": "Disconnected",
      "transport": "Timeline",
      "beatsnap": "None",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 6,
+     "name": "breathe",
+     "id": 1788781254164,
+     "thumb": "1790225701564976",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 7,
+     "name": "breathe-slow",
+     "id": 1788781254166,
+     "thumb": "1790225701600249",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 16.0,
+     "missing": false
+    },
+    {
+     "index": 8,
+     "name": "glow-drift",
+     "id": 1788781254168,
+     "thumb": "1790225701645059",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 16.0,
+     "missing": false
+    },
+    {
+     "index": 9,
+     "name": "candle",
+     "id": 1788781254170,
+     "thumb": "1790225701690110",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 4.0,
+     "missing": false
+    },
+    {
+     "index": 10,
+     "name": "full",
+     "id": 1790210338500,
+     "thumb": "1790225701720193",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 11,
+     "name": "wave",
+     "id": 1790210338599,
+     "thumb": "1790225701759185",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 4.0,
+     "missing": false
+    },
+    {
+     "index": 12,
+     "name": "sweep-lr",
+     "id": 1790210338770,
+     "thumb": "1790225701795832",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 4.0,
+     "missing": false
+    },
+    {
+     "index": 13,
+     "name": "sweep-rl",
+     "id": 1790210338945,
+     "thumb": "1790225701834049",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 4.0,
+     "missing": false
+    },
+    {
+     "index": 14,
+     "name": "pingpong",
+     "id": 1790210339124,
+     "thumb": "1790225701876512",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 15,
+     "name": "sweep-out",
+     "id": 1790210339307,
+     "thumb": "1790225701915732",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 4.0,
+     "missing": false
+    },
+    {
+     "index": 16,
+     "name": "sweep-in",
+     "id": 1790210339494,
+     "thumb": "1790225701947902",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 4.0,
+     "missing": false
+    },
+    {
+     "index": 17,
+     "name": "rotate",
+     "id": 1790210339685,
+     "thumb": "1790225701981779",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 4.0,
+     "missing": false
+    },
+    {
+     "index": 18,
+     "name": "rotate-back",
+     "id": 1790210339880,
+     "thumb": "1790225702044338",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 4.0,
+     "missing": false
+    },
+    {
+     "index": 19,
+     "name": "chase",
+     "id": 1790210340133,
+     "thumb": "1790225702070287",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 20,
+     "name": "chase-pairs",
+     "id": 1790210340336,
+     "thumb": "1790225702104120",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 21,
+     "name": "chase-random",
+     "id": 1790210340543,
+     "thumb": "1790225702144906",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 4.0,
+     "missing": false
+    },
+    {
+     "index": 22,
+     "name": "alternate",
+     "id": 1790210340754,
+     "thumb": "1790225702176940",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 23,
+     "name": "sides",
+     "id": 1790210340969,
+     "thumb": "1790225702220159",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 24,
+     "name": "pulse",
+     "id": 1790210341188,
+     "thumb": "1790225702253785",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 25,
+     "name": "pulse-8",
+     "id": 1790210341411,
+     "thumb": "1790225702295440",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 26,
+     "name": "kick-snare",
+     "id": 1790210341638,
+     "thumb": "1790225702330042",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 27,
+     "name": "offbeat",
+     "id": 1790210341869,
+     "thumb": "1790225702371303",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 28,
+     "name": "downbeat",
+     "id": 1790210342104,
+     "thumb": "1790225702403925",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 29,
+     "name": "gate",
+     "id": 1790210342343,
+     "thumb": "1790225702446415",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 30,
+     "name": "strobe",
+     "id": 1790210342586,
+     "thumb": "1790225702504055",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 31,
+     "name": "strobe-16",
+     "id": 1790210342833,
+     "thumb": "1790225702540894",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 32,
+     "name": "strobe-random",
+     "id": 1790210343084,
+     "thumb": "1790225702594979",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 4.0,
+     "missing": false
+    },
+    {
+     "index": 33,
+     "name": "blinder",
+     "id": 1790210343339,
+     "thumb": "1790225702634294",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 34,
+     "name": "build",
+     "id": 1790210343598,
+     "thumb": "1790225702674381",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 35,
+     "name": "riser-strobe",
+     "id": 1790210343861,
+     "thumb": "1790225702720650",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 36,
+     "name": "riser-sweep",
+     "id": 1790210344128,
+     "thumb": "1790225702764468",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 37,
+     "name": "fill-up",
+     "id": 1790210344507,
+     "thumb": "1790225702813823",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 38,
+     "name": "hue-sweep",
+     "id": 1790210344782,
+     "thumb": "1790225702866484",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 39,
+     "name": "hue-rotate",
+     "id": 1790210345061,
+     "thumb": "1790225702925618",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 40,
+     "name": "two-tone",
+     "id": 1790210345344,
+     "thumb": "1790225702988631",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 8.0,
+     "missing": false
+    },
+    {
+     "index": 41,
+     "name": "bar-scan",
+     "id": 1790210345631,
+     "thumb": "1790225703095366",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 2.0,
+     "missing": false
+    },
+    {
+     "index": 42,
+     "name": "sparkle",
+     "id": 1790210345922,
+     "thumb": "1790225703095367",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
+     "seconds": 4.0,
+     "missing": false
+    },
+    {
+     "index": 43,
+     "name": "identify",
+     "id": 1790210346217,
+     "thumb": "1790225703161673",
+     "state": "Disconnected",
+     "transport": "BPM Sync",
+     "beatsnap": "1 Bar",
      "seconds": 8.0,
      "missing": false
     }
@@ -190,7 +608,7 @@
    "index": 1,
    "name": "Column 1",
    "named": false,
-   "state": "Connected"
+   "state": "Disconnected"
   },
   {
    "index": 2,
@@ -220,26 +638,236 @@
    "index": 6,
    "name": "Column 6",
    "named": false,
-   "state": "Empty"
+   "state": "Disconnected"
   },
   {
    "index": 7,
    "name": "Column 7",
    "named": false,
-   "state": "Empty"
+   "state": "Disconnected"
   },
   {
    "index": 8,
    "name": "Column 8",
    "named": false,
-   "state": "Empty"
+   "state": "Disconnected"
   },
   {
    "index": 9,
    "name": "Column 9",
    "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 10,
+   "name": "Column 10",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 11,
+   "name": "Column 11",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 12,
+   "name": "Column 12",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 13,
+   "name": "Column 13",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 14,
+   "name": "Column 14",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 15,
+   "name": "Column 15",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 16,
+   "name": "Column 16",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 17,
+   "name": "Column 17",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 18,
+   "name": "Column 18",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 19,
+   "name": "Column 19",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 20,
+   "name": "Column 20",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 21,
+   "name": "Column 21",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 22,
+   "name": "Column 22",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 23,
+   "name": "Column 23",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 24,
+   "name": "Column 24",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 25,
+   "name": "Column 25",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 26,
+   "name": "Column 26",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 27,
+   "name": "Column 27",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 28,
+   "name": "Column 28",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 29,
+   "name": "Column 29",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 30,
+   "name": "Column 30",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 31,
+   "name": "Column 31",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 32,
+   "name": "Column 32",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 33,
+   "name": "Column 33",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 34,
+   "name": "Column 34",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 35,
+   "name": "Column 35",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 36,
+   "name": "Column 36",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 37,
+   "name": "Column 37",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 38,
+   "name": "Column 38",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 39,
+   "name": "Column 39",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 40,
+   "name": "Column 40",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 41,
+   "name": "Column 41",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 42,
+   "name": "Column 42",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 43,
+   "name": "Column 43",
+   "named": false,
+   "state": "Disconnected"
+  },
+  {
+   "index": 44,
+   "name": "Column 44",
+   "named": false,
    "state": "Empty"
   }
  ],
- "saved": "2026-09-24 06:41"
+ "saved": "2026-09-24 06:55"
 }

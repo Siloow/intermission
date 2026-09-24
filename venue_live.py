@@ -93,6 +93,7 @@ class _State:
     tick = 1 / 40
     screen_max = 1920
     preview_mtime = 0.0
+    overriding = False      # the floor plan's preview is showing over Resolume
     preview = None          # {"look": name, "fixtures": {...}, "hold": bool}
     preview_name = ""
     rig_mtime = 0.0
@@ -443,7 +444,18 @@ def _read_preview():
         S.preview_name = str(S.preview.get("look") or "")
     except (ValueError, OSError):
         return False
-    return _apply_preview()
+    return True                              # loaded; _tick decides whether it shows
+
+
+OVERRIDE_FOR = 2.0   # seconds a floor-plan override lasts without a fresh one
+
+
+def _preview_overrides():
+    """The floor plan is showing a look or a loop and wants the previz to show
+    it too, over Resolume. It says so many times a second; when it stops (tab
+    closed, switched to Live), Resolume's Art-Net takes the pars back."""
+    p = S.preview or {}
+    return bool(p.get("override")) and time.time() - float(p.get("t") or 0) < OVERRIDE_FOR
 
 
 def _apply_preview():
@@ -453,10 +465,16 @@ def _apply_preview():
     fixtures = p.get("fixtures") or {}
     changed = False
     for ob in _dmx_targets():
-        # a look names a par or a bar; a bar's value applies to all its pixels
+        # a look names a par or a bar; a bar's value applies to all its pixels,
+        # unless it carries one per pixel (a loop from the floor plan does)
         v = fixtures.get(ob.name) or fixtures.get(ob.get("of", "")) or {}
+        px = v.get("pixels") if ob.get("kind") == "pixel" else None
+        k = int(ob.get("pixel", 1)) - 1       # pixels count from 1
+        if px and 0 <= k < len(px):
+            q = px[k]
+            v = {"r": q[0], "g": q[1], "b": q[2], "w": q[3] if len(q) > 3 else 0, "dim": 255}
         for ch in ("r", "g", "b", "w", "dim"):
-            new = int(v.get(ch, 0))
+            new = int(round(float(v.get(ch, 0))))
             if ob.get(ch) != new:
                 ob[ch] = new
                 changed = True
@@ -579,6 +597,7 @@ def _write_status():
             "screen_rgb": [round(c, 3) for c in bpy.data.lights["SCREEN_SPILL"].color]
             if "SCREEN_SPILL" in bpy.data.lights else None,
             "look": S.preview_name,
+            "preview_override": S.overriding,
             "rig_fixtures": S.rig_count,
             "rig_error": S.rig_error,
             "screen_size": list(bpy.data.images["SCREEN_LIVE"].size)
@@ -609,9 +628,12 @@ def _tick():
     if now0 - S.stat_t >= 0.5 or S.rig_mtime == 0.0:
         dirty |= _read_rig()
     got_dmx = False
+    _read_preview()                         # cheap: only reads when the file changed
+    override = _preview_overrides()
+    S.overriding = override
     if S.live:
         got_dmx = _drain_artnet()
-        if got_dmx:
+        if got_dmx and not override:
             dirty |= _apply_dmx()
         dirty |= _read_screen()
         if S.screen_seen and time.monotonic() - S.screen_seen > 2.0:
@@ -620,10 +642,9 @@ def _tick():
             dirty = True
     if S.chase:
         dirty |= _apply_chase()
-    elif not got_dmx and S.pps < 1:
-        dirty |= _read_preview() or _apply_preview()
-    else:
-        _read_preview()          # keep it current, but live DMX has the pars
+    elif override or (not got_dmx and S.pps < 1):
+        dirty |= _apply_preview()
+    # otherwise live DMX has the pars, and the preview just stays current
     if dirty:
         _refresh_fixtures()
         _redraw()
@@ -837,7 +858,9 @@ class VENUE_PT_panel(bpy.types.Panel):
             op.name = name
             op.index = -1
 
-        if S.preview_name and S.pps < 1:
+        if S.overriding:
+            lay.label(text=f"From the floor plan: {S.preview_name or 'preview'}", icon="LIGHT_DATA")
+        elif S.preview_name and S.pps < 1:
             lay.label(text=f"Look: {S.preview_name}", icon="LIGHT_DATA")
         if S.rig_error:
             lay.label(text=S.rig_error, icon="ERROR")
