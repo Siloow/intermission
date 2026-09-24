@@ -5,26 +5,6 @@
   },
   "cues": [
     {
-      "id": "t2",
-      "lane": "screen",
-      "song": "Test One",
-      "section": "Start",
-      "offset_bars": 0,
-      "length_bars": 16,
-      "value": "slow grain",
-      "note": ""
-    },
-    {
-      "id": "t5",
-      "lane": "screen",
-      "song": "Test One",
-      "section": "Build 1",
-      "offset_bars": 12,
-      "length_bars": 16,
-      "value": "liquid",
-      "note": ""
-    },
-    {
       "id": "t6",
       "lane": "lights",
       "song": "Test One",

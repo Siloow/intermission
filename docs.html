@@ -212,7 +212,7 @@ you press r.</p>
 <table>
   <tr><th>What</th><th>Needed for</th><th>How</th></tr>
   <tr><td>Blender</td><td>the previz</td><td>blender.org. <code>Test.command</code> finds it.</td></tr>
-  <tr><td>Resolume Arena</td><td>screen + DMX</td><td>Syphon output device, and a Lumiverse on Art-Net.</td></tr>
+  <tr><td>Resolume Arena</td><td>screen + DMX</td><td>Syphon output device, a Lumiverse on Art-Net, <b>Preferences → OSC → OSC Input on, port 7000</b> (Output off), and Preferences → Webserver on.</td></tr>
   <tr><td><code>uv</code></td><td>the Syphon bridge only</td><td><code>curl -LsSf https://astral.sh/uv/install.sh | sh</code></td></tr>
   <tr><td>Python 3</td><td>the editors, the player</td><td>ships with macOS</td></tr>
   <tr><td>AbletonOSC</td><td>following Live's playhead</td><td>a Live Control Surface; enable it in Preferences → Link/Tempo/MIDI</td></tr>
@@ -448,6 +448,29 @@ each layer switches to.</p>
   <tr><td>green glow</td><td>The lane's current cue, and Resolume is playing its clip right now.</td></tr>
   <tr><td>dashed red</td><td>Live is playing, this is the current cue, but Resolume isn't playing its clip. Something is off.</td></tr>
 </table>
+<h3>Playing from the timeline: Drive</h3>
+<p>Normally the player follows <b>Live's</b> playhead. Turn on <b>Drive</b> next to
+the timeline's ▶ and it follows the timeline instead: play the bounce and every
+cue, fade and automation lane fires in Resolume, and the previz shows it — no Live
+needed. Scrubbing while paused jumps there too.</p>
+<ul>
+  <li>The browser still never talks to Resolume. It tells the player where it is;
+    the player does the firing.</li>
+  <li>Live wins: the moment Live's playhead moves, the player follows Live again.
+    A Live that is stopped doesn't pull the show back.</li>
+  <li><code>Live.command</code> ignores the timeline completely
+    (<code>--live-only</code>): on show night only Live drives.</li>
+</ul>
+
+<h3>When a cue ends</h3>
+<p>A cue's length is real. When it runs out and nothing on its lane takes over, the
+player <b>clears</b> the layers it played on — the screen goes empty rather than
+holding a clip the plan says is over. That's the default for Screen, Lights and TD;
+Scenes hold. <b>At the end</b> in the Cue tab changes it per cue: <i>hold the last
+frame</i> keeps it (the cue shows a striped right edge).</p>
+<p>Jumping around works the same way: land anywhere and every layer the plan uses
+shows what the plan says there, including nothing.</p>
+
 <h3>Fades</h3>
 <p>Every cue can <b>fade in</b>, in bars. Drag the small ▾ on a cue's top edge to
 the right (a diagonal line shows the fade), use the fade chips in the quick
@@ -699,6 +722,7 @@ looks, plan and bounces — no Ableton project to move.</p>
   <tr><td>Screen stays on the test card</td><td>The bridge isn't running, or Resolume has no Syphon output device. <code>uv run syphon_bridge.py --list</code> shows what is being published.</td></tr>
   <tr><td>Cues in the timeline are red</td><td>Their section was renamed or deleted in Live. The sidebar re-points them in one click.</td></tr>
   <tr><td>A cue does nothing when played</td><td>It's striped with ✗: the name isn't in the open composition. Fold the lane open to see why. <code>--dry-run</code> lists them all.</td></tr>
+  <tr><td>The player fires cues, nothing happens in Resolume</td><td>Resolume's <b>OSC Input</b> is off (Preferences → OSC). The Resolume status dot and <code>preflight.py</code> say so. Keep OSC Output off, or on another port: sending to its own input makes a feedback loop.</td></tr>
   <tr><td>The player sits at one bar</td><td>AbletonOSC isn't enabled as a Control Surface, or Live isn't playing.</td></tr>
   <tr><td>Follow Live says <i>no player running</i></td><td>The timeline mirrors <code>cue_player</code>, not Live directly. <code>Test.command</code> starts it; on its own: <code>python3 cue_player.py --follow --preview</code>. Ableton Link has nothing to do with it — Link shares tempo, not the playhead's position.</td></tr>
   <tr><td>Follow Live says <i>Live · stopped</i></td><td>All connected; Live just isn't playing. Press play.</td></tr>

@@ -14,6 +14,10 @@ import argparse, http.server, json, os, shutil, socketserver, subprocess, tempfi
 import urllib.parse, urllib.request
 import arena_load                    # talks to Resolume's REST API
 import band                          # the control band: looks rendered as clips
+import socket
+from cue_player import osc_encode    # to hand the timeline's playhead to the player
+PLAYER_PORT = 11001                  # where cue_player listens (AbletonOSC replies there too)
+_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RIG = os.path.join(HERE, "rig.json")
@@ -361,6 +365,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.media_load()
         if path == "/looks/clip":
             return self.look_clip()
+        if path == "/transport":
+            # the timeline's playhead, for the player to follow when Live isn't playing.
+            # The browser never talks to Resolume: it only says where it is.
+            try:
+                n = int(self.headers.get("Content-Length", 0))
+                beat = float(json.loads(self.rfile.read(n) or b"{}")["beat"])
+                _udp.sendto(osc_encode("/timeline/beats", [beat]), ("127.0.0.1", PLAYER_PORT))
+            except (ValueError, KeyError, TypeError, OSError) as e:
+                return self._send(400, json.dumps({"error": str(e)}).encode())
+            return self._send(204)
         if path == "/targets/add":
             return self.target_add()
         if path == "/targets/range":

@@ -36,7 +36,7 @@ echo "\n  LIVE. Play the set in Live; cues follow the playhead. ctrl-C to stop.\
 # ctrl-C is a clean stop (exit 0). Anything else is a crash: start again. A
 # panic survives the restart, so a crash while holding keeps holding.
 while true; do
-  python3 cue_player.py --follow
+  python3 cue_player.py --follow --live-only      # the timeline's ▶ can't drive the show
   CODE=$?
   stty sane 2>/dev/null
   [[ $CODE -eq 0 ]] && break

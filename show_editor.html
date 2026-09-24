@@ -11,6 +11,10 @@
   #transport{display:flex;gap:6px;align-items:center}
   #transport.playing #play{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   #follow.on{background:rgba(229,99,79,.16);border-color:var(--err);color:#ffb3a6}
+  #drive.on{background:rgba(79,199,135,.16);border-color:var(--ok);color:var(--ok)}
+  /* a cue that holds its clip after it ends, instead of clearing the layer */
+  .cue.holds::after{content:"";position:absolute;right:0;top:0;bottom:0;width:9px;pointer-events:none;
+    background:repeating-linear-gradient(90deg,rgba(0,0,0,.3) 0 2px,transparent 2px 4px)}
   #audio-file{max-width:210px}
   #audio-offset{width:64px}
   #snap{width:auto}
@@ -167,6 +171,7 @@
         <span class="title">Show timeline</span>
         <span id="transport">
           <button id="play" class="icon" title="play / pause the bounce (space)">▶</button>
+          <button id="drive" title="let ▶ drive the show: the player fires cues and automation from this playhead, so Resolume and Blender follow the bounce. Live wins whenever it plays.">Drive</button>
           <button id="follow" title="mirror what cue_player is doing">Follow Live</button>
           <select id="audio-file" title="the bounce to play along with"></select>
           <input id="audio-offset" type="number" step="0.01" title="seconds before bar 1 in the bounce">
@@ -230,6 +235,10 @@
               <div class="row"><label>Offset</label><input id="c-offset" type="number" step="1"><span class="pill">bars</span></div>
               <div class="row"><label>Length</label><input id="c-length" type="number" step="1" min="1"><span class="pill">bars</span></div>
               <div class="row"><label>Fade in</label><input id="c-fade" type="number" step="0.5" min="0"><span class="pill" id="fade-secs">bars</span></div>
+              <div class="row" id="end-row"><label>At the end</label><select id="c-end">
+                <option value="" id="end-default">lane's default</option>
+                <option value="clear">clear the layer</option>
+                <option value="hold">hold the last frame</option></select></div>
               <textarea id="c-note" placeholder="intent, in words"></textarea>
               <div class="btns">
                 <button id="dup" title="⌘D">Duplicate</button>
@@ -456,6 +465,8 @@ const snapPtBar = bar => (+el("snap").value ? Math.round(bar) : Math.round(bar *
 // The same rule as cue_player.resolve(): clips and scenes are found by NAME in
 // the composition, so a clip that moves slot in Resolume keeps its cues.
 const laneLayer = lane => ((mapping.lanes || {})[lane] || {}).layer;
+const DEFAULT_END = {screen: "clear", lights: "clear", td: "clear", scenes: "hold", note: "hold"};
+const endMode = c => c.end || DEFAULT_END[c.lane] || "hold";
 function findLayer(ref){
   if (!comp || ref === undefined || ref === null || ref === "") return null;
   return comp.layers.find(l => l.index === +ref ||
@@ -514,7 +525,7 @@ function cueDetail(c, r, bar){
     `<b>${bar === null ? "? " : ""}${esc(c.value || "cue")}</b>`,
     `<i class="${r.ok === false ? "bad" : ""}">${mark}${esc(r.text)}</i>`,
     r.column ? `<i>${esc(r.columnClips)}</i>`
-             : `<i>${c.length_bars || 8} bars${c.fade_bars ? ` · fade ${c.fade_bars}` : ""}${esc(sync)}</i>`,
+             : `<i>${c.length_bars || 8} bars${c.fade_bars ? ` · fade ${c.fade_bars}` : ""} · ${endMode(c) === "hold" ? "holds" : "clears"} after${esc(sync)}</i>`,
     c.note ? `<i>“${esc(c.note)}”</i>` : ""];
   return img + `<div class="info">${lines.join("")}</div>`;
 }
@@ -632,7 +643,8 @@ function draw(sidebar){
       const res = resolveCue(c);
       const d = document.createElement("div");
       d.className = "cue" + (selSet.has(c.id) ? " sel" : "") + (bar === null ? " orphan" : "") +
-                    (res.ok === false ? " unres" : "");
+                    (res.ok === false ? " unres" : "") +
+                    (["screen", "lights", "td"].includes(c.lane) && endMode(c) === "hold" ? " holds" : "");
       d.style.background = `var(${varName})`;
       d.style.left = barToX(bar === null ? show.total_bars + 1 : bar) + "px";
       d.style.width = Math.max(16, (c.length_bars || 8) * pxPerBar) + "px";
@@ -897,6 +909,9 @@ function drawSidebar(){
   const fs = (+c.fade_bars || 0) * bpb() * 60 / show.tempo;
   el("fade-secs").textContent = fs ? `bars · ${fs.toFixed(1)}s` + (fs > 10 ? " → 10s, Resolume's max" : "") : "bars";
   el("make-row").style.display = r.look && !many ? "" : "none";
+  el("end-row").style.display = ["screen", "lights", "td", "scenes"].includes(c.lane) ? "" : "none";
+  el("end-default").textContent = `lane's default — ${DEFAULT_END[c.lane] === "clear" ? "clears" : "holds"}`;
+  el("c-end").value = c.end || "";
   el("c-note").value = c.note || "";
   if (c.lane === "lights" && c.value) previewLook(c.value);
 }
@@ -1519,7 +1534,7 @@ el("zoom").addEventListener("input", () => { pxPerBar = +el("zoom").value; draw(
 el("snap").addEventListener("change", () => el("snap").blur());
 
 // ------------------------------------------------------------- inspector ----
-const GROUP_FIELDS = ["c-value","c-lane","c-length","c-note","c-fade"];
+const GROUP_FIELDS = ["c-value","c-lane","c-length","c-note","c-fade","c-end"];
 function bind(id, apply){
   el(id).addEventListener("change", () => {
     const list = selected();
@@ -1536,6 +1551,7 @@ bind("c-value", (c,v) => c.value = v);
 bind("c-layer", (c,v) => { if (v && +v !== +laneLayer(c.lane)) c.layer = +v; else delete c.layer; });
 bind("c-length", (c,v) => c.length_bars = Math.max(1, Math.round(+v)));
 bind("c-note", (c,v) => c.note = v);
+bind("c-end", (c,v) => { if (v) c.end = v; else delete c.end; });
 bind("c-fade", (c,v) => { const f = Math.max(0, Math.round(+v * 2) / 2); if (f) c.fade_bars = f; else delete c.fade_bars; });
 el("make-clip").onclick = () => { const c = (primary && byId(primary.id)) || selected()[0]; if (c) makeClips([c.value]); };
 bind("c-song", (c,v) => { c.song = v; const s = sectionsOf(v)[0]; if (s) c.section = s.name; });
@@ -1970,9 +1986,27 @@ audio.addEventListener("pause", () => el("transport").classList.remove("playing"
 function seekToBar(bar){ audio.currentTime = Math.max(0, barToTime(bar)); }
 
 // -------------------------------------------------------------- follow live --
+let driving = false, sentBar = null, sentT = 0;
+el("drive").onclick = () => {
+  driving = !driving;
+  el("drive").classList.toggle("on", driving);
+  if (driving && following){ following = false; el("follow").classList.remove("on"); }
+  sentBar = null;
+};
+function drive(bar){
+  // the player follows this when Live isn't playing; ~25 times a second while
+  // the bounce plays, and once whenever you scrub while it's paused
+  const now = performance.now();
+  if (now - sentT < 40) return;
+  if (audio.paused && sentBar !== null && Math.abs(bar - sentBar) < 0.01) return;
+  sentT = now; sentBar = bar;
+  fetch("/transport", {method: "POST", headers: {"Content-Type": "application/json"},
+                       body: JSON.stringify({beat: Math.max(0, (bar - 1) * bpb())})}).catch(() => {});
+}
 el("follow").onclick = () => {
   following = !following;
   el("follow").classList.toggle("on", following);
+  if (following && driving){ driving = false; el("drive").classList.remove("on"); }
   if (following && !audio.paused) audio.pause();
 };
 async function pollPlayer(){
@@ -1992,6 +2026,7 @@ function tick(){
   if (!show) return;
   const live = liveFresh();
   const bar = live ? liveState.bar : timeToBar(audio.currentTime);
+  if (driving && !live) drive(bar);
   el("follow").textContent = !following ? "Follow Live"
     : !live ? "no player running"
     : liveState.live_connected === false ? "Live not reachable"

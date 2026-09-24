@@ -237,8 +237,20 @@ def compile_panic(mapping, snap=None):
     return out
 
 
+# what happens when a cue's length runs out and nothing on its lane takes over
+DEFAULT_END = {"screen": "clear", "lights": "clear", "td": "clear", "scenes": "hold", "note": "hold"}
+
+
+def end_mode(cue):
+    return cue.get("end") or DEFAULT_END.get(cue.get("lane"), "hold")
+
+
 def compile_cues(show, cues, mapping, snap=None):
-    """Turn the plan into a flat, sorted list of things to fire, in beats."""
+    """Turn the plan into a flat, sorted list of things to fire, in beats.
+
+    A cue that ends with nothing after it on its lane gets an end entry too,
+    which clears the layers it played on: the screen goes empty rather than
+    holding a clip the plan says is over. end: "hold" on a cue keeps it."""
     bpb = show.get("beats_per_bar", 4)
     sections = {(g["name"], s["name"]): s for g in show["songs"] for s in g["sections"]}
     out = []
@@ -252,7 +264,21 @@ def compile_cues(show, cues, mapping, snap=None):
         messages, problem = resolve(c["lane"], c.get("value"), mapping, snap, c.get("layer"))
         out.append({"cue": c, "beat": (bar - 1) * bpb, "bar": bar,
                     "messages": messages, "problem": problem})
-    out.sort(key=lambda e: (e["beat"] is None, e["beat"] or 0))
+    ends = []
+    for e in out:
+        c = e["cue"]
+        if e["beat"] is None or end_mode(c) != "clear":
+            continue
+        stop = e["beat"] + float(c.get("length_bars") or 8) * bpb
+        after = [o["beat"] for o in out if o is not e and o["beat"] is not None
+                 and o["cue"]["lane"] == c["lane"] and o["beat"] > e["beat"] - 1e-6]
+        if any(b <= stop + 1e-6 for b in after):
+            continue                       # the next cue takes over; nothing to clear
+        ends.append({"cue": c, "beat": stop, "bar": stop / bpb + 1, "messages": None,
+                     "problem": None, "end_of": e})
+    out += ends
+    # at the same beat an end goes first, so a cue starting there is not cleared
+    out.sort(key=lambda e: (e["beat"] is None, e["beat"] or 0, 0 if e.get("end_of") else 1))
     return out
 
 
@@ -306,13 +332,19 @@ class Rest:
         self.host, self.port, self.conn, self.warned = host, port, None, False
 
     def put(self, pid, value):
-        body = json.dumps({"value": value})
+        return self.request("PUT", f"/api/v1/parameter/by-id/{pid}", json.dumps({"value": value}))
+
+    def clear_layer(self, layer):
+        # Resolume ignores /composition/layers/N/clear over OSC; over REST it works
+        return self.request("POST", f"/api/v1/composition/layers/{layer}/clear", None)
+
+    def request(self, method, path, body):
         for attempt in (1, 2):
             try:
                 if self.conn is None:
                     self.conn = http.client.HTTPConnection(self.host, self.port, timeout=0.3)
-                self.conn.request("PUT", f"/api/v1/parameter/by-id/{pid}", body,
-                                  {"Content-Type": "application/json"})
+                self.conn.request(method, path, body,
+                                  {"Content-Type": "application/json"} if body else {})
                 self.conn.getresponse().read()
                 return True
             except (OSError, http.client.HTTPException):
@@ -326,6 +358,8 @@ class Rest:
 def reresolve(entries, mapping, snap):
     """Look every name up again, in place, against a fresh composition."""
     for e in entries:
+        if e.get("end_of"):
+            continue                           # an end follows its cue's messages
         if e["beat"] is None and e["cue"].get("id") != "panic":
             continue                           # orphans stay orphans
         c = e["cue"]
@@ -432,6 +466,11 @@ class Player:
         self.moved_t = 0.0           # when the position last changed
         self.heard_t = 0.0           # when Live last answered at all
 
+    def clear(self, layer):
+        """Empty a layer: over the REST API, since Resolume ignores it over OSC."""
+        if not (self.rest and self.rest.clear_layer(layer)):
+            self.sender.send(f"/composition/layers/{layer}/clear", [1])
+
     def sender_for(self, spec):
         key = (spec.get("host"), spec.get("port"))
         if key == (None, None):
@@ -483,6 +522,17 @@ class Player:
 
     def fire(self, entry, why=""):
         c = entry["cue"]
+        if entry.get("end_of"):
+            src = entry["end_of"]
+            if src["problem"] or not src["messages"]:
+                return
+            n = self.fades.n_layers if self.fades else 8
+            layers = layers_hit(src["messages"], n)
+            print(f"{CLEAR}   >> bar {entry['bar']:.0f}  {c['lane']:<6} ({c.get('value')} ends)   "
+                  f"clear layer {', '.join(map(str, layers))}{'   (' + why + ')' if why else ''}")
+            for L in layers:
+                self.clear(L)
+            return
         at = "PANIC " if c.get("id") == "panic" else f"bar {entry['bar']:.0f}"
         tag = f"{at}  {c['lane']:<6} {c.get('value') or '-'}"
         if entry["problem"]:
@@ -574,9 +624,20 @@ class Player:
         for entry in self.plan:
             if entry["beat"] is None or entry["beat"] > beat:
                 continue
-            latest[entry["cue"]["lane"]] = entry
+            latest[entry["cue"]["lane"]] = entry     # an end counts: that lane is empty now
+        # every layer the plan uses shows what the plan says here, and that
+        # includes nothing: a layer no current cue plays on is cleared first
+        n = self.fades.n_layers if self.fades else 8
+        hit = lambda e: layers_hit(e["messages"], n) if e["messages"] and not e["problem"] else []
+        managed = {L for e in self.plan if not e.get("end_of") for L in hit(e)}
+        claimed = {L for e in latest.values() if not e.get("end_of") for L in hit(e)}
+        stale = sorted(managed - claimed)
+        if stale:
+            print(f"{CLEAR}   >> nothing plays on layer {', '.join(map(str, stale))} here: cleared")
+            for L in stale:
+                self.clear(L)
         for lane in ("scenes", "screen", "lights", "td"):
-            if lane in latest:
+            if lane in latest and not latest[lane].get("end_of"):
                 self.fire(latest[lane], "restate")
 
 
@@ -627,6 +688,13 @@ def dry_run(show, plan, mapping):
             continue
         g_s = where(show, e["beat"])
         place = f"{g_s[0]['name']} / {g_s[1]['name']}" if g_s else ""
+        if e.get("end_of"):
+            src = e["end_of"]
+            osc = ("(its cue does nothing)" if src["problem"] or not src["messages"] else
+                   "clear layer " + ", ".join(map(str, layers_hit(src["messages"], 8))))
+            print(f"  {timecode(e['beat'], tempo):>6}  {e['bar']:>5.0f}  {place:<28} "
+                  f"{c['lane']:<7} {'(' + str(c.get('value')) + ' ends)':<22} {osc}")
+            continue
         if e["problem"]:
             osc = f"!! {e['problem']}"
             missing += 1
@@ -705,7 +773,7 @@ class Keys:
             termios.tcsetattr(self.fd, termios.TCSADRAIN, self.saved)
 
 
-def follow(show, player, port, live_host, live_port):
+def follow(show, player, port, live_host, live_port, timeline=True):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("0.0.0.0", port))
@@ -736,6 +804,11 @@ def follow(show, player, port, live_host, live_port):
     subscribe()
     seen, last_ask = False, time.monotonic()
     last_fine = 0.0          # when the streamed position last arrived
+    live_moved = 0.0         # when Live's position last changed: Live playing beats the timeline
+    live_last = None
+    source = "live"          # who is driving: "live", or "timeline" once the browser's ▶ takes over
+    if timeline:
+        print("  the timeline's ▶ can drive this too (Drive, in the timeline); Live wins when it plays")
     try:
         while True:
             ready = select.select([sock] + keys.fds, [], [], 0.5)[0]
@@ -769,6 +842,22 @@ def follow(show, player, port, live_host, live_port):
                     player.heard_t = time.monotonic()
                 if not args:
                     continue
+                if address == "/timeline/beats":
+                    if not timeline or time.monotonic() - live_moved < 1.5:
+                        continue       # Live mode, or Live is playing: ignore the browser
+                    if source != "timeline":
+                        print(f"{CLEAR}   the timeline is driving (Live is stopped)")
+                        source = "timeline"
+                    beat = float(args[0])
+                    if not seen:
+                        print("   got position from the timeline")
+                        seen = True
+                    player.goto(beat)
+                    g_s = where(show, beat)
+                    if g_s:
+                        print(f"\r   bar {beat / bpb + 1:6.0f}   {g_s[0]['name']} / {g_s[1]['name']:<18}"
+                              f"  (timeline)", end="", flush=True)
+                    continue
                 fine = address in ("/live/song/get/current_song_time",
                                    "/position/beats", "/position")
                 coarse = address in ("/live/song/get/beat", "/live/song/beat")
@@ -779,6 +868,15 @@ def follow(show, player, port, live_host, live_port):
                     if fine:
                         last_fine = now
                     beat = float(args[0])
+                    moved = live_last is not None and abs(beat - live_last) > 1e-4
+                    if moved:
+                        live_moved = now
+                    live_last = beat
+                    if source == "timeline":
+                        if not moved:
+                            continue   # Live parked somewhere: it doesn't pull the show back
+                        print(f"{CLEAR}   Live is playing: it drives again")
+                        source = "live"
                     if not seen:
                         print(f"   got position from {address}")
                         seen = True
@@ -817,6 +915,8 @@ def main():
                     help="AbletonOSC's input port")
     ap.add_argument("--host", help="Resolume host (default from osc_map.json)")
     ap.add_argument("--port", type=int, help="Resolume OSC port")
+    ap.add_argument("--live-only", action="store_true",
+                    help="follow Live only, never the timeline's ▶ (Live.command uses this)")
     ap.add_argument("--preview", action="store_true",
                     help="also show lights cues in the previz (for rehearsing without Resolume)")
     a = ap.parse_args()
@@ -870,7 +970,7 @@ def main():
     if a.rehearse:
         rehearse(show, player, a.speed, a.from_bar)
     else:
-        follow(show, player, a.listen_port, a.live_host, a.live_port)
+        follow(show, player, a.listen_port, a.live_host, a.live_port, timeline=not a.live_only)
     return 0
 
 
