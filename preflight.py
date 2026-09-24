@@ -44,6 +44,16 @@ def check_resolume(show, cues, mapping):
         return say(FAIL, "Resolume: not answering on port 8080",
                    "Open Arena, and turn on Preferences → Webserver → Enable Webserver & REST API.")
     say(OK, f"Resolume: composition {snap['name']!r}, {len(snap['layers'])} layers")
+    want = mapping.get("resolume", {}).get("port", 7000)
+    osc = arena_load.osc_input()
+    if osc is not None and not osc[0]:
+        say(FAIL, "Resolume: OSC input is off — it will ignore every cue",
+            f"Arena → Preferences → OSC → turn on OSC Input, port {want}.")
+    elif osc is not None and osc[1] != want:
+        say(FAIL, f"Resolume listens for OSC on {osc[1]}, the player sends to {want}",
+            f"Set one to match: Arena → Preferences → OSC, or 'resolume.port' in osc_map.json.")
+    elif osc is not None:
+        say(OK, f"Resolume: OSC input on, port {osc[1]}")
     for lane, cfg in arena_load.lanes().items():
         n = cfg.get("layer")
         if isinstance(n, int) and not 1 <= n <= len(snap["layers"]):

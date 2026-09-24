@@ -62,6 +62,17 @@ def arena_state():
             comp = json.loads(r.read())
         v = {"ok": True, "text": f"{arena_load.name_of(comp) or 'untitled'} · "
                                  f"{len(comp.get('layers', []))} layers"}
+        osc = arena_load.osc_input()
+        try:
+            want = json.load(open(os.path.join(HERE, "osc_map.json"))).get("resolume", {}).get("port", 7000)
+        except (OSError, ValueError):
+            want = 7000
+        if osc is not None and not osc[0]:
+            v = {"ok": False, "text": "OSC input is off — cues are ignored",
+                 "fix": f"Arena → Preferences → OSC → turn on OSC Input, port {want}"}
+        elif osc is not None and osc[1] != want:
+            v = {"ok": False, "text": f"OSC on port {osc[1]}, the player sends to {want}",
+                 "fix": "Match them in Arena → Preferences → OSC, or resolume.port in osc_map.json"}
     except (OSError, ValueError):
         v = {"ok": False, "text": "not answering",
              "fix": "Open Arena; Preferences → Webserver → Enable Webserver & REST API (port 8080)"}

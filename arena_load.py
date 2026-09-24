@@ -308,6 +308,22 @@ def find_param(index, path):
     return next((p for p in index if json.dumps(p["path"]) == want), None)
 
 
+def osc_input():
+    """Whether Arena listens for OSC, and on which port, from its own preferences.
+
+    The REST API can be on while OSC input is off, and then every cue the
+    player sends is ignored without a sound. None when the file can't be read
+    (another Mac, another user)."""
+    import re
+    path = os.path.expanduser("~/Documents/Resolume Arena/Preferences/osc.xml")
+    try:
+        text = open(path).read()
+    except OSError:
+        return None
+    m = re.search(r'<Input\s+Enabled="(\d)"\s+Port="(\d+)"', text)
+    return (m.group(1) == "1", int(m.group(2))) if m else None
+
+
 def list_composition(base):
     comp = composition(base)
     print(f"\n  composition: {name_of(comp)!r}\n")
