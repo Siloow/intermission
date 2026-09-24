@@ -2,59 +2,58 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>How this works</title>
+<link rel="stylesheet" href="/lib/ui.css">
 <style>
-  :root{
-    --bg:#15161a; --panel:#1d1f25; --line:#2c2f37; --text:#e7e8ec; --dim:#9AA0AC;
-    --accent:#ffd54a; --ok:#57c98a; --warn:#e2725b;
-    --screen:#5b8cff; --lights:#ffd54a; --td:#57c98a;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--text);
-    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
-  nav{position:sticky;top:0;z-index:10;display:flex;gap:8px;align-items:center;
-    padding:9px 18px;background:#131418;border-bottom:1px solid var(--line)}
-  nav a{color:var(--dim);text-decoration:none;border:1px solid var(--line);
-    border-radius:6px;padding:4px 11px}
-  nav a:hover{color:var(--text);background:#22252c}
-  nav a.here{color:#15161a;background:var(--accent);border-color:var(--accent);font-weight:600}
-  nav .spacer{flex:1}
-  main{max-width:860px;margin:0 auto;padding:26px 22px 90px}
-  h1{font-size:23px;margin:10px 0 4px}
-  h2{font-size:17px;margin:38px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
-  h3{font-size:14px;margin:22px 0 6px;color:var(--accent)}
-  p,li{color:#d5d7dd}
-  .lead{color:var(--dim);margin-top:0}
-  code,kbd{font:12.5px ui-monospace,Menlo,monospace;background:#101116;
-    border:1px solid var(--line);border-radius:4px;padding:1px 5px}
-  pre{background:#101116;border:1px solid var(--line);border-radius:8px;
-    padding:12px 14px;overflow-x:auto}
+  /* long-form reading on top of ui.css */
+  :root{--panel:var(--surface-1);--line:var(--border);--dim:var(--text-2)}
+  body{font-size:14.5px;line-height:1.68}
+  .topbar{position:sticky;top:0;z-index:10;height:var(--topbar-h)}
+  .doc{display:grid;grid-template-columns:220px minmax(0,820px);gap:48px;justify-content:center;
+    padding:28px 28px 100px}
+  #toc{position:sticky;top:calc(var(--topbar-h) + 24px);align-self:start;max-height:calc(100vh - 90px);overflow-y:auto;
+    font-size:var(--fs-sm);padding-right:8px}
+  #toc b{display:block;font-size:var(--fs-xs);font-weight:650;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--text-3);margin-bottom:8px}
+  #toc a{display:block;color:var(--text-2);text-decoration:none;padding:3px 0 3px 10px;border-left:2px solid var(--border)}
+  #toc a:hover{color:var(--text);border-left-color:var(--border-strong)}
+  #toc a.here{color:var(--accent);border-left-color:var(--accent)}
+  main{min-width:0}
+  h1{font-size:26px;letter-spacing:-.01em;margin:6px 0 6px}
+  h2{font-size:18px;margin:44px 0 12px;padding-top:18px;border-top:1px solid var(--border);scroll-margin-top:70px}
+  h3{font-size:14.5px;margin:26px 0 6px;color:var(--accent);scroll-margin-top:70px}
+  p,li{color:#d6d9df}
+  .lead{color:var(--text-2);font-size:15.5px;margin-top:0}
+  code,kbd{font-size:12.5px;background:var(--surface-0);border:1px solid var(--border);border-radius:4px;padding:1px 5px}
+  pre{background:var(--surface-0);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;overflow-x:auto}
   pre code{border:0;background:none;padding:0}
-  table{width:100%;border-collapse:collapse;margin:10px 0}
-  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--text-3);font-weight:650;font-size:11px;text-transform:uppercase;letter-spacing:.07em}
   td code{white-space:nowrap}
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px}
   .card h3{margin-top:0}
-  .note{border-left:3px solid var(--accent);background:#1e1d16;padding:10px 14px;
-    border-radius:0 8px 8px 0;margin:14px 0}
-  .warn{border-left-color:var(--warn);background:#241a18}
-  ol li, ul li{margin:4px 0}
+  ol li,ul li{margin:5px 0}
   .kbdgrid{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:baseline}
-  .kbdgrid div:nth-child(odd){text-align:right;color:var(--dim)}
+  .kbdgrid div:nth-child(odd){text-align:right;color:var(--text-2)}
   svg{max-width:100%;height:auto}
+  @media (max-width:1000px){ .doc{grid-template-columns:minmax(0,1fr);gap:0;padding:20px 16px 80px} #toc{display:none} }
   @media (max-width:700px){ .cols{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
-<nav>
-  <a href="/">Floor plan</a>
-  <a href="/show">Show timeline</a>
-  <a href="/docs" class="here">How it works</a>
-  <span class="spacer"></span>
-  <span style="color:var(--dim)">Intermission · venue previz</span>
+<nav class="topbar">
+  <div class="brand"><i></i><span>Intermission</span></div>
+  <div class="tabs-nav">
+    <a href="/">Floor plan</a>
+    <a href="/show">Show timeline</a>
+    <a href="/docs" class="here">How it works</a>
+  </div>
 </nav>
+<div class="doc">
+<nav id="toc"><b>On this page</b></nav>
 <main>
 
 <h1>How this all works</h1>
@@ -717,6 +716,23 @@ someone. Rebuilding that in the browser would be weeks of shader work for a wors
 answer, so each stays where it is good.</p>
 
 </main>
+</div>
+<script>
+(function(){
+  const toc = document.getElementById("toc"), hs = [...document.querySelectorAll("main h2")];
+  hs.forEach((h, i) => {
+    h.id = h.id || "s-" + h.textContent.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const a = document.createElement("a"); a.href = "#" + h.id; a.textContent = h.textContent; toc.appendChild(a);
+  });
+  const links = [...toc.querySelectorAll("a")];
+  const mark = () => {
+    let cur = 0;
+    hs.forEach((h, i) => { if (h.getBoundingClientRect().top < 120) cur = i; });
+    links.forEach((a, i) => a.classList.toggle("here", i === cur));
+  };
+  addEventListener("scroll", mark, {passive: true}); mark();
+})();
+</script>
 <script src="/lib/status.js"></script>
 </body>
 </html>
