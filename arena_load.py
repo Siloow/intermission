@@ -308,6 +308,64 @@ def find_param(index, path):
     return next((p for p in index if json.dumps(p["path"]) == want), None)
 
 
+def install(base, lane="lights", names=None, refresh=False, sync=True):
+    """Put a folder's clips (the light presets, by default) into the lane's layer.
+
+    A clip already there under the same name keeps its slot: skipped, or
+    reloaded with refresh=True (after re-rendering the presets). New ones go
+    into empty slots, and when the layer runs out, columns are added at the
+    end of the composition, so existing scenes don't move. Returns a report:
+    {"installed": [...], "refreshed": [...], "skipped": [...], "columns_added": n}."""
+    cfg = lanes().get(lane) or {}
+    folder = os.path.join(HERE, cfg.get("dir", ""))
+    # in the presets' own order (by category), if they came with a loops.json
+    try:
+        order = [l["file"] for l in json.load(open(os.path.join(folder, "loops.json"))).get("loops", [])]
+    except (OSError, ValueError):
+        order = []
+    files = [f for f in order if os.path.isfile(os.path.join(folder, f))]
+    files += [f for f in media_in(folder) if f not in files and f.lower().endswith((".mp4", ".mov", ".m4v"))]
+    if names:
+        want = set(names)
+        files = [f for f in files if os.path.splitext(f)[0] in want]
+    if not files:
+        raise RuntimeError(f"nothing to install in {cfg.get('dir')}")
+
+    index, layer = find_layer(composition(base), cfg.get("layer"))
+    have = {name_of(c): j for j, c in enumerate(layer.get("clips", []), 1) if name_of(c)}
+    new = [f for f in files if os.path.splitext(f)[0] not in have]
+    free = [j for j, c in enumerate(layer.get("clips", []), 1) if not name_of(c)]
+    added = 0
+    while len(free) < len(new):                         # make room at the end
+        status, _ = api(base, "/composition/columns/add", "POST", "")
+        if status not in (200, 204):
+            raise RuntimeError(f"couldn't add a column to make room: {status}")
+        added += 1
+        free.append(len(layer.get("clips", [])) + added)
+    if added:
+        index, layer = find_layer(composition(base), cfg.get("layer"))
+    clips = layer.get("clips", [])
+    report = {"installed": [], "refreshed": [], "skipped": [], "columns_added": added,
+              "layer": index}
+    mapping = {}
+    for f in files:
+        stem = os.path.splitext(f)[0]
+        if stem in have:
+            if not refresh:
+                report["skipped"].append(stem)
+                continue
+            slot = have[stem]
+            report["refreshed"].append(stem)
+        else:
+            slot = free.pop(0)
+            report["installed"].append(stem)
+        load_clip(base, clips[slot - 1]["id"], os.path.join(folder, f), sync)
+        mapping[f"{lane}:{stem}"] = {"layer": index, "clip": slot}
+    if mapping:
+        map_write(mapping)
+    return report
+
+
 def osc_input():
     """Whether Arena listens for OSC, and on which port, from its own preferences.
 

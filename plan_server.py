@@ -265,6 +265,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._send(200, json.dumps({"live": False, "params": []}).encode())
             return self._send(200, json.dumps({"live": True, "params": [
                 {k: p[k] for k in ("path", "label", "group", "min", "max", "value")} for p in index]}).encode())
+        if path == "/presets/status":
+            # which presets are already clips in the lights layer
+            snap, live = arena_load.current(ARENA)
+            ref = (arena_load.lanes().get("lights") or {}).get("layer")
+            L, _ = arena_load.find_clip(snap or {"layers": []}, ref, "")
+            layer = next((l for l in (snap or {}).get("layers", []) if l["index"] == L), None)
+            return self._send(200, json.dumps({
+                "live": live, "layer": L, "layer_name": layer and layer["name"],
+                "composition": snap and snap.get("name"),
+                "installed": [c["name"] for c in (layer or {}).get("clips", [])]}).encode())
         if path == "/arena/composition":
             return self._send(200, json.dumps(composition()).encode())
         if path.startswith("/arena/thumb/"):
@@ -370,6 +380,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.media_load()
         if path == "/looks/clip":
             return self.look_clip()
+        if path == "/presets/install":
+            try:
+                n = int(self.headers.get("Content-Length", 0))
+                req = json.loads(self.rfile.read(n) or b"{}")
+                report = arena_load.install(ARENA, "lights", names=req.get("names"),
+                                            refresh=bool(req.get("refresh")))
+            except (ValueError, TypeError, OSError, RuntimeError, SystemExit) as e:
+                return self._send(502, json.dumps({"error": str(e)}).encode())
+            _comp["t"] = 0                                  # the timeline sees them on its next poll
+            return self._send(200, json.dumps(report).encode())
         if path == "/transport":
             # the timeline's playhead, for the player to follow when Live isn't playing.
             # The browser never talks to Resolume: it only says where it is.

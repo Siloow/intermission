@@ -58,6 +58,13 @@
   .pr-card:hover .thumb::after,.pr-card.hi .thumb::after{opacity:1;animation:pr-scan var(--dur,2s) linear infinite}
   @keyframes pr-scan{from{top:0}to{top:calc(100% - 2px)}}
   .pr-card .meta{padding:7px 9px 8px}
+  .pr-head .spacer{flex:1}
+  .pr-in,.pr-add{position:absolute;top:5px;right:5px;z-index:1;height:20px;min-width:20px;border-radius:10px;
+    display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+  .pr-in{background:rgba(79,199,135,.9);color:#08130d;padding:0 6px}
+  .pr-add{padding:0 6px;background:rgba(21,23,28,.85);border:1px solid var(--border-strong);color:var(--text);opacity:0}
+  .pr-card:hover .pr-add{opacity:1}
+  .pr-add:hover{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
   .pr-card b{display:flex;justify-content:space-between;gap:6px;font-size:var(--fs-sm);font-weight:600}
   .pr-card b span{color:var(--text-3);font-weight:500;font-size:var(--fs-xs)}
   .pr-card small{display:block;color:var(--text-3);font-size:var(--fs-xs);line-height:1.35;height:2.7em;overflow:hidden;margin-top:2px}
@@ -245,7 +252,10 @@
 <div id="presets" class="pop presets" hidden>
   <div class="pr-head">
     <input id="pr-q" placeholder="find a preset — sweep, strobe, around…" autocomplete="off">
-    <p class="hint dim">hover to preview on the rig · click to use · ←→↑↓ enter · esc</p>
+    <p class="hint dim">hover to preview · click to use · ←→↑↓ enter · esc</p>
+    <span class="spacer"></span>
+    <span class="badge" id="pr-installed" title="presets that are clips in Resolume's lights layer, so the timeline can fire them">…</span>
+    <button id="pr-install" class="primary" title="load the presets into Resolume's lights layer, BPM-synced">Install in Resolume</button>
   </div>
   <div class="pr-body">
     <div class="pr-cats" id="pr-cats"></div>
@@ -878,7 +888,8 @@ function drawPresets(){
     const dur = ((l.bars || 1) * 4 * 60 / base / rate).toFixed(2);
     html += `<div class="pr-card ${i === loopIndex && roomSource === "loop" && !prPrev ? "is-on" : ""} ${k === prHi ? "hi" : ""}"` +
       ` data-i="${i}" data-k="${k}" style="--dur:${dur}s">` +
-      `<div class="thumb">${l.card ? `<img src="content/light-loops/${encodeURIComponent(l.card)}?v=${cardVer}" alt="" onerror="this.remove()">` : ""}</div>` +
+      `<div class="thumb">${prInstalled.has(l.name) ? `<span class="pr-in" title="a clip in Resolume: the timeline can fire it">✓</span>`
+        : prStatus && prStatus.live ? `<button class="pr-add" data-install="${l.name}" title="install just this one in Resolume">＋</button>` : ""}${l.card ? `<img src="content/light-loops/${encodeURIComponent(l.card)}?v=${cardVer}" alt="" onerror="this.remove()">` : ""}</div>` +
       `<div class="meta"><b>${l.name}<span>${l.bars ? l.bars + " bar" + (l.bars > 1 ? "s" : "") : ""}</span></b>` +
       `<small>${l.what || ""}</small></div></div>`;
   });
@@ -909,6 +920,7 @@ function openPresets(){
   P.style.top = r.bottom + 8 + "px";
   el("pr-q").value = ""; prHi = -1;
   drawPresets();
+  loadPresetStatus().then(drawPresets);
   el("pr-q").focus();
 }
 function closePresets(){ endPreview(); el("presets").hidden = true; }
@@ -925,8 +937,58 @@ el("pr-grid").addEventListener("mouseover", e => {
 });
 el("pr-grid").addEventListener("mouseleave", () => { prHover = null; endPreview(); });
 el("pr-grid").addEventListener("click", e => {
+  const add = e.target.closest("[data-install]");
+  if (add){ e.stopPropagation(); installPresets([add.dataset.install], false); return; }
   const c = e.target.closest(".pr-card"); if (c) choosePreset(+c.dataset.i);
 });
+
+// ---- installing them in Resolume, so the timeline's Lights lane can fire them
+let prInstalled = new Set(), prStatus = null;
+async function loadPresetStatus(){
+  try {
+    prStatus = await (await fetch("/presets/status", {cache: "no-store"})).json();
+    prInstalled = new Set(prStatus.installed || []);
+  } catch(e){ prStatus = null; prInstalled = new Set(); }
+  drawInstallBar();
+}
+function drawInstallBar(){
+  const loops = loopsAll(), n = loops.filter(l => prInstalled.has(l.name)).length, live = prStatus && prStatus.live;
+  el("pr-installed").textContent = live ? `${n} of ${loops.length} in ${prStatus.layer_name}` : "Resolume isn't answering";
+  el("pr-installed").className = "badge " + (live ? (n === loops.length ? "ok" : "") : "err");
+  el("pr-install").disabled = !live;
+  el("pr-install").textContent = !live ? "Install in Resolume"
+    : n < loops.length ? `Install ${loops.length - n} in Resolume` : "Update in Resolume";
+  el("pr-install").title = n < loops.length
+    ? "load the presets that aren't there yet into Resolume's lights layer, BPM-synced"
+    : "reload every preset from disk, after re-rendering them";
+}
+async function installPresets(names, refresh){
+  const loops = loopsAll();
+  const todo = names || loops.map(l => l.name).filter(n => refresh || !prInstalled.has(n));
+  if (!todo.length) return;
+  if (!names && !confirm(`${refresh ? "Reload" : "Load"} ${todo.length} preset${todo.length > 1 ? "s" : ""} into ` +
+      `${prStatus.layer_name} of “${prStatus.composition}”?\n\nClips already there keep their slots. ` +
+      `If the layer runs out of slots, columns are added at the end.`)) return;
+  const btn = el("pr-install"), was = btn.textContent;
+  btn.disabled = true; btn.textContent = `installing ${todo.length}…`;
+  try {
+    const r = await fetch("/presets/install", {method: "POST", headers: {"Content-Type": "application/json"},
+                                               body: JSON.stringify({names: todo, refresh})});
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.statusText);
+    const bits = [];
+    if (out.installed.length) bits.push(`${out.installed.length} installed`);
+    if (out.refreshed.length) bits.push(`${out.refreshed.length} updated`);
+    if (out.columns_added) bits.push(`${out.columns_added} column${out.columns_added > 1 ? "s" : ""} added`);
+    setStatus(bits.join(" · ") || "nothing to do", false);
+  } catch(e){ setStatus("install: " + e.message, true); btn.textContent = was; }
+  await loadPresetStatus();
+  drawPresets();
+}
+el("pr-install").onclick = () => {
+  const loops = loopsAll(), all = loops.every(l => prInstalled.has(l.name));
+  installPresets(null, all);
+};
 el("pr-q").addEventListener("keydown", e => {
   const vis = prVisible();
   const cols = Math.max(1, Math.round(el("pr-grid").clientWidth / 168));

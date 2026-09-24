@@ -274,10 +274,18 @@ categories on the left, cards on the right, a search box. <b>Hover a card and th
 plan and the 3D view play it</b>; leave and the previous one comes back; click to
 keep it. <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> preview as you move,
 <kbd>enter</kbd> keeps, <kbd>esc</kbd> closes.</p>
-<div class="note">To fire a preset from the timeline, it has to be a clip in
-Resolume's lights layer: the Cue tab's <b>Load clip</b> loads one, or
-<code>python3 arena_load.py --lane lights</code> loads them all — give that layer
-enough clip slots first (38).</div>
+<h3>Installing them in Resolume</h3>
+<p>To fire a preset from the timeline it has to be a clip in Resolume's lights
+layer. The browser's header says how many are (<i>12 of 38 in Layer 3</i>):</p>
+<ul>
+  <li><b>Install in Resolume</b> loads every preset that isn't there yet,
+    BPM-synced and snapping to the bar. When the layer runs out of slots, columns
+    are added at the end of the composition, so your scenes don't move.</li>
+  <li><b>＋</b> on a card installs just that one; <b>✓</b> means it's there.</li>
+  <li>Once all are in, the button becomes <b>Update in Resolume</b>: it reloads every
+    preset from disk into the same slots, for after re-rendering them.</li>
+</ul>
+<p>From the command line: <code>python3 -c "import arena_load; print(arena_load.install('http://127.0.0.1:8080'))"</code>.</p>
 
 <h3>Loops on the floor plan</h3>
 <p>Above the floor plan, <b>Live · Look · Loop</b> chooses what lights the plan
