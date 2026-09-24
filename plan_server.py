@@ -234,7 +234,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 body = open(os.path.join(LIB, name), "rb").read()
             except OSError:
                 return self._send(404, b"not found", "text/plain")
-            return self._send(200, body, "application/javascript; charset=utf-8")
+            ctype = {".css": "text/css", ".svg": "image/svg+xml"}.get(
+                os.path.splitext(name)[1], "application/javascript")
+            return self._send(200, body, ctype + "; charset=utf-8")
         if path == "/arena/params":
             # every automatable parameter in the open composition, for the target picker
             try:

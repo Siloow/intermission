@@ -2,227 +2,211 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Venue floor plan</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Floor plan</title>
+<link rel="stylesheet" href="/lib/ui.css">
 <style>
-  :root{
-    --bg:#15161a; --panel:#1d1f25; --line:#2c2f37; --text:#e7e8ec; --dim:#9AA0AC;
-    --accent:#ffd54a; --accent-dim:#6b5a1e; --ok:#57c98a; --warn:#e2725b;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
-    font:13px/1.5 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
-    user-select:none;-webkit-user-select:none}
-  input,textarea{user-select:text;-webkit-user-select:text}
-  #app{display:flex;height:100%}
-  #stage{flex:1;display:flex;flex-direction:column;overflow:hidden;
-    user-select:none;-webkit-user-select:none}
-  #planwrap{position:relative;flex:1 1 auto;min-height:120px;overflow:hidden}
-  #divider{height:6px;flex:none;background:var(--line);cursor:row-resize}
-  #divider:hover{background:#3d434f}
-  #view3d{position:relative;flex:0 0 42%;min-height:0;background:#0b0c0f}
+  /* the floor plan's own layout; everything else comes from ui.css */
+  #planwrap{position:relative;flex:1 1 auto;min-height:160px;overflow:hidden;background:var(--bg)}
+  #plan{display:block;width:100%;height:100%;cursor:grab}
+  #plan.dragging{cursor:grabbing}
+  #status{position:absolute;left:12px;bottom:12px}
+  #hint{position:absolute;right:12px;bottom:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+    max-width:calc(100% - 160px);justify-content:flex-end}
+  #view-tools{position:absolute;right:12px;top:12px;display:flex;gap:4px}
+  #view-tools button{background:rgba(21,23,28,.86);backdrop-filter:blur(8px)}
+  #bandstrip{flex:none;background:var(--surface-1);border-top:1px solid var(--border);padding:8px 12px 10px}
+  #bandstrip canvas{display:block;width:100%;max-width:100%;border-radius:var(--r-sm);background:#000}
+  #bandstrip .hint{margin:6px 0 0}
+  #divider{height:5px;flex:none;background:var(--border);cursor:row-resize}
+  #divider:hover{background:var(--border-strong)}
+  #view3d{position:relative;flex:0 0 40%;min-height:0;background:var(--surface-0)}
   #view3d.hidden{display:none}
   #gl{display:block;width:100%;height:100%}
-  #view3d-bar{position:absolute;left:12px;bottom:10px;display:flex;gap:8px;align-items:center;
-    color:var(--dim);background:rgba(11,12,15,.8);border:1px solid var(--line);
-    border-radius:6px;padding:5px 9px}
-  #view3d-bar button{padding:3px 8px}
-  #gl-note{color:var(--text)}
-  svg{display:block;width:100%;height:100%;cursor:grab}
-  svg.dragging{cursor:grabbing}
-  aside{width:272px;flex:none;background:var(--panel);border-left:1px solid var(--line);
-    padding:14px;overflow-y:auto}
-  h1{font-size:14px;margin:0 0 2px}
-  h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);
-    margin:18px 0 8px;font-weight:600}
-  .sub{color:var(--dim);margin:0 0 6px}
-  .row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
-  .row label{width:74px;color:var(--dim);flex:none}
-  input[type=number],input[type=text]{width:100%;background:#121316;color:var(--text);
-    border:1px solid var(--line);border-radius:5px;padding:5px 7px;font:inherit}
-  input:focus{outline:none;border-color:var(--accent)}
-  button{background:#282b33;color:var(--text);border:1px solid var(--line);border-radius:6px;
-    padding:6px 9px;font:inherit;cursor:pointer}
-  button:hover{background:#31353f}
-  button.primary{background:var(--accent);color:#1a1a1a;border-color:var(--accent);font-weight:600}
-  button.danger:hover{background:#3a2420;border-color:var(--warn)}
-  .btns{display:flex;gap:6px;flex-wrap:wrap}
-  .pill{display:inline-block;padding:1px 7px;border-radius:99px;background:#282b33;color:var(--dim)}
-  #status{position:absolute;left:14px;bottom:12px;background:rgba(20,21,25,.85);
-    border:1px solid var(--line);border-radius:6px;padding:6px 10px;color:var(--dim)}
-  #status b{color:var(--ok);font-weight:600}
-  #status.err b{color:var(--warn)}
-  #hint{position:absolute;right:14px;bottom:12px;color:var(--dim);
-    background:rgba(20,21,25,.85);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
-  table{width:100%;border-collapse:collapse}
-  td{padding:3px 2px;border-bottom:1px solid var(--line)}
-  tr.sel td{color:var(--accent)}
-  td.num{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
-  tr{cursor:pointer}
+  #view3d-bar{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  #gl-note{color:var(--text);font-weight:550}
+  #room-loop{display:contents}
+  #loop-list{max-width:190px}
+  #loop-bpm{width:62px}
+  #loop-count{min-width:92px}
+  body.focus .inspector{display:none}
 
-  #nav{display:flex;gap:6px;align-items:center;padding:6px 10px;background:#131418;
-    border-bottom:1px solid var(--line);flex:none}
-  #nav a{color:var(--dim);text-decoration:none;border:1px solid var(--line);
-    border-radius:6px;padding:3px 10px;font-size:12px}
-  #nav a:hover{color:var(--text);background:#22252c}
-  #nav a.here{color:#15161a;background:var(--accent);border-color:var(--accent);font-weight:600}
-  .kbd{font:11px ui-monospace,Menlo,monospace;background:#121316;border:1px solid var(--line);
-    border-radius:4px;padding:0 4px;color:var(--dim)}
-
-  /* what lights the room: live, the look being designed, or a loop */
-  #room{position:absolute;left:12px;top:10px;right:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
-    pointer-events:none}
-  #room > *{pointer-events:auto}
-  #room .box{display:flex;gap:6px;align-items:center;background:rgba(20,21,25,.88);border:1px solid var(--line);
-    border-radius:8px;padding:4px 6px}
-  #room button{padding:3px 9px}
-  #room button.on{background:var(--accent);color:#15161a;border-color:var(--accent);font-weight:600}
-  .seg{display:flex}
-  .seg button{border-radius:0;margin-left:-1px}
-  .seg button:first-child{border-radius:6px 0 0 6px;margin-left:0}
-  .seg button:last-child{border-radius:0 6px 6px 0}
-  #room select{background:#121316;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:3px 5px;font:inherit}
-  #room input[type=number]{width:58px;padding:3px 5px}
-  #room input[type=color]{width:30px;height:24px;padding:0 2px;background:#121316;border:1px solid var(--line);border-radius:5px}
-  #room .sub{margin:0;white-space:nowrap}
-  #loop-count{font-variant-numeric:tabular-nums;min-width:96px}
-  #bandstrip{flex:none;background:#0b0c0f;border-top:1px solid var(--line);padding:6px 12px 8px}
-  #bandstrip[hidden]{display:none}
-  #bandstrip canvas{display:block;width:100%;max-width:100%;border-radius:4px;background:#000}
-  #stage{min-width:0}
-  #bandstrip .sub{margin:4px 0 0;font-size:12px}
-  body.focus aside{display:none}
+  /* fixtures on the plan */
+  .fx .detail{display:none}
+  .fx:hover .detail,.fx.is-sel .detail{display:inline}
+  .fx text{paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}
 </style>
 </head>
-<body>
-<div id="app">
-  <div id="stage">
-<nav id="nav">
-  <a href="/" class="here">Floor plan</a>
-  <a href="/show" >Show timeline</a>
-  <a href="/docs">How it works</a>
-</nav>
+<body class="app-page">
+<div class="app">
+  <nav class="topbar">
+    <div class="brand"><i></i><span>Intermission</span></div>
+    <div class="tabs-nav">
+      <a href="/" class="here">Floor plan</a>
+      <a href="/show">Show timeline</a>
+      <a href="/docs">How it works</a>
+    </div>
+  </nav>
+  <div class="workspace">
+    <main class="main" id="stage">
+      <div class="toolbar" id="room">
+        <span class="title">Floor plan</span>
+        <div class="seg" id="room-src" title="what lights the plan and the 3D preview">
+          <button data-src="live" title="what Resolume is sending, as the previz sees it">Live</button>
+          <button data-src="look" title="the look you are designing">Look</button>
+          <button data-src="loop" title="a control-band loop, played here">Loop</button>
+        </div>
+        <span id="room-loop" hidden style="display:none">
+          <select id="loop-list" title="[ and ] step through the loops"></select>
+          <button id="loop-play" class="icon" title="play / pause">❚❚</button>
+          <span class="readout" id="loop-count">—</span>
+          <input id="loop-bpm" type="number" min="40" max="240" step="1" title="bpm">
+          <button id="loop-tint" title="T — colour it the way a Solid Color layer or Colorize would">Tint</button>
+          <input id="loop-tint-c" type="color" value="#2255ff" title="tint colour">
+        </span>
+        <span class="readout" id="room-note"></span>
+        <span class="spacer"></span>
+        <button id="band-toggle" title="B — the control band, with where each fixture samples it">Band</button>
+        <button id="focus" class="icon" title="hide the inspector">⤢</button>
+      </div>
 
-    <div id="planwrap">
-      <svg id="plan"></svg>
-      <div id="room">
-        <div class="box">
-          <div class="seg" id="room-src" title="what lights the plan and the 3D preview">
-            <button data-src="live" title="what Resolume is sending, as the previz sees it">Live</button>
-            <button data-src="look" title="the look you are designing">Look</button>
-            <button data-src="loop" title="a control-band loop, played here">Loop</button>
-          </div>
-          <span id="room-loop" hidden style="display:none">
-            <select id="loop-list" title="[ and ] step through the loops"></select>
-            <button id="loop-play" title="play / pause">❚❚</button>
-            <span class="sub" id="loop-count">—</span>
-            <input id="loop-bpm" type="number" min="40" max="240" step="1" title="bpm">
-            <button id="loop-tint" title="T — colour it the way a Solid Color layer or Colorize would">Tint</button>
-            <input id="loop-tint-c" type="color" value="#2255ff" title="tint colour">
-          </span>
-          <span class="sub" id="room-note"></span>
-          <button id="band-toggle" title="B — the control band, with where each fixture samples it">Band</button>
-          <button id="focus" title="hide the side panel">⤢</button>
+      <div id="planwrap">
+        <svg id="plan"></svg>
+        <div id="view-tools">
+          <button id="fit" class="icon" title="F — fit the rig to the view">⌖</button>
+        </div>
+        <div id="status" class="float">rig.json <b id="save">loading</b></div>
+        <div id="hint" class="float">drag a fixture · drag a box to select ·
+          <span class="kbd">shift</span> add · <span class="kbd">alt</span> pan ·
+          <span class="kbd">S</span> snap · <span class="kbd">⌘Z</span> undo</div>
+      </div>
+      <div id="bandstrip" hidden>
+        <canvas id="band" width="1920" height="140"></canvas>
+        <p class="hint" id="band-note"></p>
+      </div>
+      <div id="divider" title="drag to resize"></div>
+      <div id="view3d">
+        <canvas id="gl"></canvas>
+        <div id="view3d-bar" class="float">
+          <span id="gl-note">3D preview</span>
+          <span class="kbd">drag</span> orbit <span class="kbd">scroll</span> zoom
+          <span class="kbd">shift drag</span> pan
+          <button id="gl-seat">From my seat</button>
+          <button id="gl-top">From above</button>
         </div>
       </div>
-    <div id="status">rig.json <b id="save">loading</b></div>
-      <div id="hint">drag a par &middot; drag a box to select several &middot;
-        <span class="kbd">shift</span> add &middot; <span class="kbd">alt</span> pan &middot;
-        <span class="kbd">S</span> snap &middot; <span class="kbd">⌘Z</span> undo</div>
-    </div>
-    <div id="bandstrip" hidden>
-      <canvas id="band" width="1920" height="150"></canvas>
-      <p class="sub" id="band-note"></p>
-    </div>
-    <div id="divider" title="drag to resize"></div>
-    <div id="view3d">
-      <canvas id="gl"></canvas>
-      <div id="view3d-bar">
-        <span id="gl-note">3D preview</span>
-        <span class="kbd">drag</span> orbit
-        <span class="kbd">scroll</span> zoom
-        <span class="kbd">shift drag</span> pan
-        <button id="gl-seat">from my seat</button>
-        <button id="gl-top">from above</button>
+    </main>
+
+    <aside class="inspector">
+      <div class="inspector-tabs" id="itabs">
+        <button data-tab="sel">Selected<span class="count" id="sel-count" hidden></span></button>
+        <button data-tab="rig">Rig</button>
+        <button data-tab="looks">Looks</button>
+        <button data-tab="settings">Settings</button>
       </div>
-    </div>
+      <div class="inspector-body">
+
+        <div class="panel" data-panel="sel">
+          <div class="section">
+            <div id="none" class="empty">Nothing selected. Click a fixture, or drag a box around several.</div>
+            <p id="multi" class="hint" hidden><b id="multi-count"></b> fixtures selected — height, aim,
+              tilt and beam apply to all of them.</p>
+            <div id="editor" hidden>
+              <div class="row"><label>Name</label><input id="f-name" type="text"></div>
+              <div class="row"><label>Address</label><input id="f-address" type="number" min="1" max="512" step="1"></div>
+              <div class="row"><label>Distance</label><input id="f-dist" type="number" step="0.05"><span class="pill">m</span></div>
+              <div class="row"><label>Angle</label><input id="f-ang" type="number" step="1"><span class="pill">°</span></div>
+              <div class="row"><label>X</label><input id="f-x" type="number" step="0.05"><span class="pill">m</span></div>
+              <div class="row"><label>Y</label><input id="f-y" type="number" step="0.05"><span class="pill">m</span></div>
+              <div class="row"><label>Height</label><input id="f-z" type="number" step="0.05"><span class="pill">m</span></div>
+              <div class="row"><label>Aim</label><input id="f-aim" type="number" step="1"><span class="pill">°</span></div>
+              <div class="row"><label>Tilt</label><input id="f-tilt" type="number" step="1" min="0" max="90"><span class="pill">°</span></div>
+              <div class="row"><label>Beam</label><input id="f-beam" type="number" step="1" min="1" max="120"><span class="pill">°</span></div>
+              <div class="row" id="row-rot"><label>Turn</label><input id="f-rot" type="number" step="5"><span class="pill">°</span></div>
+              <p class="hint dim" id="f-profile"></p>
+              <div class="btns">
+                <button id="mirror">Mirror to other side</button>
+                <button id="dup">Duplicate</button>
+                <button id="del" class="danger">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" data-panel="rig">
+          <div class="section">
+            <div class="btns" style="margin-top:0">
+              <button id="add" class="primary">Add par</button>
+              <button id="add-bar">Add bar</button>
+              <button id="renumber">Renumber</button>
+              <button id="arc">Arrange on an arc</button>
+            </div>
+            <p class="hint" id="summary"></p>
+          </div>
+          <div class="section">
+            <table class="data" id="list"></table>
+          </div>
+        </div>
+
+        <div class="panel" data-panel="looks">
+          <div class="section">
+            <div class="section-title">Looks <span class="spacer"></span>
+              <button id="look-new" class="ghost" title="new look">＋ New</button></div>
+            <p class="hint">A colour and level per fixture. The timeline calls them by name; picking one
+              lights the plan with it.</p>
+            <div id="look-list" class="list"></div>
+          </div>
+          <div id="look-edit" class="section" hidden>
+            <div class="section-title">Paint <span class="spacer"></span><span class="badge" id="look-summary"></span></div>
+            <div class="row"><label>Colour</label><input id="look-color" type="color" value="#ff7a00"></div>
+            <div class="row"><label>White</label><input id="look-w" type="range" min="0" max="255" value="0"></div>
+            <div class="row"><label>Level</label><input id="look-dim" type="range" min="0" max="255" value="180"></div>
+            <div class="btns">
+              <button id="look-apply" class="primary">Set selected</button>
+              <button id="look-all">Set all</button>
+              <button id="look-off">Selected off</button>
+            </div>
+            <div class="row"><label>Note</label><input id="look-note" type="text" placeholder="when to use it"></div>
+            <div class="btns">
+              <button id="look-dup">Duplicate</button>
+              <button id="look-rename">Rename</button>
+              <button id="look-del" class="danger">Delete</button>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-title">In Resolume</div>
+            <div class="btns" style="margin-top:0">
+              <button id="look-clip" title="render this look onto the control band and load it into Resolume's lights layer, named after the look">Make clip</button>
+              <button id="look-clip-all" title="the same for every look">Make all</button>
+            </div>
+            <p class="hint" id="look-clip-note">Turns the look into a Resolume clip, so a Lights cue that names it fires it. Re-make after changing it.</p>
+          </div>
+        </div>
+
+        <div class="panel" data-panel="settings">
+          <div class="section">
+            <div class="section-title">3D preview</div>
+            <label class="check"><input id="gl-on" type="checkbox" checked> Show the 3D preview</label>
+            <p class="hint" style="margin-top:6px">The plan and the beams follow the <b>Live · Look · Loop</b> switch.</p>
+          </div>
+          <div class="section">
+            <div class="section-title">Snapping</div>
+            <div class="row"><label>Grid</label><input id="snap-grid" type="number" step="0.05" value="0.25"><span class="pill">m</span></div>
+            <div class="row"><label>Angle</label><input id="snap-ang" type="number" step="5" value="15"><span class="pill">°</span></div>
+            <label class="check"><input id="snap-on" type="checkbox" checked> Snap while dragging</label>
+            <p class="hint" style="margin-top:6px">Hold <span class="kbd">S</span> to flip it for one drag.</p>
+          </div>
+          <div class="section">
+            <div class="section-title">Keys</div>
+            <p class="hint"><span class="kbd">[</span> <span class="kbd">]</span> loops · <span class="kbd">T</span> tint ·
+              <span class="kbd">B</span> band · <span class="kbd">F</span> fit · arrows nudge (<span class="kbd">shift</span> fine) ·
+              <span class="kbd">⌘A</span> all · <span class="kbd">esc</span> none</p>
+          </div>
+        </div>
+
+      </div>
+    </aside>
   </div>
-  <aside>
-    <h1>Venue floor plan</h1>
-    <p class="sub">Blender follows this file live.</p>
-
-    <h2>Selected</h2>
-    <div id="none" class="sub">Nothing selected. Click a par.</div>
-    <p id="multi" class="sub" hidden><b id="multi-count"></b> pars selected &mdash;
-      height, aim, tilt and beam apply to all of them.</p>
-    <div id="editor" hidden>
-      <div class="row"><label>Name</label><input id="f-name" type="text"></div>
-      <div class="row"><label>Address</label><input id="f-address" type="number" min="1" max="512" step="1"></div>
-      <div class="row"><label>Distance</label><input id="f-dist" type="number" step="0.05"><span class="pill">m</span></div>
-      <div class="row"><label>Angle</label><input id="f-ang" type="number" step="1"><span class="pill">°</span></div>
-      <div class="row"><label>X</label><input id="f-x" type="number" step="0.05"><span class="pill">m</span></div>
-      <div class="row"><label>Y</label><input id="f-y" type="number" step="0.05"><span class="pill">m</span></div>
-      <div class="row"><label>Height</label><input id="f-z" type="number" step="0.05"><span class="pill">m</span></div>
-      <div class="row"><label>Aim</label><input id="f-aim" type="number" step="1"><span class="pill">°</span></div>
-      <div class="row"><label>Tilt</label><input id="f-tilt" type="number" step="1" min="0" max="90"><span class="pill">°</span></div>
-      <div class="row"><label>Beam</label><input id="f-beam" type="number" step="1" min="1" max="120"><span class="pill">°</span></div>
-      <div class="row" id="row-rot"><label>Turn</label><input id="f-rot" type="number" step="5"><span class="pill">°</span></div>
-      <p class="sub" id="f-profile"></p>
-      <div class="btns">
-        <button id="mirror">Mirror to other side</button>
-        <button id="dup">Duplicate</button>
-        <button id="del" class="danger">Delete</button>
-      </div>
-    </div>
-
-    <h2>Rig</h2>
-    <div class="btns" style="margin-bottom:8px">
-      <button id="add" class="primary">Add par</button>
-      <button id="add-bar">Add bar</button>
-      <button id="renumber">Renumber addresses</button>
-      <button id="arc">Arrange on an arc</button>
-    </div>
-    <table id="list"></table>
-    <p class="sub" id="summary"></p>
-
-    <h2>Looks</h2>
-    <p class="sub">A look is a colour and level per par. The previz shows the one
-      you are editing; the show timeline calls them by name.</p>
-    <select id="look-list" size="6" style="height:auto;margin-bottom:6px"></select>
-    <div class="btns" style="margin-bottom:8px">
-      <button id="look-new">New</button>
-      <button id="look-dup">Duplicate</button>
-      <button id="look-rename">Rename</button>
-      <button id="look-del" class="danger">Delete</button>
-    </div>
-    <div id="look-edit" hidden>
-      <div class="row"><label>Colour</label><input id="look-color" type="color" value="#ff7a00"></div>
-      <div class="row"><label>White</label><input id="look-w" type="range" min="0" max="255" value="0"></div>
-      <div class="row"><label>Level</label><input id="look-dim" type="range" min="0" max="255" value="180"></div>
-      <div class="btns" style="margin-bottom:6px">
-        <button id="look-apply" class="primary">Set selected pars</button>
-        <button id="look-all">Set all</button>
-        <button id="look-off">Selected off</button>
-      </div>
-      <div class="row"><label>Note</label><input id="look-note" type="text" placeholder="when to use it"></div>
-      <p class="sub" id="look-summary"></p>
-      <div class="btns">
-        <button id="look-clip" title="render this look onto the control band and load it into Resolume's lights layer, named after the look">Make clip</button>
-        <button id="look-clip-all" title="the same for every look">Make all</button>
-      </div>
-      <p class="sub" id="look-clip-note">Turns the look into a Resolume clip, so a Lights cue that names it fires it. Re-make after changing it.</p>
-    </div>
-
-    <h2>3D preview</h2>
-    <div class="row"><label><input id="gl-on" type="checkbox" checked style="width:auto"> show</label></div>
-    <p class="sub">The plan and the beams follow the <b>Live · Look · Loop</b>
-      switch above the plan.</p>
-
-    <h2>Snapping</h2>
-    <div class="row"><label>Grid</label><input id="snap-grid" type="number" step="0.05" value="0.25"><span class="pill">m</span></div>
-    <div class="row"><label>Angle</label><input id="snap-ang" type="number" step="5" value="15"><span class="pill">°</span></div>
-    <p class="sub">Hold <span class="kbd">S</span> or turn snapping off with the box below.</p>
-    <div class="row"><label><input id="snap-on" type="checkbox" checked style="width:auto"> on</label></div>
-  </aside>
 </div>
 <script src="/lib/band.js"></script>
 <script>
@@ -260,7 +244,7 @@ let rig = null;                 // the file, as loaded
 let venue = {screen_width:16, screen_from_performer:1.8, first_row_from_screen:4, room_width:26};
 let sel = -1;                   // the one shown in the inspector
 let selSet = new Set();         // everything selected
-let view = {scale:70, cx:0, cy:0};   // px per metre, and the pan in px
+let view = {scale:70, cx:0, cy:0, auto:true};   // px per metre, the pan in px, and whether it follows the window
 let undo = [], redo = [];
 let looks = {looks: []}, lookIndex = -1;
 let profiles = {};                  // fixtures.json: what a par or a bar actually is
@@ -337,13 +321,18 @@ function doUndo(stack, other){
 
 // ------------------------------------------------------------------ view ----
 function fit(){
+  // frame what matters: the rig, the screen, and the first row
   const w = svg.clientWidth, h = svg.clientHeight;
-  const reach = Math.max(4, ...rig.fixtures.map(dist)) + 1.5;
-  const wide = Math.max(venue.screen_width * 0.6, reach);
-  view.scale = Math.min(w / (wide * 2.2), h / ((reach + venue.first_row_from_screen) * 1.6));
-  view.scale = Math.max(24, Math.min(160, view.scale));
+  if (!w || !h) return;
+  const fx = rig.fixtures;
+  const halfX = Math.max(venue.screen_width / 2 + 0.4, ...fx.map(f => Math.abs(f.x) + 1.4), 3);
+  const top = Math.min(-venue.screen_from_performer - 0.9, ...fx.map(f => f.y - 1.2));
+  const bottom = Math.max(venue.first_row_from_screen - venue.screen_from_performer + 0.6,
+                          ...fx.map(f => f.y + 1.4), 1.5);
+  view.scale = Math.max(18, Math.min(170, Math.min(w / (2 * halfX), h / (bottom - top)) * 0.94));
   view.cx = w / 2;
-  view.cy = h / 2 + venue.screen_from_performer * view.scale * 0.35;
+  view.cy = h / 2 - ((top + bottom) / 2) * view.scale;
+  view.auto = true;
 }
 
 // ------------------------------------------------------------------ draw ----
@@ -373,120 +362,137 @@ function draw(){
   svg.innerHTML = "";
   const g = document.createElementNS(SVGNS,"g");
   svg.appendChild(g);
+  const C = {grid:"#171a20", axis:"#252a33", ring:"#1d2027", ringText:"#3d434f", ruler:"#454b58",
+             rulerText:"#5f6674", label:"#a9afbb", labelDim:"#6e7583", accent:"#ffd54a"};
 
-  // metre grid
+  // metre grid, quiet; the axes a little stronger
   const [mx0,my0] = toM(0,0), [mx1,my1] = toM(w,h);
   for (let x = Math.ceil(mx0); x <= mx1; x++){
     const [px] = toPx(x,0);
-    g.appendChild(line(px,0,px,h, x===0 ? "#3a3f4a" : "#23262d", x===0?1.5:1));
+    g.appendChild(line(px,0,px,h, x===0 ? C.axis : C.grid, 1));
   }
   for (let y = Math.ceil(my0); y <= my1; y++){
     const [,py] = toPx(0,y);
-    g.appendChild(line(0,py,w,py, y===0 ? "#3a3f4a" : "#23262d", y===0?1.5:1));
+    g.appendChild(line(0,py,w,py, y===0 ? C.axis : C.grid, 1));
   }
-  // rings every metre around the performer
+  // distance rings around you, labelled once each
+  const [ocx,ocy] = toPx(0,0);
   for (let r = 1; r <= 6; r++){
-    const [cx,cy] = toPx(0,0);
-    g.appendChild(circle(cx,cy,r*view.scale,null,"#262a32",1));
-    g.appendChild(text(cx + r*view.scale - 4, cy - 4, r+" m", "#4a505c","end",10));
-  }
-  // angle spokes every 45 degrees
-  for (let a = 0; a < 360; a += 45){
-    const rad = a*Math.PI/180, [cx,cy] = toPx(0,0);
-    const [ex,ey] = toPx(Math.sin(rad)*6.4, Math.cos(rad)*6.4);
-    g.appendChild(line(cx,cy,ex,ey,"#21242b",1,"2 6"));
+    g.appendChild(circle(ocx,ocy,r*view.scale,null,C.ring,1));
+    g.appendChild(text(ocx + r*view.scale*0.7071 + 3, ocy + r*view.scale*0.7071 + 11, r+" m", C.ringText,"start",10));
   }
 
-  // screen and first row
+  // the screen and the first row
   const sy = -venue.screen_from_performer, ry = venue.first_row_from_screen - venue.screen_from_performer;
   const [sx0,spy] = toPx(-venue.screen_width/2, sy);
   const [sx1] = toPx(venue.screen_width/2, sy);
-  g.appendChild(line(sx0,spy,sx1,spy,"#e8e8ea",6));
-  g.appendChild(text((sx0+sx1)/2, spy-10, `screen ${venue.screen_width} m`, "#c9ccd2","middle",12));
+  g.appendChild(line(sx0,spy,sx1,spy,"#d9dce3",5));
+  g.appendChild(text((sx0+sx1)/2, spy-12, `SCREEN · ${venue.screen_width} m`, "#8b919d","middle",10.5));
   const [,rpy] = toPx(0,ry);
-  g.appendChild(line(0,rpy,w,rpy,"#3a3f4a",2,"10 8"));
-  g.appendChild(text(12, rpy-8, `first row of seats (${venue.first_row_from_screen} m from the screen)`, "#6d7482","start",11));
+  g.appendChild(line(0,rpy,w,rpy,"#2c313b",1.5,"8 7"));
+  g.appendChild(text(14, rpy-8, `FIRST ROW · ${venue.first_row_from_screen} m from the screen`, C.labelDim,"start",10.5));
 
-  // rulers
+  // rulers along the edges, every metre, numbered every five
   for (let x = Math.ceil(mx0); x <= mx1; x++){
     const [px] = toPx(x,0);
-    g.appendChild(line(px,0,px,x%5===0?12:7,"#5b6170",1));
-    if (x%5===0) g.appendChild(text(px+3,22,x+" m","#6d7482","start",10));
+    g.appendChild(line(px,0,px,x%5===0?10:5,C.ruler,1));
+    if (x%5===0) g.appendChild(text(px+3,20,x+" m",C.rulerText,"start",10));
   }
   for (let y = Math.ceil(my0); y <= my1; y++){
     const [,py] = toPx(0,y);
-    g.appendChild(line(0,py,y%5===0?12:7,py,"#5b6170",1));
-    if (y%5===0) g.appendChild(text(15,py+4,y+" m","#6d7482","start",10));
+    g.appendChild(line(0,py,y%5===0?10:5,py,C.ruler,1));
+    if (y%5===0) g.appendChild(text(14,py+4,y+" m",C.rulerText,"start",10));
   }
 
-  // performer
-  const [cx,cy] = toPx(0,0);
-  g.appendChild(circle(cx,cy,9,"#e8e8ea"));
-  g.appendChild(text(cx, cy+24, "you", "#c9ccd2","middle",12));
+  // you
+  g.appendChild(circle(ocx,ocy,8,"#eceef2"));
+  g.appendChild(text(ocx, ocy+22, "you", C.label,"middle",11));
 
-  // fixtures
+  // fixtures: a group each, so hovering one shows its details
+  const labels = [];                                     // placed label boxes, to keep them apart
+  const place = (x, y, width, anchor) => {
+    for (let k = 0; k < 6; k++){
+      const x0 = anchor === "end" ? x - width : anchor === "middle" ? x - width/2 : x;
+      const box = [x0, y - 11, x0 + width, y + 3];
+      if (!labels.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])){
+        labels.push(box); return y;
+      }
+      y += 14;                                           // try the next line down
+    }
+    return y;
+  };
   rig.fixtures.forEach((f,i) => {
     const [px,py] = toPx(f.x,f.y);
-    const on = selSet.has(i);
-    const primary = i === sel;
+    const on = selSet.has(i), primary = i === sel;
+    const grp = document.createElementNS(SVGNS,"g");
+    grp.setAttribute("class", "fx" + (on ? " is-sel" : ""));
+    g.appendChild(grp);
+    const add = el2 => grp.appendChild(el2);
+    const details = `${dist(f).toFixed(2)} m · ${angle(f)>=0?"+":""}${angle(f).toFixed(0)}° · @${f.address}`;
+    // labels sit on the far side from you, so they spread out like the rig does
+    const out = Math.hypot(f.x, f.y) > 0.3 ? [f.x / Math.hypot(f.x, f.y), f.y / Math.hypot(f.x, f.y)] : [0, -1];
+    const anchor = out[0] > 0.35 ? "start" : out[0] < -0.35 ? "end" : "middle";
+    const label = (lx, ly) => {
+      const width = Math.max(f.name.length * 6.6, on ? details.length * 5.6 : 0);
+      ly = place(lx, ly, width, anchor);
+      const t = text(lx, ly, "", on ? "#eceef2" : C.label, anchor, 11.5);
+      t.setAttribute("font-weight", on ? "650" : "550");
+      const n = document.createElementNS(SVGNS, "tspan"); n.textContent = f.name; t.appendChild(n);
+      const d = document.createElementNS(SVGNS, "tspan");
+      d.setAttribute("class", "detail"); d.setAttribute("x", lx); d.setAttribute("dy", "13");
+      d.setAttribute("fill", C.labelDim); d.setAttribute("font-size", "10.5"); d.setAttribute("font-weight", "450");
+      d.textContent = details; t.appendChild(d);
+      t.style.pointerEvents = "none";
+      add(t);
+    };
+
     if (kindOf(f) === "bar"){
       const L = barLength(f) * view.scale, rot = (f.rot_deg || 0) * Math.PI/180;
       const dx = Math.cos(rot) * L/2, dy = Math.sin(rot) * L/2;
-      g.appendChild(line(px-dx, py-dy, px+dx, py+dy, on?"#fff":"#15161a", on?11:9));
-      g.appendChild(line(px-dx, py-dy, px+dx, py+dy, on?"#8fe3ef":"#4aa9b8", 6));
-      const n = profOf(f).pixels || 18;                    // the 18 LEDs, as ticks
+      add(line(px-dx, py-dy, px+dx, py+dy, on ? C.accent : "#0b0c0f", on ? 12 : 10));
+      add(line(px-dx, py-dy, px+dx, py+dy, "#1f3a40", 7));
+      const n = profOf(f).pixels || 18;                    // the 18 LEDs
       for (let k = 0; k < n; k++){
         const t = (k + 0.5)/n - 0.5;
         const c = circle(px + Math.cos(rot)*L*t, py + Math.sin(rot)*L*t, 1.6, "#0d2b31");
         c.style.pointerEvents = "none";
         c.dataset.px = f.name; c.dataset.k = k;              // lit by paintRoom()
-        g.appendChild(c);
+        add(c);
       }
-      const hx = px + Math.cos(rot)*(L/2 + 14), hy = py + Math.sin(rot)*(L/2 + 14);
-      const h = circle(hx, hy, on?6:4.5, on?"#8fe3ef":"#2e5c64", "#15161a", 1.5);
-      h.dataset.rot = i; h.style.cursor = "grab";          // drag to turn the bar
-      g.appendChild(h);
-      const hit = line(px-dx, py-dy, px+dx, py+dy, "rgba(0,0,0,0)", 16);
-      hit.dataset.fix = i; hit.style.cursor = "move";      // fat invisible grab line
-      g.appendChild(hit);
-      const lbl = text(px, py - 14,
-        `${f.name}  @${f.address}${f.rot_deg ? "  " + Math.round(f.rot_deg) + "°" : ""}`,
-        on?"#e7e8ec":"#8b909b", "middle", 11);
-      lbl.style.pointerEvents = "none";
-      g.appendChild(lbl);
+      const hx = px + Math.cos(rot)*(L/2 + 12), hy = py + Math.sin(rot)*(L/2 + 12);
+      const hd = circle(hx, hy, on?5.5:4, on ? C.accent : "#2e5c64", "#0b0c0f", 1.5);
+      hd.dataset.rot = i; hd.style.cursor = "grab";         // drag to turn the bar
+      add(hd);
+      const hit = line(px-dx, py-dy, px+dx, py+dy, "rgba(0,0,0,0)", 18);
+      hit.dataset.fix = i; hit.style.cursor = "move";
+      add(hit);
+      label(px + out[0] * 16, py + out[1] * 16 + (out[1] > 0 ? 12 : -6));
       return;
     }
     const rad = (f.aim_deg||0)*Math.PI/180;
     const len = 1.1*view.scale*Math.cos((f.tilt_deg||70)*Math.PI/180) + 26;
     const hx = px + Math.sin(rad)*len, hy = py + Math.cos(rad)*len;
-    // beam direction
     const spread = (f.beam_deg||25)*Math.PI/360;
     const wedge = document.createElementNS(SVGNS,"path");
     const p1 = [px + Math.sin(rad-spread)*len, py + Math.cos(rad-spread)*len];
     const p2 = [px + Math.sin(rad+spread)*len, py + Math.cos(rad+spread)*len];
     wedge.setAttribute("d", `M${px},${py} L${p1[0]},${p1[1]} L${p2[0]},${p2[1]} Z`);
-    wedge.setAttribute("fill", on ? "rgba(255,213,74,.18)" : "rgba(255,213,74,.08)");
+    wedge.setAttribute("fill", on ? "rgba(255,213,74,.16)" : "rgba(255,213,74,.06)");
     wedge.dataset.glow = f.name; wedge.dataset.def = wedge.getAttribute("fill");
-    g.appendChild(wedge);
-    g.appendChild(line(px,py,hx,hy, on?"#ffd54a":"#6b5a1e", on?2:1.5));
-    const handle = circle(hx,hy,on?6:4, on?"#ffd54a":"#3a3320", "#15161a",1.5);
+    add(wedge);
+    add(line(px,py,hx,hy, on ? C.accent : "#4d4428", on?1.8:1.2));
+    const handle = circle(hx,hy,on?5.5:3.5, on ? C.accent : "#3a3320", "#0b0c0f",1.5);
     handle.dataset.aim = i; handle.style.cursor = "crosshair";
-    g.appendChild(handle);
-
-    const c = circle(px,py,13, on?"#ffd54a":"#c9a63c",
-                     primary?"#fff":(on?"#ffeca8":"#15161a"), on?2:1.5);
+    add(handle);
+    const c = circle(px,py,12, "#c9a63c", primary ? "#fff" : on ? C.accent : "#0b0c0f", on ? 2.5 : 1.5);
     c.dataset.fix = i; c.style.cursor = "move";
     c.dataset.lamp = f.name; c.dataset.def = c.getAttribute("fill");
-    g.appendChild(c);
-    const t = text(px, py+4, f.address, "#1a1a1a","middle",11);
+    add(c);
+    const t = text(px, py+4, f.address, "#1a1a1a","middle",10.5);
     t.setAttribute("font-weight","700"); t.style.pointerEvents = "none";
     t.dataset.addr = f.name;
-    g.appendChild(t);
-    const lbl = text(px + (f.x>=0?20:-20), py-16,
-                     `${f.name}  ${dist(f).toFixed(2)} m  ${angle(f)>=0?"+":""}${angle(f).toFixed(0)}°`,
-                     on?"#e7e8ec":"#8b909b", f.x>=0?"start":"end", 11);
-    lbl.style.pointerEvents="none";
-    g.appendChild(lbl);
+    add(t);
+    label(px + out[0] * 20, py + out[1] * 20 + (out[1] > 0.35 ? 12 : out[1] < -0.35 ? -4 : 4));
   });
 
   if (marquee){
@@ -495,7 +501,7 @@ function draw(){
     r.setAttribute("x",x0); r.setAttribute("y",y0);
     r.setAttribute("width", Math.abs(marquee.b[0]-marquee.a[0]));
     r.setAttribute("height", Math.abs(marquee.b[1]-marquee.a[1]));
-    r.setAttribute("fill","rgba(255,213,74,.08)");
+    r.setAttribute("fill","rgba(255,213,74,.07)");
     r.setAttribute("stroke","#ffd54a"); r.setAttribute("stroke-dasharray","5 4");
     g.appendChild(r);
   }
@@ -533,6 +539,8 @@ function drawList(){
 
 function showEditor(){
   const many = selected().length > 1;
+  const n = selected().length;
+  el("sel-count").hidden = !n; el("sel-count").textContent = n;
   const f = rig.fixtures[sel];
   el("editor").hidden = !f; el("none").hidden = !!f;
   el("multi").hidden = !many;
@@ -558,17 +566,27 @@ function showEditor(){
 // ------------------------------------------------------------------ looks ---
 const curLook = () => looks.looks[lookIndex];
 
+function lookSwatch(l){
+  // the look at a glance: the average colour of what it lights
+  const vals = Object.values(l.fixtures || {}).filter(v => (v.dim ?? 0) > 0);
+  if (!vals.length) return "#000";
+  const c = vals.map(v => bandRgbOf(v)).reduce((a, x) => a.map((y, i) => y + x[i] / vals.length), [0,0,0]);
+  return `rgb(${c.map(Math.round)})`;
+}
 function drawLooks(){
-  el("look-list").innerHTML = looks.looks.map((l,i) =>
-    `<option value="${i}" ${i===lookIndex?"selected":""}>${l.name}</option>`).join("");
+  el("look-list").innerHTML = looks.looks.map((l,i) => {
+    const lit = Object.values(l.fixtures || {}).filter(v => (v.dim ?? 0) > 0).length;
+    return `<div class="list-row ${i===lookIndex?"is-on":""}" data-i="${i}" title="double-click to rename">` +
+      `<span class="swatch" style="background:${lookSwatch(l)}"></span>` +
+      `<div class="grow"><b>${l.name.replace(/</g,"&lt;")}</b><small>${(l.note || "").replace(/</g,"&lt;") || "&nbsp;"}</small></div>` +
+      `<span class="num">${lit ? lit + " lit" : "dark"}</span></div>`;
+  }).join("") || `<div class="empty">No looks yet — ＋ New makes one.</div>`;
   const l = curLook();
   el("look-edit").hidden = !l;
   if (!l) return;
   el("look-note").value = l.note || "";
   const lit = Object.entries(l.fixtures || {}).filter(([,v]) => (v.dim ?? 0) > 0);
-  el("look-summary").textContent = lit.length
-    ? `${lit.length} of ${rig.fixtures.length} pars lit`
-    : "all dark";
+  el("look-summary").textContent = lit.length ? `${lit.length} of ${rig.fixtures.length} lit` : "all dark";
   pushPreview();
 }
 
@@ -628,8 +646,12 @@ function setLookValues(names){
   drawLooks(); saveLooks();
 }
 
-el("look-list").addEventListener("change", () => {
-  lookIndex = +el("look-list").value; drawLooks(); setSource("look");
+el("look-list").addEventListener("click", e => {
+  const r = e.target.closest(".list-row"); if (!r) return;
+  lookIndex = +r.dataset.i; drawLooks(); setSource("look");
+});
+el("look-list").addEventListener("dblclick", e => {
+  if (e.target.closest(".list-row")) el("look-rename").onclick();
 });
 el("look-new").onclick = () => {
   const name = prompt("Name for the look:", `Look ${looks.looks.length + 1}`);
@@ -732,14 +754,17 @@ function paintRoom(){
                   addrs: [...svg.querySelectorAll("[data-addr]")], px: [...svg.querySelectorAll("[data-px]")]};
   }
   const T = roomTable();
-  const lit = name => { const v = T[name]; if (!v) return null; const c = rgbOfEntry(v); return c; };
+  // in Look and Loop, a fixture with nothing to show is off, not "no data"
+  const off = roomSource !== "live" ? [22, 24, 29] : null;
+  const lit = name => { const v = T[name]; return v ? rgbOfEntry(v) : off; };
+  const luma = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
   for (const c of paintables.lamps){
     const rgb = lit(c.dataset.lamp);
-    c.setAttribute("fill", rgb ? `rgb(${rgb.map(Math.round)})` : c.dataset.def);
+    c.setAttribute("fill", rgb ? `rgb(${rgb.map(v => Math.round(Math.max(v, 18)))})` : c.dataset.def);
   }
   for (const t of paintables.addrs){
     const rgb = lit(t.dataset.addr);
-    t.setAttribute("fill", rgb && Math.max(...rgb) < 110 ? "#c9ccd2" : "#1a1a1a");
+    t.setAttribute("fill", rgb && luma(rgb) < 125 ? "#e3e5ea" : "#15161a");
   }
   for (const w of paintables.glows){
     const rgb = lit(w.dataset.glow);
@@ -863,6 +888,7 @@ svg.addEventListener("pointermove", e => {
   const r = svg.getBoundingClientRect();
   const px = e.clientX - r.left, py = e.clientY - r.top;
   if (drag.kind === "pan"){
+    view.auto = false;
     view.cx = drag.cx + (px - drag.from[0]);
     view.cy = drag.cy + (py - drag.from[1]);
     draw(); return;
@@ -919,6 +945,7 @@ svg.addEventListener("wheel", e => {
   const r = svg.getBoundingClientRect();
   const px = e.clientX - r.left, py = e.clientY - r.top;
   const [mx,my] = toM(px,py);
+  view.auto = false;
   view.scale = Math.max(18, Math.min(220, view.scale * (e.deltaY < 0 ? 1.08 : 1/1.08)));
   view.cx = px - mx*view.scale; view.cy = py - my*view.scale;
   draw();
@@ -1044,6 +1071,7 @@ addEventListener("keydown", e => {
   }
   if (!e.metaKey && (e.key === "t" || e.key === "T")){ setTint(!tintOn); return; }
   if (!e.metaKey && (e.key === "b" || e.key === "B")){ el("band-toggle").onclick(); return; }
+  if (!e.metaKey && (e.key === "f" || e.key === "F")){ el("fit").onclick(); return; }
   const f = rig.fixtures[sel];
   const step = e.shiftKey ? 0.01 : 0.1;
   if (e.metaKey && e.key === "z"){ e.preventDefault(); e.shiftKey ? doUndo(redo,undo) : doUndo(undo,redo); return; }
@@ -1063,7 +1091,8 @@ addEventListener("keyup", e => {
   if (e.key === "s" || e.key === "S") snapHeld = false;
   if (e.code === "Space") spaceHeld = false;
 });
-addEventListener("resize", () => draw());
+addEventListener("resize", () => { if (view.auto) fit(); draw(); });
+el("fit").onclick = () => { fit(); draw(); };
 
 document.addEventListener("rig:select", e => {
   const {index, add} = typeof e.detail === "object" ? e.detail : {index:e.detail, add:false};
@@ -1092,6 +1121,17 @@ document.addEventListener("rig:select", e => {
     dispatchEvent(new Event("resize"));
   });
 })();
+
+// inspector tabs, remembered between visits
+function showTab(t){
+  document.querySelectorAll("#itabs [data-tab]").forEach(b => b.classList.toggle("is-on", b.dataset.tab === t));
+  document.querySelectorAll(".panel[data-panel]").forEach(p => p.classList.toggle("is-on", p.dataset.panel === t));
+  try { localStorage.setItem("plan-tab", t); } catch(e){}
+}
+el("itabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (b) showTab(b.dataset.tab); });
+let firstTab = "rig";
+try { firstTab = localStorage.getItem("plan-tab") || "rig"; } catch(e){}
+showTab(firstTab);
 
 load().then(startRoom);
 </script>
