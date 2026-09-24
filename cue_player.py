@@ -238,7 +238,8 @@ def compile_panic(mapping, snap=None):
 
 
 # what happens when a cue's length runs out and nothing on its lane takes over
-DEFAULT_END = {"screen": "clear", "lights": "clear", "td": "clear", "scenes": "hold", "note": "hold"}
+DEFAULT_END = {"screen": "clear", "overlay": "clear", "lights": "clear", "td": "clear",
+               "scenes": "hold", "note": "hold"}
 
 
 def end_mode(cue):
@@ -636,7 +637,7 @@ class Player:
             print(f"{CLEAR}   >> nothing plays on layer {', '.join(map(str, stale))} here: cleared")
             for L in stale:
                 self.clear(L)
-        for lane in ("scenes", "screen", "lights", "td"):
+        for lane in ("scenes", "screen", "overlay", "lights", "td"):
             if lane in latest and not latest[lane].get("end_of"):
                 self.fire(latest[lane], "restate")
 

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library</title>
+<link rel="stylesheet" href="/lib/ui.css">
+<style>
+  /* the library's own layout; everything else comes from ui.css */
+  #grid{flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+    gap:12px;align-content:start;grid-auto-rows:max-content}
+  .grp{grid-column:1/-1;font-size:var(--fs-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);
+    font-weight:650;margin:8px 0 -4px}
+  .grp:first-child{margin-top:0}
+  .card{border:1px solid var(--border);border-radius:var(--r);background:var(--surface-1);cursor:pointer;overflow:hidden;
+    transition:border-color .1s,background .1s}
+  .card:hover{border-color:var(--border-strong);background:var(--surface-2)}
+  .card.is-on{border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line);background:var(--surface-2)}
+  .card .thumb{position:relative;aspect-ratio:16/9;background:#000;overflow:hidden}
+  .card .thumb img,.card .thumb video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+  .card .thumb video{opacity:0;transition:opacity .15s}
+  .card .thumb video.ready{opacity:1}
+  .card .flags{position:absolute;top:6px;left:6px;display:flex;gap:4px;z-index:1}
+  .card .flags .badge{height:17px;font-size:10px;padding:0 6px;background:rgba(14,15,18,.85)}
+  .card .flags .badge.ok{background:rgba(79,199,135,.9);color:#08130d}
+  .card .flags .badge.live{background:rgba(229,99,79,.9);color:#fff}
+  .card .meta{padding:8px 10px 9px}
+  .card b{display:block;font-size:var(--fs-sm);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card small{display:block;color:var(--text-3);font-size:var(--fs-xs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
+  .tag{font-size:10.5px;padding:1px 6px;border-radius:8px;background:var(--surface-3);color:var(--text-2)}
+  #q{width:220px}
+  #project,#kind{width:auto}
+  #who{width:110px}
+  .job{margin:6px 0}
+  .job .bar{height:5px;border-radius:3px;background:var(--surface-3);overflow:hidden;margin-top:4px}
+  .job .bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+  .job.failed b{color:var(--err)}
+  .srcs{font-family:var(--mono);font-size:11.5px;color:var(--text-2);word-break:break-all}
+  .pickrow{display:flex;gap:6px;flex-wrap:wrap}
+  .pickrow button{flex:1}
+</style>
+</head>
+<body class="app-page">
+<div class="app">
+  <nav class="topbar">
+    <div class="brand"><i></i><span>Intermission</span></div>
+    <div class="tabs-nav">
+      <a href="/">Floor plan</a>
+      <a href="/show">Show timeline</a>
+      <a href="/library" class="here">Library</a>
+      <a href="/docs">How it works</a>
+    </div>
+  </nav>
+  <div class="workspace">
+    <main class="main">
+      <div class="toolbar">
+        <span class="title">Library</span>
+        <div class="seg" id="view">
+          <button data-view="sources" title="everything the sources hold">Sources</button>
+          <button data-view="show" title="what's in the show">In the show</button>
+          <button data-view="live" title="TouchDesigner and other live sources Resolume can see">Live</button>
+        </div>
+        <input id="q" placeholder="find — name, project, tag…" autocomplete="off">
+        <select id="project" title="project"></select>
+        <select id="kind" title="kind">
+          <option value="">all kinds</option><option value="video">videos</option>
+          <option value="sequence">image sequences</option><option value="still">stills</option></select>
+        <label class="check" title="drafts, previews and render passes (depth, EXR)"><input id="drafts" type="checkbox"> drafts</label>
+        <span class="spacer"></span>
+        <label class="readout" for="who">you</label>
+        <input id="who" placeholder="your name" title="goes with what you add, so you know who picked what">
+        <button id="rescan" title="look through the sources again">Rescan</button>
+      </div>
+      <div id="grid"></div>
+    </main>
+
+    <aside class="inspector">
+      <div class="inspector-body" id="side"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const el = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[ch]);
+const mb = b => b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : Math.max(1, Math.round(b / 1e6)) + " MB";
+const secs = s => s ? (s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : `${(+s).toFixed(1)} s`) : "";
+let data = {candidates: [], clips: [], live: []}, status = null, songs = [], liveSources = null;
+let view = "sources", sel = new Set(), jobsSeen = {};
+try { view = localStorage.getItem("lib-view") || "sources"; el("who").value = localStorage.getItem("who") || ""; } catch(e){}
+el("who").addEventListener("change", () => { try { localStorage.setItem("who", el("who").value.trim()); } catch(e){} });
+
+async function load(force){
+  data = await (await fetch("library/scan" + (force ? "?force=1" : ""), {cache: "no-store"})).json();
+  try { const show = await (await fetch("show.json", {cache: "no-store"})).json(); songs = show.songs.map(g => g.name); } catch(e){}
+  loadStatus();
+  const projects = [...new Set(data.candidates.map(c => c.project))].sort();
+  const keep = el("project").value;
+  el("project").innerHTML = `<option value="">all projects</option>` + projects.map(p => `<option ${p === keep ? "selected" : ""}>${esc(p)}</option>`).join("");
+  draw();
+}
+async function loadStatus(){
+  try { status = await (await fetch("library/status", {cache: "no-store"})).json(); } catch(e){ status = null; }
+  draw();
+}
+const inLayer = (name, lane) => !!(status && status.lanes[lane] && status.lanes[lane].clips.includes(name));
+
+// ------------------------------------------------------------------ grid ---
+function items(){
+  const q = el("q").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const proj = el("project").value, kind = el("kind").value, drafts = el("drafts").checked;
+  const match = s => q.every(w => s.toLowerCase().includes(w));
+  if (view === "sources")
+    return data.candidates.filter(c => (drafts || !c.draft) && (!proj || c.project === proj) && (!kind || c.kind === kind)
+      && match(`${c.name} ${c.suggest} ${c.project} ${c.path}`));
+  if (view === "show")
+    return [...data.clips.map(x => ({...x, _kind: "clip"})), ...data.live.map(x => ({...x, _kind: "live"}))]
+      .filter(x => (!proj || x.project === proj) && match(`${x.name} ${(x.tags || []).join(" ")} ${x.song || ""} ${x.project || ""} ${x.who || ""}`));
+  return (liveSources || []).filter(s => match(`${s.name} ${s.category}`));
+}
+function card(x){
+  if (view === "sources"){
+    const flags = [x.in_show ? `<span class="badge ok">in the show</span>` : "", x.draft ? `<span class="badge">draft</span>` : "",
+                   x.kind !== "video" ? `<span class="badge">${x.kind === "sequence" ? x.frames + " frames" : "still"}</span>` : ""].join("");
+    return `<div class="card ${sel.has(x.id) ? "is-on" : ""}" data-id="${x.id}" data-prev="${x.kind !== "still" ? x.id : ""}">` +
+      `<div class="thumb"><div class="flags">${flags}</div><img loading="lazy" src="library/thumb/${x.id}" onerror="this.style.opacity=0"></div>` +
+      `<div class="meta"><b title="${esc(x.path)}">${esc(x.suggest)}</b>` +
+      `<small>${esc(x.name)}</small>` +
+      `<small>${x.w || "?"}×${x.h || "?"}${x.seconds ? " · " + secs(x.seconds) : ""}${x.fps ? " · " + (+x.fps) + " fps" : ""} · ${mb(x.bytes)}</small></div></div>`;
+  }
+  if (view === "show"){
+    const a = inLayer(x.name, "screen"), b = inLayer(x.name, "overlay");
+    const flags = [x._kind === "live" ? `<span class="badge live">live</span>` : "", a ? `<span class="badge ok">A</span>` : "",
+                   b ? `<span class="badge ok">B</span>` : ""].join("");
+    const thumb = x._kind === "live" ? `<div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--text-3);font-size:12px">${esc(x.source)}</div>`
+      : `<img loading="lazy" src="library/clipthumb/${encodeURIComponent(x.name)}" onerror="this.style.opacity=0">`;
+    return `<div class="card ${sel.has(x.name) ? "is-on" : ""}" data-name="${esc(x.name)}" data-prev="${x._kind === "clip" ? x.source_id : ""}">` +
+      `<div class="thumb"><div class="flags">${flags}</div>${thumb}</div>` +
+      `<div class="meta"><b>${esc(x.name)}</b><small>${esc([x.project, x.seconds ? secs(x.seconds) : "", x.who ? "added by " + x.who : ""].filter(Boolean).join(" · "))}</small>` +
+      `<div class="tags">${x.song ? `<span class="tag">♪ ${esc(x.song)}</span>` : ""}${(x.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div></div></div>`;
+  }
+  const added = data.live.find(l => l.source === x.name);
+  return `<div class="card ${sel.has(x.name) ? "is-on" : ""}" data-src="${esc(x.name)}">` +
+    `<div class="thumb"><div class="flags">${added ? `<span class="badge ok">in the show as ${esc(added.name)}</span>` : ""}</div>` +
+    `<div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--text-2)">${esc(x.name)}</div></div>` +
+    `<div class="meta"><b>${esc(x.name)}</b><small>${esc(x.category || "")}</small></div></div>`;
+}
+function draw(){
+  document.querySelectorAll("#view button").forEach(b => b.classList.toggle("on", b.dataset.view === view));
+  el("project").style.display = el("kind").style.display = view === "live" ? "none" : "";
+  el("kind").style.display = view === "sources" ? "" : "none";
+  el("drafts").closest("label").style.display = view === "sources" ? "" : "none";
+  const list = items();
+  let html = "", grp = null;
+  if (view === "live" && liveSources === null) html = `<div class="empty">Asking Resolume…</div>`;
+  else if (view === "live" && !liveSources.length) html = `<div class="empty">Resolume sees no Syphon or NDI sources. Start TouchDesigner with a Syphon Spout Out TOP, then Rescan. ${status && status.live === false ? "(Resolume isn't answering.)" : ""}</div>`;
+  else {
+    list.forEach(x => {
+      const g = view === "sources" ? x.project : view === "show" ? (x.song || "no song yet") : null;
+      if (g !== null && g !== grp){ grp = g; html += `<div class="grp">${esc(g)}</div>`; }
+      html += card(x);
+    });
+    if (!list.length) html = `<div class="empty">${view === "show" ? "Nothing in the show yet — pick from Sources and Add." : "Nothing matches."}</div>`;
+  }
+  el("grid").innerHTML = html;
+  side();
+}
+
+// hover: play a small preview in the card
+el("grid").addEventListener("mouseover", e => {
+  const c = e.target.closest(".card"); if (!c || !c.dataset.prev || c.querySelector("video")) return;
+  const v = document.createElement("video");
+  Object.assign(v, {muted: true, loop: true, autoplay: true, playsInline: true, src: "library/preview/" + c.dataset.prev});
+  v.addEventListener("playing", () => v.classList.add("ready"));
+  c.querySelector(".thumb").appendChild(v);
+  c.addEventListener("mouseleave", () => v.remove(), {once: true});
+});
+el("grid").addEventListener("click", e => {
+  const c = e.target.closest(".card"); if (!c) return;
+  const key = c.dataset.id || c.dataset.name || c.dataset.src;
+  if (e.shiftKey || e.metaKey) sel.has(key) ? sel.delete(key) : sel.add(key);
+  else sel = new Set([key]);
+  draw();
+});
+
+// ------------------------------------------------------------- inspector ---
+function side(){
+  const S = el("side");
+  const who = el("who").value.trim();
+  const jobs = Object.entries(jobsSeen).filter(([, j]) => j.state === "converting" || Date.now() - (j.t || 0) < 8000);
+  const jobsHtml = jobs.length ? `<div class="section"><div class="section-title">Converting</div>` + jobs.map(([, j]) =>
+    `<div class="job ${j.state}"><b>${esc(j.name)}</b> <span class="readout">${j.state === "failed" ? "failed: " + esc(j.error) : j.state === "done" ? "✓ in the show" : Math.round(j.progress * 100) + "%"}</span>` +
+    `<div class="bar"><i style="width:${Math.round((j.progress || 0) * 100)}%"></i></div></div>`).join("") + `</div>` : "";
+  if (view === "sources"){
+    const chosen = data.candidates.filter(c => sel.has(c.id));
+    if (!chosen.length){
+      S.innerHTML = jobsHtml + `<div class="section"><div class="section-title">Sources</div>
+        <p class="hint">Everything in these folders: videos, image sequences and stills. Drafts, previews and render passes are hidden — tick <b>drafts</b> to see them.</p>
+        <div class="srcs">${data.sources.map(esc).join("<br>")}</div>
+        <p class="hint dim" style="margin-top:8px">Add more folders under <code>sources</code> in library.json.</p></div>
+        <div class="section"><p class="hint">Click one to add it to the show; <span class="kbd">shift</span>-click for several. Hover plays it.</p></div>`;
+      return;
+    }
+    const one = chosen.length === 1 ? chosen[0] : null;
+    const size = chosen.reduce((a, c) => a + (c.in_show ? 0 : c.show_bytes), 0);
+    const portrait = chosen.some(c => c.w && c.h && c.h > c.w);
+    S.innerHTML = jobsHtml + `<div class="section">
+      <div class="section-title">${one ? "Add to the show" : chosen.length + " to add"}</div>
+      ${one ? `<div class="row"><label>Name</label><input id="a-name" value="${esc(one.suggest)}"></div>
+               <p class="hint dim srcs">${esc(one.path)}</p>` : `<p class="hint">Each keeps its suggested name: ${chosen.map(c => esc(c.suggest)).join(", ")}.</p>`}
+      <div class="row"><label>Song</label><select id="a-song"><option value="">—</option>${songs.map(s => `<option>${esc(s)}</option>`).join("")}</select></div>
+      <div class="row"><label>Tags</label><input id="a-tags" placeholder="dark, slow, texture"></div>
+      <div class="row"><label>Frame</label><div class="seg" id="a-fit"><button data-fit="fit" class="on">fit</button><button data-fit="fill">fill</button></div></div>
+      <p class="hint dim">${portrait ? "Some are portrait: <b>fit</b> puts them in the middle with black sides, <b>fill</b> crops them to fill the screen." : "Fit keeps the whole picture; fill crops to fill the screen."}</p>
+      <p class="hint">Converted to 1920×1080 DXV, Resolume's own codec, at the frame rate it was made at — about <b>${mb(size)}</b>.${who ? "" : " <b>Put your name in “you” first.</b>"}</p>
+      <div class="btns"><button id="a-go" class="primary" ${chosen.every(c => c.in_show) ? "disabled" : ""}>Add to the show</button></div>
+      ${chosen.some(c => c.in_show) ? `<p class="hint dim">${chosen.filter(c => c.in_show).length} already in the show.</p>` : ""}
+    </div>`;
+    S.querySelectorAll("#a-fit button").forEach(b => b.onclick = () => S.querySelectorAll("#a-fit button").forEach(x => x.classList.toggle("on", x === b)));
+    el("a-go").onclick = async () => {
+      const fit = S.querySelector("#a-fit .on").dataset.fit;
+      const tags = el("a-tags").value.split(",").map(t => t.trim()).filter(Boolean);
+      for (const c of chosen.filter(c => !c.in_show)){
+        const r = await fetch("library/add", {method: "POST", headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({id: c.id, name: one ? el("a-name").value : c.suggest, tags, song: el("a-song").value, fit, who: el("who").value.trim()})});
+        const out = await r.json();
+        if (out.job) jobsSeen[out.job] = {name: one ? el("a-name").value : c.suggest, state: "converting", progress: 0};
+      }
+      sel.clear(); pollJobs(); draw();
+    };
+    return;
+  }
+  if (view === "show"){
+    const chosen = [...data.clips.map(x => ({...x, _kind: "clip"})), ...data.live.map(x => ({...x, _kind: "live"}))].filter(x => sel.has(x.name));
+    const lanes = status ? status.lanes : {};
+    const layerName = lane => (lanes[lane] && lanes[lane].name) || lane;
+    if (!chosen.length){
+      const n = data.clips.length + data.live.length;
+      const inA = [...data.clips, ...data.live].filter(x => inLayer(x.name, "screen")).length;
+      const inB = [...data.clips, ...data.live].filter(x => inLayer(x.name, "overlay")).length;
+      S.innerHTML = jobsHtml + `<div class="section"><div class="section-title">In the show <span class="spacer"></span><span class="badge">${n}</span></div>
+        <p class="hint">${status && status.live ? `In Resolume's “${esc(status.composition)}”: <b>${inA}</b> in Screen A (${esc(layerName("screen"))}), <b>${inB}</b> in Screen B (${esc(layerName("overlay"))}).` : "Resolume isn't answering — open Arena to install."}</p>
+        <p class="hint">Select what to install; <span class="kbd">shift</span>-click for several. Once a clip is in a layer, the timeline's Resolume panel and quick picker offer it.</p>
+        <div class="btns"><button id="all-a" ${status && status.live ? "" : "disabled"}>Install all in Screen A</button><button id="all-b" ${status && status.live ? "" : "disabled"}>… in Screen B</button></div></div>`;
+      const all = [...data.clips, ...data.live].map(x => x.name);
+      el("all-a").onclick = () => install(all, "screen"); el("all-b").onclick = () => install(all, "overlay");
+      return;
+    }
+    const one = chosen.length === 1 ? chosen[0] : null;
+    S.innerHTML = jobsHtml + `<div class="section">
+      <div class="section-title">${one ? esc(one.name) : chosen.length + " selected"}</div>
+      ${one ? `<p class="hint dim">${one._kind === "live" ? "live: " + esc(one.source) : esc(one.file) + (one.seconds ? " · " + secs(one.seconds) : "")}${one.who ? " · added by " + esc(one.who) : ""}${one.added ? " · " + esc(one.added) : ""}</p>
+        <div class="row"><label>Song</label><select id="e-song"><option value="">—</option>${songs.map(s => `<option ${s === one.song ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></div>
+        <div class="row"><label>Tags</label><input id="e-tags" value="${esc((one.tags || []).join(", "))}"></div>` : ""}
+      <div class="section-title" style="margin-top:12px">In Resolume</div>
+      <div class="pickrow">
+        <button id="i-a" ${status && status.live ? "" : "disabled"}>${chosen.every(x => inLayer(x.name, "screen")) ? "✓ " : ""}Screen A</button>
+        <button id="i-b" ${status && status.live ? "" : "disabled"}>${chosen.every(x => inLayer(x.name, "overlay")) ? "✓ " : ""}Screen B</button>
+      </div>
+      <p class="hint dim" style="margin-top:6px">Installs into ${esc(layerName("screen"))} or ${esc(layerName("overlay"))}; one clip can be in both. Columns are added at the end if a layer is full.</p>
+      <div class="btns"><button id="e-del" class="danger">Remove from the show</button></div>
+    </div>`;
+    el("i-a").onclick = () => install(chosen.map(x => x.name), "screen");
+    el("i-b").onclick = () => install(chosen.map(x => x.name), "overlay");
+    if (one){
+      const upd = () => fetch("library/update", {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({name: one.name, song: el("e-song").value, tags: el("e-tags").value.split(",").map(t => t.trim()).filter(Boolean)})}).then(() => load());
+      el("e-song").onchange = upd; el("e-tags").onchange = upd;
+    }
+    el("e-del").onclick = async () => {
+      if (!confirm(`Remove ${chosen.length > 1 ? chosen.length + " clips" : "“" + one.name + "”"} from the show? The converted file is deleted; the original stays where it was. Clips already in Resolume stay there.`)) return;
+      for (const x of chosen) await fetch("library/remove", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({name: x.name})});
+      sel.clear(); load();
+    };
+    return;
+  }
+  // live
+  const chosen = (liveSources || []).filter(s => sel.has(s.name));
+  if (!chosen.length){
+    S.innerHTML = `<div class="section"><div class="section-title">Live sources</div>
+      <p class="hint">TouchDesigner running live: give it a <b>Syphon Spout Out TOP</b> per scene (or one, switched by the timeline's TD lane over OSC). Resolume lists each as a source; add it here to paint with it like a clip.</p>
+      <p class="hint dim">Baked TouchDesigner renders go through Sources like any other video.</p></div>`;
+    return;
+  }
+  const one = chosen[0];
+  S.innerHTML = `<div class="section"><div class="section-title">Add live source</div>
+    <div class="row"><label>Name</label><input id="l-name" value="${esc(one.name.replace(/^.*[:/]\s*/, ""))}"></div>
+    <div class="row"><label>Tags</label><input id="l-tags" placeholder="td, reactive"></div>
+    <div class="btns"><button id="l-go" class="primary">Add to the show</button></div></div>`;
+  el("l-go").onclick = async () => {
+    await fetch("library/live", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({source: one.name, name: el("l-name").value, tags: el("l-tags").value.split(",").map(t => t.trim()).filter(Boolean), who: el("who").value.trim()})});
+    sel.clear(); await load(); setView("show");
+  };
+}
+
+async function install(names, lane){
+  if (!names.length) return;
+  el("side").querySelectorAll("button").forEach(b => b.disabled = true);
+  try {
+    const r = await fetch("library/install", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({names, lane})});
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.statusText);
+    const bits = [];
+    if (out.installed.length) bits.push(`${out.installed.length} installed`);
+    if (out.skipped.length) bits.push(`${out.skipped.length} already there`);
+    if (out.columns_added) bits.push(`${out.columns_added} column${out.columns_added > 1 ? "s" : ""} added`);
+    alert(`${lane === "overlay" ? "Screen B" : "Screen A"}: ${bits.join(" · ") || "nothing to do"}`);
+  } catch(e){ alert("Install: " + e.message); }
+  loadStatus();
+}
+
+async function pollJobs(){
+  try {
+    const all = await (await fetch("library/jobs", {cache: "no-store"})).json();
+    let running = false, finished = false;
+    for (const [id, j] of Object.entries(all)){
+      if (!jobsSeen[id]) continue;
+      if (jobsSeen[id].state === "converting" && j.state !== "converting"){ finished = true; j.t = Date.now(); }
+      jobsSeen[id] = {...jobsSeen[id], ...j};
+      running = running || j.state === "converting";
+    }
+    if (finished) await load(); else side();
+    if (running) setTimeout(pollJobs, 700);
+  } catch(e){ setTimeout(pollJobs, 2000); }
+}
+
+function setView(v){
+  view = v; sel.clear();
+  try { localStorage.setItem("lib-view", v); } catch(e){}
+  if (v === "live") loadLive();
+  draw();
+}
+async function loadLive(){
+  liveSources = null; draw();
+  try { const r = await (await fetch("library/live-sources", {cache: "no-store"})).json(); liveSources = r.sources || []; }
+  catch(e){ liveSources = []; }
+  draw();
+}
+el("view").addEventListener("click", e => { const b = e.target.closest("[data-view]"); if (b) setView(b.dataset.view); });
+for (const id of ["q", "project", "kind", "drafts"]) el(id).addEventListener("input", draw);
+el("rescan").onclick = () => { load(true); if (view === "live") loadLive(); };
+addEventListener("keydown", e => { if (e.key === "Escape" && !/input|select/i.test(e.target.tagName)){ sel.clear(); draw(); } });
+load();
+if (view === "live") loadLive();
+setInterval(loadStatus, 5000);
+</script>
+<script src="/lib/status.js"></script>
+</body>
+</html>

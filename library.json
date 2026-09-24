@@ -1,0 +1,10 @@
+{
+  "//": "Sources are folders to look in, relative to this file. clips and live are the show's visuals; the media sit in content/library/.",
+  "sources": [
+    "..",
+    "../../TouchDesigner"
+  ],
+  "sequence_fps": 30,
+  "clips": [],
+  "live": []
+}

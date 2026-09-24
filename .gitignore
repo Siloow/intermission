@@ -8,3 +8,6 @@ __pycache__/
 .DS_Store
 # this Mac's Blender input settings, saved before setup_input.py changed them
 .input_backup.json
+# the show's media: many GB, kept in the shared folder, not in git (library.json is the list)
+content/library/*
+!content/library/.thumbs/

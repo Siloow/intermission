@@ -49,6 +49,7 @@
   <div class="tabs-nav">
     <a href="/">Floor plan</a>
     <a href="/show">Show timeline</a>
+    <a href="/library">Library</a>
     <a href="/docs" class="here">How it works</a>
   </div>
 </nav>
@@ -453,6 +454,44 @@ Drop 1              bar 33
 <p>Cues are stored as <b>section + offset in bars</b>. Never seconds. That single
 choice is what lets the music change without breaking the plan.</p>
 
+<h2>The Library</h2>
+<p>The <a href="/library">Library</a> tab gathers every visual into one list, so
+painting never means hunting through folders. Three views:</p>
+<ul>
+  <li><b>Sources</b> — everything in the folders listed under <code>sources</code> in
+    <code>library.json</code> (the Blender projects and TouchDesigner, to start with):
+    videos, image sequences (a folder of numbered frames is one clip) and stills,
+    grouped by project. Drafts, previews and render passes (depth, EXR) are hidden
+    until you tick <b>drafts</b>. Hover a card and it plays.</li>
+  <li><b>In the show</b> — what you've added: a name, a song, tags, who added it.
+    <b>Screen A</b> / <b>Screen B</b> install it into that screen layer in Resolume;
+    after that the timeline offers it.</li>
+  <li><b>Live</b> — sources Resolume can see from outside it: TouchDesigner over
+    Syphon, NDI. Add one and it's in the show like a clip, named your way.</li>
+</ul>
+<p><b>Add to the show</b> converts a copy into <code>content/library/</code>:
+1920×1080, Resolume's own <b>DXV</b> codec, at the frame rate it was made at, fitted
+(black sides) or filled (cropped) — the portrait renders need that choice. The
+original stays where it is. Roughly 9 MB per second of video.</p>
+<div class="note"><code>library.json</code> is the list and goes in git;
+<code>content/library/</code> is the media — gigabytes — and lives in the shared
+folder, not git.</div>
+
+<h3>Two screen layers</h3>
+<p>The timeline has <b>Screen A</b> (layer 1) and <b>Screen B</b> (layer 2): a base and
+something to blend over it. Both lanes clear at the end of a cue by default, like
+Screen always did. Blend Screen B however you like in Resolume (Add, Screen, a
+mask); the timeline decides what plays when.</p>
+
+<h3>TouchDesigner: baked or live</h3>
+<ul>
+  <li><b>Baked</b> — render it and it goes through Sources like any video. Nothing
+    can go wrong with it on the night.</li>
+  <li><b>Live</b> — a <b>Syphon Spout Out TOP</b> in TD publishes it; Resolume lists it
+    as a source; add it in Live and install it in a screen layer. Several TD scenes:
+    one Syphon out each, or one out switched by the timeline's TD lane over OSC.</li>
+</ul>
+
 <h2>The Resolume panel</h2>
 <p>Under the timeline is your composition as Arena shows it: columns along the
 top, layers as rows of thumbnails, the top layer on top. Each layer says which
@@ -662,6 +701,12 @@ Resolume's own BPM-synced effects over Ableton Link, and automate <i>how much</i
 </div>
 
 <h2>Working together</h2>
+<p><b>In the same room:</b> <code>Test.command</code> asks <i>Share the editors on
+this network?</i> — say yes and it prints an address like
+<code>http://192.168.1.126:8765/</code>. The other laptop opens that: same plan,
+same Resolume, same previz, no copies. One person curates the Library while the
+other paints; the save guard stops you overwriting each other. Anyone on that
+network can edit while it's shared, so say no on a public network.</p>
 <p>The folder is the project. Put it in Dropbox and you both have the same rig,
 looks, plan and bounces — no Ableton project to move.</p>
 <ul>

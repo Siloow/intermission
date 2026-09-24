@@ -275,7 +275,13 @@
     },
     "screen": {
       "layer": 1,
-      "dir": "content/screen"
+      "dir": "content/library",
+      "label": "Screen A"
+    },
+    "overlay": {
+      "layer": 2,
+      "dir": "content/library",
+      "label": "Screen B"
     }
   },
   "panic": {

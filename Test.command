@@ -108,7 +108,13 @@ if [[ $BRIDGE -eq 1 ]]; then
   fi
 fi
 
-python3 plan_server.py --no-open > .live/server.log 2>&1 &
+# working together: let another laptop on this network open the editors too
+LAN=""
+if read -q "?Share the editors on this network, for a second laptop? [y/N] "; then
+  LAN="--lan"
+fi
+echo
+python3 plan_server.py --no-open $LAN > .live/server.log 2>&1 &
 PIDS+=$!
 
 # a previz already open (from an earlier run) is reused, not doubled: two
@@ -129,6 +135,10 @@ open "http://localhost:8765/show"
 
 echo "  running:  Blender previz · screen feed · editors · cue_player"
 echo "  timeline  http://localhost:8765/show     floor plan  http://localhost:8765"
+if [[ -n "$LAN" ]]; then
+  sleep 0.5
+  echo "  shared    $(grep -o 'http://[0-9.]*:8765/' .live/server.log | head -1)   ← open this on the other laptop"
+fi
 echo "  logs      .live/*.log"
 echo "  Quit Blender or press ctrl-C to stop.  p = panic, r = resume (try them)\n"
 

@@ -7,7 +7,8 @@
 <link rel="stylesheet" href="/lib/ui.css">
 <style>
   /* the timeline's own layout; controls, colours and type come from ui.css */
-  :root{--panel:var(--surface-1);--line:var(--border);--dim:var(--text-2);--lane-h:46px;--head-w:0px}
+  :root{--panel:var(--surface-1);--line:var(--border);--dim:var(--text-2);--lane-h:46px;--head-w:0px;
+    --overlay:#9d7bff}
   #transport{display:flex;gap:6px;align-items:center}
   #transport.playing #play{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   #follow.on{background:rgba(229,99,79,.16);border-color:var(--err);color:#ffb3a6}
@@ -162,6 +163,7 @@
     <div class="tabs-nav">
       <a href="/">Floor plan</a>
       <a href="/show" class="here">Show timeline</a>
+      <a href="/library">Library</a>
       <a href="/docs">How it works</a>
     </div>
   </nav>
@@ -365,7 +367,7 @@ async function postJson(name, body){
   fileMtime[name] = r.headers.get("X-File-Mtime");
   return out;
 }
-const LANES = [["scenes","Scenes","--scenes"],["screen","Screen","--screen"],
+const LANES = [["scenes","Scenes","--scenes"],["screen","Screen A","--screen"],["overlay","Screen B","--overlay"],
                ["lights","Lights","--lights"],["td","TD","--td"],["note","Notes","--note"]];
 let show = null, cues = {cues: []}, looks = {looks: []}, rigNames = [];
 let selSet = new Set(), primary = null, pxPerBar = 10;
@@ -465,7 +467,7 @@ const snapPtBar = bar => (+el("snap").value ? Math.round(bar) : Math.round(bar *
 // The same rule as cue_player.resolve(): clips and scenes are found by NAME in
 // the composition, so a clip that moves slot in Resolume keeps its cues.
 const laneLayer = lane => ((mapping.lanes || {})[lane] || {}).layer;
-const DEFAULT_END = {screen: "clear", lights: "clear", td: "clear", scenes: "hold", note: "hold"};
+const DEFAULT_END = {screen: "clear", overlay: "clear", lights: "clear", td: "clear", scenes: "hold", note: "hold"};
 const endMode = c => c.end || DEFAULT_END[c.lane] || "hold";
 function findLayer(ref){
   if (!comp || ref === undefined || ref === null || ref === "") return null;
@@ -644,7 +646,7 @@ function draw(sidebar){
       const d = document.createElement("div");
       d.className = "cue" + (selSet.has(c.id) ? " sel" : "") + (bar === null ? " orphan" : "") +
                     (res.ok === false ? " unres" : "") +
-                    (["screen", "lights", "td"].includes(c.lane) && endMode(c) === "hold" ? " holds" : "");
+                    (["screen", "overlay", "lights", "td"].includes(c.lane) && endMode(c) === "hold" ? " holds" : "");
       d.style.background = `var(${varName})`;
       d.style.left = barToX(bar === null ? show.total_bars + 1 : bar) + "px";
       d.style.width = Math.max(16, (c.length_bars || 8) * pxPerBar) + "px";
@@ -890,7 +892,7 @@ function drawSidebar(){
   el("look-note").innerHTML = r.ok === null ? "" :
     `<span style="color:${r.ok ? "var(--ok)" : "var(--warn)"}">${r.ok ? "✓" : "✗"}</span> ` +
     (r.ok ? "→ Resolume " : "") + esc(r.text) + (r.columnClips ? `<br>${esc(r.columnClips)}` : "");
-  const clipLane = ["screen", "lights", "td"].includes(c.lane);
+  const clipLane = ["screen", "overlay", "lights", "td"].includes(c.lane);
   el("layer-row").style.display = clipLane && !many ? "" : "none";
   if (clipLane){
     const dflt = laneLayer(c.lane);
@@ -909,7 +911,7 @@ function drawSidebar(){
   const fs = (+c.fade_bars || 0) * bpb() * 60 / show.tempo;
   el("fade-secs").textContent = fs ? `bars · ${fs.toFixed(1)}s` + (fs > 10 ? " → 10s, Resolume's max" : "") : "bars";
   el("make-row").style.display = r.look && !many ? "" : "none";
-  el("end-row").style.display = ["screen", "lights", "td", "scenes"].includes(c.lane) ? "" : "none";
+  el("end-row").style.display = ["screen", "overlay", "lights", "td", "scenes"].includes(c.lane) ? "" : "none";
   el("end-default").textContent = `lane's default — ${DEFAULT_END[c.lane] === "clear" ? "clears" : "holds"}`;
   el("c-end").value = c.end || "";
   el("c-note").value = c.note || "";
@@ -921,7 +923,7 @@ function drawSidebar(){
 // the lane's Resolume layer, maps it to its name, and points the cue at it.
 let mediaLane = null;
 async function fillMedia(lane){
-  const laneHasMedia = ["lights", "screen", "td"].includes(lane);
+  const laneHasMedia = ["lights", "screen", "overlay", "td"].includes(lane);
   el("load-row").style.display = laneHasMedia ? "" : "none";
   el("media-note").textContent = "";
   if (!laneHasMedia || mediaLane === lane) return;

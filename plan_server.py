@@ -14,6 +14,8 @@ import argparse, http.server, json, os, shutil, socketserver, subprocess, tempfi
 import urllib.parse, urllib.request
 import arena_load                    # talks to Resolume's REST API
 import band                          # the control band: looks rendered as clips
+import library                       # the show's visuals, gathered from everywhere
+import hashlib
 import socket
 from cue_player import osc_encode    # to hand the timeline's playhead to the player
 PLAYER_PORT = 11001                  # where cue_player listens (AbletonOSC replies there too)
@@ -35,6 +37,19 @@ READONLY = {"/show.json": os.path.join(HERE, "show.json"),
 PAGE = os.path.join(HERE, "plan_editor.html")
 SHOW_PAGE = os.path.join(HERE, "show_editor.html")
 DOCS_PAGE = os.path.join(HERE, "docs.html")
+LIBRARY_PAGE = os.path.join(HERE, "library.html")
+_scan = {"t": 0.0, "v": None}
+
+
+def library_scan(force=False):
+    """The candidates, rescanned at most every 20 s unless asked."""
+    if force or not _scan["v"] or time.time() - _scan["t"] > 20:
+        _scan.update(t=time.time(), v=library.scan())
+    return _scan["v"]
+
+
+def library_candidate(cid):
+    return next((c for c in library_scan() if c["id"] == cid), None)
 # folders the Band view may play from, by the name in the URL
 CONTENT = {"light-loops": os.path.join(HERE, "content", "light-loops"),
            "light-looks": os.path.join(HERE, "content", "light-looks")}
@@ -192,6 +207,47 @@ class Handler(http.server.BaseHTTPRequestHandler):
             except OSError:
                 return self._send(404, b"docs.html is missing", "text/plain")
             return self._send(200, body, "text/html; charset=utf-8")
+        if path in ("/library", "/library.html"):
+            try:
+                body = open(LIBRARY_PAGE, "rb").read()
+            except OSError:
+                return self._send(404, b"library.html is missing", "text/plain")
+            return self._send(200, body, "text/html; charset=utf-8")
+        if path == "/library/scan":
+            q = urllib.parse.parse_qs(self.path.partition("?")[2])
+            cands = library_scan(force=bool(q.get("force")))
+            cfg = library.config()
+            for x in cfg["clips"]:          # where each clip came from, for its hover preview
+                x["source_id"] = hashlib.sha1(x.get("source", "").encode()).hexdigest()[:12]
+            return self._send(200, json.dumps({"candidates": cands, "clips": cfg["clips"],
+                                               "live": cfg["live"], "sources": cfg["sources"]}).encode())
+        if path.startswith("/library/thumb/") or path.startswith("/library/preview/"):
+            c = library_candidate(os.path.basename(path))
+            if not c:
+                return self._send(404, b"", "text/plain")
+            out = library.thumb(c) if "/thumb/" in path else library.preview(c)
+            return self.send_file(out) if out else self._send(404, b"", "text/plain")
+        if path.startswith("/library/clipthumb/"):
+            name = os.path.basename(urllib.parse.unquote(path))
+            return self.send_file(os.path.join(library.THUMBS, name + ".jpg"))
+        if path == "/library/jobs":
+            return self._send(200, json.dumps(library.jobs).encode())
+        if path == "/library/live-sources":
+            try:
+                return self._send(200, json.dumps({"live": True, "sources": library.live_sources(ARENA)}).encode())
+            except (SystemExit, OSError, ValueError):
+                return self._send(200, json.dumps({"live": False, "sources": []}).encode())
+        if path == "/library/status":
+            # which library entries are clips in each screen layer
+            snap, live = arena_load.current(ARENA)
+            out = {"live": live, "composition": snap and snap.get("name"), "lanes": {}}
+            for lane in ("screen", "overlay"):
+                ref = (arena_load.lanes().get(lane) or {}).get("layer")
+                L, _ = arena_load.find_clip(snap or {"layers": []}, ref, "")
+                layer = next((l for l in (snap or {}).get("layers", []) if l["index"] == L), None)
+                out["lanes"][lane] = {"layer": L, "name": layer and layer["name"],
+                                      "clips": [c["name"] for c in (layer or {}).get("clips", [])]}
+            return self._send(200, json.dumps(out).encode())
         if path in ("/band", "/band_view.html"):
             # the Band view became the floor plan's Loop mode
             q = urllib.parse.parse_qs(self.path.partition("?")[2])
@@ -390,6 +446,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._send(502, json.dumps({"error": str(e)}).encode())
             _comp["t"] = 0                                  # the timeline sees them on its next poll
             return self._send(200, json.dumps(report).encode())
+        if path.startswith("/library/"):
+            return self.library_post(path)
         if path == "/transport":
             # the timeline's playhead, for the player to follow when Live isn't playing.
             # The browser never talks to Resolume: it only says where it is.
@@ -456,6 +514,29 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except (ValueError, TypeError, RuntimeError, SystemExit) as e:
             return self._send(502, json.dumps({"error": str(e)}).encode())
         return self._send(200, json.dumps({"name": name, "layer": layer, "clip": clip}).encode())
+
+    def library_post(self, path):
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+            req = json.loads(self.rfile.read(n) or b"{}")
+            if path == "/library/add":
+                out = {"job": library.add(req["id"], req.get("name"), req.get("tags") or [],
+                                          req.get("who", ""), req.get("song", ""), req.get("fit", "fit"))}
+                _scan["t"] = 0
+            elif path == "/library/update":
+                out = library.update(req["name"], **{k: req[k] for k in ("tags", "song", "who", "note") if k in req})
+            elif path == "/library/remove":
+                library.remove(req["name"]); out = {"removed": req["name"]}; _scan["t"] = 0
+            elif path == "/library/live":
+                out = {"name": library.add_live(req["source"], req.get("name"), req.get("tags") or [], req.get("who", ""))}
+            elif path == "/library/install":
+                out = library.install(ARENA, req["names"], req.get("lane", "screen"))
+                _comp["t"] = 0
+            else:
+                return self._send(404, b'{"error":"not found"}')
+        except (KeyError, ValueError, TypeError, OSError, RuntimeError, SystemExit) as e:
+            return self._send(400, json.dumps({"error": str(e)}).encode())
+        return self._send(200, json.dumps(out).encode())
 
     def target_add(self):
         """Add a Resolume parameter to osc_map.json's targets, by its path of
@@ -531,6 +612,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         pass                                    # quiet; the editor shows its own status
 
 
+def lan_address():
+    """This Mac's address on the local network, for another laptop to open."""
+    import socket as _s
+    probe = _s.socket(_s.AF_INET, _s.SOCK_DGRAM)
+    try:
+        probe.connect(("192.168.0.1", 9))      # no packet is sent; it only picks the interface
+        return probe.getsockname()[0]
+    except OSError:
+        return "this-mac.local"
+    finally:
+        probe.close()
+
+
 class Server(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
@@ -540,11 +634,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--no-open", action="store_true", help="don't open a browser")
+    ap.add_argument("--lan", action="store_true",
+                    help="also answer other computers on this network (to work together)")
     a = ap.parse_args()
 
     url = f"http://localhost:{a.port}/"
-    with Server(("127.0.0.1", a.port), Handler) as httpd:
+    host = "0.0.0.0" if a.lan else "127.0.0.1"
+    with Server((host, a.port), Handler) as httpd:
         print(f"[plan] floor-plan editor at {url}  (ctrl-c to stop)")
+        if a.lan:
+            ip = lan_address()
+            print(f"[plan] shared on this network: http://{ip}:{a.port}/  (anyone on it can edit)")
         print(f"[plan] saving to {RIG}")
         if not a.no_open:
             subprocess.run(["open", url], check=False)
