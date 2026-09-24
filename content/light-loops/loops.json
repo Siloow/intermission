@@ -5,66 +5,359 @@
   1920,
   120
  ],
+ "categories": [
+  "Wash",
+  "Sweep",
+  "Chase",
+  "Rhythm",
+  "Strobe",
+  "Build",
+  "Colour",
+  "Bars",
+  "Utility"
+ ],
  "loops": [
+  {
+   "file": "breathe.mp4",
+   "name": "breathe",
+   "bars": 4,
+   "category": "Wash",
+   "what": "the whole rig swelling and falling",
+   "card": "breathe.png",
+   "colour": false
+  },
+  {
+   "file": "breathe-slow.mp4",
+   "name": "breathe-slow",
+   "bars": 8,
+   "category": "Wash",
+   "what": "the same, over eight bars",
+   "card": "breathe-slow.png",
+   "colour": false
+  },
+  {
+   "file": "glow-drift.mp4",
+   "name": "glow-drift",
+   "bars": 8,
+   "category": "Wash",
+   "what": "every fixture drifting on its own, slowly",
+   "card": "glow-drift.png",
+   "colour": false
+  },
+  {
+   "file": "candle.mp4",
+   "name": "candle",
+   "bars": 2,
+   "category": "Wash",
+   "what": "a warm, uneven flicker",
+   "card": "candle.png",
+   "colour": false
+  },
+  {
+   "file": "full.mp4",
+   "name": "full",
+   "bars": 1,
+   "category": "Wash",
+   "what": "everything on, steady",
+   "card": "full.png",
+   "colour": false
+  },
   {
    "file": "wave.mp4",
    "name": "wave",
    "bars": 2,
-   "what": "a smooth sine travelling left to right"
+   "category": "Sweep",
+   "what": "a smooth sine travelling across the stage",
+   "card": "wave.png",
+   "colour": false
   },
   {
-   "file": "chase.mp4",
-   "name": "chase",
+   "file": "sweep-lr.mp4",
+   "name": "sweep-lr",
    "bars": 2,
-   "what": "a soft head sweeping left to right"
+   "category": "Sweep",
+   "what": "a soft head crossing the stage, left to right on the plan",
+   "card": "sweep-lr.png",
+   "colour": false
+  },
+  {
+   "file": "sweep-rl.mp4",
+   "name": "sweep-rl",
+   "bars": 2,
+   "category": "Sweep",
+   "what": "the same, right to left on the plan",
+   "card": "sweep-rl.png",
+   "colour": false
   },
   {
    "file": "pingpong.mp4",
    "name": "pingpong",
    "bars": 4,
-   "what": "a head sweeping out and back"
+   "category": "Sweep",
+   "what": "a head sweeping across and back",
+   "card": "pingpong.png",
+   "colour": false
   },
   {
-   "file": "breathe.mp4",
-   "name": "breathe",
-   "bars": 4,
-   "what": "the whole rig swelling and falling"
+   "file": "sweep-out.mp4",
+   "name": "sweep-out",
+   "bars": 2,
+   "category": "Sweep",
+   "what": "from you outward, the nearest first",
+   "card": "sweep-out.png",
+   "colour": false
   },
   {
-   "file": "pulse.mp4",
-   "name": "pulse",
+   "file": "sweep-in.mp4",
+   "name": "sweep-in",
+   "bars": 2,
+   "category": "Sweep",
+   "what": "from the far edges in toward you",
+   "card": "sweep-in.png",
+   "colour": false
+  },
+  {
+   "file": "rotate.mp4",
+   "name": "rotate",
+   "bars": 2,
+   "category": "Sweep",
+   "what": "a beam of light going around you",
+   "card": "rotate.png",
+   "colour": false
+  },
+  {
+   "file": "rotate-back.mp4",
+   "name": "rotate-back",
+   "bars": 2,
+   "category": "Sweep",
+   "what": "around you the other way",
+   "card": "rotate-back.png",
+   "colour": false
+  },
+  {
+   "file": "chase.mp4",
+   "name": "chase",
    "bars": 1,
-   "what": "a hit on every beat, decaying"
+   "category": "Chase",
+   "what": "eighth notes, zone by zone across the stage",
+   "card": "chase.png",
+   "colour": false
   },
   {
-   "file": "strobe.mp4",
-   "name": "strobe",
+   "file": "chase-pairs.mp4",
+   "name": "chase-pairs",
    "bars": 1,
-   "what": "eighth-note strobe"
+   "category": "Chase",
+   "what": "mirrored pairs, from the middle out",
+   "card": "chase-pairs.png",
+   "colour": false
+  },
+  {
+   "file": "chase-random.mp4",
+   "name": "chase-random",
+   "bars": 2,
+   "category": "Chase",
+   "what": "one fixture at a time, at random, on the eighths",
+   "card": "chase-random.png",
+   "colour": false
   },
   {
    "file": "alternate.mp4",
    "name": "alternate",
    "bars": 1,
-   "what": "odd and even pars flipping each beat"
+   "category": "Chase",
+   "what": "odd and even fixtures flipping each beat",
+   "card": "alternate.png",
+   "colour": false
+  },
+  {
+   "file": "sides.mp4",
+   "name": "sides",
+   "bars": 1,
+   "category": "Chase",
+   "what": "stage right, stage left, on the beat",
+   "card": "sides.png",
+   "colour": false
+  },
+  {
+   "file": "pulse.mp4",
+   "name": "pulse",
+   "bars": 1,
+   "category": "Rhythm",
+   "what": "a hit on every beat, decaying",
+   "card": "pulse.png",
+   "colour": false
+  },
+  {
+   "file": "pulse-8.mp4",
+   "name": "pulse-8",
+   "bars": 1,
+   "category": "Rhythm",
+   "what": "a hit on every eighth",
+   "card": "pulse-8.png",
+   "colour": false
+  },
+  {
+   "file": "kick-snare.mp4",
+   "name": "kick-snare",
+   "bars": 1,
+   "category": "Rhythm",
+   "what": "hard on 1 and 3, softer on 2 and 4",
+   "card": "kick-snare.png",
+   "colour": false
+  },
+  {
+   "file": "offbeat.mp4",
+   "name": "offbeat",
+   "bars": 1,
+   "category": "Rhythm",
+   "what": "hits on the and",
+   "card": "offbeat.png",
+   "colour": false
+  },
+  {
+   "file": "downbeat.mp4",
+   "name": "downbeat",
+   "bars": 1,
+   "category": "Rhythm",
+   "what": "one long hit per bar",
+   "card": "downbeat.png",
+   "colour": false
+  },
+  {
+   "file": "gate.mp4",
+   "name": "gate",
+   "bars": 1,
+   "category": "Rhythm",
+   "what": "a sixteenth-note trance gate",
+   "card": "gate.png",
+   "colour": false
+  },
+  {
+   "file": "strobe.mp4",
+   "name": "strobe",
+   "bars": 1,
+   "category": "Strobe",
+   "what": "eighth-note strobe",
+   "card": "strobe.png",
+   "colour": false
+  },
+  {
+   "file": "strobe-16.mp4",
+   "name": "strobe-16",
+   "bars": 1,
+   "category": "Strobe",
+   "what": "sixteenth-note strobe, short flashes",
+   "card": "strobe-16.png",
+   "colour": false
+  },
+  {
+   "file": "strobe-random.mp4",
+   "name": "strobe-random",
+   "bars": 2,
+   "category": "Strobe",
+   "what": "fixtures flashing at random, on the sixteenths",
+   "card": "strobe-random.png",
+   "colour": false
+  },
+  {
+   "file": "blinder.mp4",
+   "name": "blinder",
+   "bars": 1,
+   "category": "Strobe",
+   "what": "one full flash on the downbeat",
+   "card": "blinder.png",
+   "colour": false
   },
   {
    "file": "build.mp4",
    "name": "build",
    "bars": 4,
-   "what": "brighter and busier toward the end"
+   "category": "Build",
+   "what": "brighter and busier toward the end",
+   "card": "build.png",
+   "colour": false
+  },
+  {
+   "file": "riser-strobe.mp4",
+   "name": "riser-strobe",
+   "bars": 4,
+   "category": "Build",
+   "what": "a strobe speeding up over four bars",
+   "card": "riser-strobe.png",
+   "colour": false
+  },
+  {
+   "file": "riser-sweep.mp4",
+   "name": "riser-sweep",
+   "bars": 4,
+   "category": "Build",
+   "what": "sweeps speeding up over four bars",
+   "card": "riser-sweep.png",
+   "colour": false
+  },
+  {
+   "file": "fill-up.mp4",
+   "name": "fill-up",
+   "bars": 4,
+   "category": "Build",
+   "what": "fixtures joining one by one, outside in",
+   "card": "fill-up.png",
+   "colour": false
   },
   {
    "file": "hue-sweep.mp4",
    "name": "hue-sweep",
    "bars": 4,
-   "what": "colour travelling across the pars"
+   "category": "Colour",
+   "what": "colour travelling across the stage",
+   "card": "hue-sweep.png",
+   "colour": true
+  },
+  {
+   "file": "hue-rotate.mp4",
+   "name": "hue-rotate",
+   "bars": 4,
+   "category": "Colour",
+   "what": "colour going around you",
+   "card": "hue-rotate.png",
+   "colour": true
+  },
+  {
+   "file": "two-tone.mp4",
+   "name": "two-tone",
+   "bars": 4,
+   "category": "Colour",
+   "what": "warm and cool halves, swapping each bar",
+   "card": "two-tone.png",
+   "colour": true
+  },
+  {
+   "file": "bar-scan.mp4",
+   "name": "bar-scan",
+   "bars": 1,
+   "category": "Bars",
+   "what": "a dot running along each pixel bar",
+   "card": "bar-scan.png",
+   "colour": false
+  },
+  {
+   "file": "sparkle.mp4",
+   "name": "sparkle",
+   "bars": 2,
+   "category": "Bars",
+   "what": "pixels and pars twinkling at random",
+   "card": "sparkle.png",
+   "colour": false
   },
   {
    "file": "identify.mp4",
    "name": "identify",
    "bars": 4,
-   "what": "one fixture at a time, in patch order, to check it"
+   "category": "Utility",
+   "what": "one fixture at a time, in patch order, to check it",
+   "card": "identify.png",
+   "colour": false
   }
  ]
 }

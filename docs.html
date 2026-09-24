@@ -259,6 +259,26 @@ BAR_04            cell 1680-1920   18 pixels, x 1687 → 1913</code></pre>
 <div class="note warn">The band used to be 6 cells of 320 px. If your Lumiverse
 was patched to that, move the fixtures to these points once.</div>
 
+<h3>The presets</h3>
+<p><code>uv run make_light_loops.py</code> makes 38 presets in nine categories —
+Wash, Sweep, Chase, Rhythm, Strobe, Build, Colour, Bars, Utility
+(<code>--list</code> prints them). They are made in <b>stage space</b>: each is a
+function of where a fixture really stands in <code>rig.json</code>, so a sweep
+crosses the stage, <i>rotate</i> goes around you, <i>sweep-out</i> starts nearest
+you, and a pixel bar shows a sweep passing through it pixel by pixel. Move
+fixtures and run it again to follow. Each preset gets a <b>pattern card</b> — the
+fixtures left to right, time running down — so a chase reads as a diagonal and a
+strobe as stripes.</p>
+<p>In the floor plan's <b>Loop</b> mode, the preset button opens the browser:
+categories on the left, cards on the right, a search box. <b>Hover a card and the
+plan and the 3D view play it</b>; leave and the previous one comes back; click to
+keep it. <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> preview as you move,
+<kbd>enter</kbd> keeps, <kbd>esc</kbd> closes.</p>
+<div class="note">To fire a preset from the timeline, it has to be a clip in
+Resolume's lights layer: the Cue tab's <b>Load clip</b> loads one, or
+<code>python3 arena_load.py --lane lights</code> loads them all — give that layer
+enough clip slots first (38).</div>
+
 <h3>Loops on the floor plan</h3>
 <p>Above the floor plan, <b>Live · Look · Loop</b> chooses what lights the plan
 and the 3D preview:</p>

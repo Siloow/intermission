@@ -26,7 +26,41 @@
   #view3d-bar{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   #gl-note{color:var(--text);font-weight:550}
   #room-loop{display:contents}
-  #loop-list{max-width:190px}
+  #loop-pick{max-width:220px}
+  #loop-pick #loop-name{overflow:hidden;text-overflow:ellipsis;max-width:160px}
+
+  /* the preset browser: categories, pattern cards, hover to preview */
+  .presets{width:min(900px,calc(100vw - 24px));padding:0;display:flex;flex-direction:column;
+    max-height:min(660px,calc(100vh - 120px))}
+  .pr-head{display:flex;gap:12px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border)}
+  .pr-head input{max-width:280px}
+  .pr-head .hint{margin:0}
+  .pr-body{display:flex;min-height:0;flex:1}
+  .pr-cats{width:160px;flex:none;border-right:1px solid var(--border);padding:8px;overflow-y:auto;
+    display:flex;flex-direction:column;gap:2px}
+  .pr-cats button{justify-content:space-between;background:none;border-color:transparent;color:var(--text-2);width:100%}
+  .pr-cats button:hover{background:var(--surface-3);color:var(--text)}
+  .pr-cats button.is-on{background:var(--surface-3);color:var(--text);border-color:var(--border-strong)}
+  .pr-cats .n{color:var(--text-3);font-size:var(--fs-xs);font-weight:500}
+  .pr-grid{flex:1;overflow-y:auto;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));
+    gap:10px;align-content:start;grid-auto-rows:max-content}
+  .pr-grp{grid-column:1/-1;font-size:var(--fs-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);
+    font-weight:650;margin:6px 0 -2px}
+  .pr-grp:first-child{margin-top:0}
+  .pr-card{border:1px solid var(--border);border-radius:var(--r);background:var(--surface-1);cursor:pointer;overflow:hidden;
+    transition:border-color .1s,background .1s}
+  .pr-card:hover,.pr-card.hi{border-color:var(--border-strong);background:var(--surface-3)}
+  .pr-card.is-on{border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line)}
+  .pr-card .thumb{position:relative;height:62px;background:#000;overflow:hidden}
+  .pr-card .thumb img{width:100%;height:100%;display:block;image-rendering:pixelated}
+  .pr-card .thumb::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:rgba(255,213,74,.9);
+    box-shadow:0 0 6px rgba(255,213,74,.8);opacity:0}
+  .pr-card:hover .thumb::after,.pr-card.hi .thumb::after{opacity:1;animation:pr-scan var(--dur,2s) linear infinite}
+  @keyframes pr-scan{from{top:0}to{top:calc(100% - 2px)}}
+  .pr-card .meta{padding:7px 9px 8px}
+  .pr-card b{display:flex;justify-content:space-between;gap:6px;font-size:var(--fs-sm);font-weight:600}
+  .pr-card b span{color:var(--text-3);font-weight:500;font-size:var(--fs-xs)}
+  .pr-card small{display:block;color:var(--text-3);font-size:var(--fs-xs);line-height:1.35;height:2.7em;overflow:hidden;margin-top:2px}
   #loop-bpm{width:62px}
   #loop-count{min-width:92px}
   body.focus .inspector{display:none}
@@ -57,7 +91,7 @@
           <button data-src="loop" title="a control-band loop, played here">Loop</button>
         </div>
         <span id="room-loop" hidden style="display:none">
-          <select id="loop-list" title="[ and ] step through the loops"></select>
+          <button id="loop-pick" title="presets — [ and ] step through them"><span id="loop-name">…</span> ▾</button>
           <button id="loop-play" class="icon" title="play / pause">❚❚</button>
           <span class="readout" id="loop-count">—</span>
           <input id="loop-bpm" type="number" min="40" max="240" step="1" title="bpm">
@@ -206,6 +240,16 @@
 
       </div>
     </aside>
+  </div>
+</div>
+<div id="presets" class="pop presets" hidden>
+  <div class="pr-head">
+    <input id="pr-q" placeholder="find a preset — sweep, strobe, around…" autocomplete="off">
+    <p class="hint dim">hover to preview on the rig · click to use · ←→↑↓ enter · esc</p>
+  </div>
+  <div class="pr-body">
+    <div class="pr-cats" id="pr-cats"></div>
+    <div class="pr-grid" id="pr-grid"></div>
   </div>
 </div>
 <script src="/lib/band.js"></script>
@@ -713,7 +757,7 @@ function setSource(src){
   el("room-loop").style.display = src === "loop" ? "contents" : "none";
   el("room-note").style.display = src === "loop" ? "none" : "";
   if (src === "loop"){
-    if (!band.current || band.current.kind !== "loop") pickLoop(+el("loop-list").value || 0);
+    if (!band.current || band.current.kind !== "loop") pickLoop(loopIndex);
     else band.video.play().catch(() => {});
   } else if (band.current && band.current.kind === "loop") band.video.pause();
   if (src === "look"){ const l = curLook(); if (l) band.showLook(l); }
@@ -723,7 +767,8 @@ function pickLoop(i){
   const loops = (band.clips && band.clips.loops) || [];
   if (!loops.length) return;
   i = (i + loops.length) % loops.length;
-  el("loop-list").value = i;
+  loopIndex = i;
+  el("loop-name").textContent = loops[i].name;
   band.playLoop(loops[i]);
   band.tint = tintOn ? el("loop-tint-c").value : null;
   window.__roomLabel = loops[i].name;
@@ -807,7 +852,98 @@ function roomFrame(){
 }
 
 el("room-src").addEventListener("click", e => { const b = e.target.closest("[data-src]"); if (b) setSource(b.dataset.src); });
-el("loop-list").addEventListener("change", () => { pickLoop(+el("loop-list").value); setSource("loop"); });
+// ------------------------------------------------------------ presets ---
+// Categories and pattern cards; hovering one plays it on the rig, leaving puts
+// back what was there, clicking keeps it.
+let loopIndex = 0, prCat = "All", prHi = -1, prPrev = null, prHover = null, cardVer = Date.now();
+const loopsAll = () => (band.clips && band.clips.loops) || [];
+function prVisible(){
+  const q = el("pr-q").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return loopsAll().map((l, i) => ({l, i})).filter(({l}) =>
+    (prCat === "All" || l.category === prCat) &&
+    q.every(w => (l.name + " " + (l.what || "") + " " + (l.category || "")).toLowerCase().includes(w)));
+}
+function drawPresets(){
+  const loops = loopsAll(), cats = ["All", ...((band.clips && band.clips.categories) || [])];
+  el("pr-cats").innerHTML = cats.map(c => {
+    const n = c === "All" ? loops.length : loops.filter(l => l.category === c).length;
+    return n || c === "All" ? `<button class="${c === prCat ? "is-on" : ""}" data-cat="${c}">${c}<span class="n">${n}</span></button>` : "";
+  }).join("");
+  const vis = prVisible();
+  prHi = Math.min(prHi, vis.length - 1);
+  const base = (band.clips && band.clips.loop_bpm) || 120, rate = (band.bpm || base) / base;
+  let html = "", grp = null;
+  vis.forEach(({l, i}, k) => {
+    if (prCat === "All" && l.category !== grp){ grp = l.category; html += `<div class="pr-grp">${grp || ""}</div>`; }
+    const dur = ((l.bars || 1) * 4 * 60 / base / rate).toFixed(2);
+    html += `<div class="pr-card ${i === loopIndex && roomSource === "loop" && !prPrev ? "is-on" : ""} ${k === prHi ? "hi" : ""}"` +
+      ` data-i="${i}" data-k="${k}" style="--dur:${dur}s">` +
+      `<div class="thumb">${l.card ? `<img src="content/light-loops/${encodeURIComponent(l.card)}?v=${cardVer}" alt="" onerror="this.remove()">` : ""}</div>` +
+      `<div class="meta"><b>${l.name}<span>${l.bars ? l.bars + " bar" + (l.bars > 1 ? "s" : "") : ""}</span></b>` +
+      `<small>${l.what || ""}</small></div></div>`;
+  });
+  el("pr-grid").innerHTML = html || `<div class="empty">Nothing matches.</div>`;
+  const hi = el("pr-grid").querySelector(".hi"); if (hi) hi.scrollIntoView({block: "nearest"});
+}
+function previewPreset(i){
+  if (!prPrev) prPrev = {src: roomSource, i: loopIndex, playing: !band.paused};
+  pickLoop(i);
+  if (roomSource !== "loop") setSource("loop");
+}
+function endPreview(){
+  if (!prPrev) return;
+  const p = prPrev; prPrev = null;
+  pickLoop(p.i);
+  setSource(p.src);
+  drawPresets();
+}
+function choosePreset(i){
+  prPrev = null;
+  pickLoop(i); setSource("loop");
+  closePresets();
+}
+function openPresets(){
+  const P = el("presets"), r = el("loop-pick").getBoundingClientRect();
+  P.hidden = false;
+  P.style.left = Math.max(12, Math.min(r.left, innerWidth - P.offsetWidth - 12)) + "px";
+  P.style.top = r.bottom + 8 + "px";
+  el("pr-q").value = ""; prHi = -1;
+  drawPresets();
+  el("pr-q").focus();
+}
+function closePresets(){ endPreview(); el("presets").hidden = true; }
+el("loop-pick").onclick = () => el("presets").hidden ? openPresets() : closePresets();
+el("pr-cats").addEventListener("click", e => {
+  const b = e.target.closest("[data-cat]"); if (!b) return;
+  prCat = b.dataset.cat; prHi = -1; drawPresets(); el("pr-q").focus();
+});
+el("pr-q").addEventListener("input", () => { prHi = -1; drawPresets(); });
+el("pr-grid").addEventListener("mouseover", e => {
+  const c = e.target.closest(".pr-card"); if (!c || prHover === c.dataset.i) return;
+  prHover = c.dataset.i;
+  previewPreset(+c.dataset.i);
+});
+el("pr-grid").addEventListener("mouseleave", () => { prHover = null; endPreview(); });
+el("pr-grid").addEventListener("click", e => {
+  const c = e.target.closest(".pr-card"); if (c) choosePreset(+c.dataset.i);
+});
+el("pr-q").addEventListener("keydown", e => {
+  const vis = prVisible();
+  const cols = Math.max(1, Math.round(el("pr-grid").clientWidth / 168));
+  const move = {ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols}[e.key];
+  if (move){
+    e.preventDefault();
+    prHi = Math.max(0, Math.min(vis.length - 1, (prHi < 0 ? 0 : prHi + move)));
+    if (vis[prHi]) previewPreset(vis[prHi].i);
+    drawPresets();
+  } else if (e.key === "Enter"){
+    e.preventDefault();
+    const pick = vis[prHi < 0 ? 0 : prHi]; if (pick) choosePreset(pick.i);
+  } else if (e.key === "Escape"){ e.preventDefault(); closePresets(); }
+});
+document.addEventListener("pointerdown", e => {
+  if (!el("presets").hidden && !e.target.closest("#presets") && !e.target.closest("#loop-pick")) closePresets();
+}, true);
 el("loop-play").onclick = () => band.toggle();
 el("loop-bpm").addEventListener("input", () => band.setBpm(+el("loop-bpm").value));
 function setTint(on){
@@ -832,9 +968,7 @@ el("focus").onclick = () => {
 async function startRoom(){
   try { await band.load(); } catch(e){ band.clips = {loops: []}; }
   const loops = (band.clips && band.clips.loops) || [];
-  el("loop-list").innerHTML = loops.map((c, i) =>
-    `<option value="${i}">${c.name}${c.bars ? ` — ${c.bars} bar${c.bars > 1 ? "s" : ""}` : ""}</option>`).join("")
-    || `<option>no loops yet</option>`;
+  el("loop-name").textContent = loops.length ? loops[0].name : "no presets yet";
   el("loop-bpm").value = Math.round(band.bpm || 120);
   const q = new URLSearchParams(location.search);
   let first = q.get("room");
@@ -842,7 +976,7 @@ async function startRoom(){
         if (!first) first = s.live && s.t && Date.now() / 1000 - s.t < 3 ? "live" : "look"; }
   catch(e){ first = first || "look"; }
   const want = q.get("clip");
-  if (want){ const i = loops.findIndex(l => l.name === want); if (i >= 0){ el("loop-list").value = i; pickLoop(i); first = "loop"; } }
+  if (want){ const i = loops.findIndex(l => l.name === want); if (i >= 0){ pickLoop(i); first = "loop"; } }
   setSource(first);
   if (q.get("band")) el("band-toggle").onclick();
   pollLive();
@@ -1067,7 +1201,7 @@ addEventListener("keydown", e => {
   }
   if (e.key === "Escape"){ setSel([]); draw(); showEditor(); return; }
   if (!e.metaKey && (e.key === "[" || e.key === "]")){
-    pickLoop((+el("loop-list").value || 0) + (e.key === "]" ? 1 : -1)); setSource("loop"); return;
+    pickLoop(loopIndex + (e.key === "]" ? 1 : -1)); setSource("loop"); return;
   }
   if (!e.metaKey && (e.key === "t" || e.key === "T")){ setTint(!tintOn); return; }
   if (!e.metaKey && (e.key === "b" || e.key === "B")){ el("band-toggle").onclick(); return; }

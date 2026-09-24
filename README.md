@@ -35,7 +35,7 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 | `make_light_loops.py` | builds the control-band loops the pars sample |
 | `content/light-looks/` | looks rendered as band stills by Make clip, loaded into the lights layer |
 | `arena_load.py` | loads clips into Resolume over its REST API, and maps them to cue names |
-| `content/light-loops/` | those loops, 1920x120, plus their own README |
+| `content/light-loops/` | the 38 presets (1920x120), their pattern cards, `loops.json` and a README |
 | `artnet_test.py` | fake Resolume: sends a chase or a fixed look over Art-Net |
 
 ## Run it — two modes

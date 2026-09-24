@@ -224,7 +224,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             listed = [l for l in loops.get("loops", []) if l["file"] in have]
             extra = sorted(f for f in have if f.lower().endswith((".mp4", ".mov", ".m4v"))
                            and f not in {l["file"] for l in listed})
-            listed += [{"file": f, "name": os.path.splitext(f)[0], "bars": None, "what": ""} for f in extra]
+            listed += [{"file": f, "name": os.path.splitext(f)[0], "bars": None, "what": "",
+                        "category": "Other"} for f in extra]
             try:
                 looks = json.load(open(os.path.join(HERE, "looks.json"))).get("looks", [])
             except (OSError, ValueError):
@@ -234,7 +235,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 show = json.load(open(os.path.join(HERE, "show.json")))
             except (OSError, ValueError):
                 pass
+            cats = loops.get("categories") or []
+            if extra:
+                cats = cats + ["Other"]
             return self._send(200, json.dumps({"loops": listed, "loop_bpm": loops.get("bpm"),
+                                               "categories": cats,
                                                "looks": looks, "tempo": show.get("tempo")}).encode())
         if path.startswith("/content/"):
             parts = path.split("/")
