@@ -1630,6 +1630,15 @@ function pickOptions(c){
     const L = findLayer(c.layer || laneLayer(c.lane));
     ((L && L.clips) || []).forEach(k => opts.push({value: k.name, label: k.name, clip: k,
       sub: `${L.name} · clip ${k.index}${k.missing ? " · media missing" : ""}`}));
+    // the Library's clips that aren't in this layer yet: choosing one installs it
+    if (["screen", "overlay"].includes(c.lane) && !c.layer)
+      [...libItems.clips.map(x => ({...x, live: false})), ...libItems.live.map(x => ({...x, live: true}))].forEach(x => {
+        if (opts.some(o => o.value === x.name)) return;
+        opts.push({value: x.name, label: x.name, lib: true, live: x.live,
+                   img: x.live ? "" : `/library/clipthumb/${encodeURIComponent(x.name)}`,
+                   sub: `${x.live ? "live · " : ""}in the Library${x.song ? " · ♪ " + x.song : ""} · ` +
+                        (comp && comp.live ? `choosing installs it into ${L ? L.name : "the layer"}` : "Resolume isn't answering")});
+      });
     if (c.lane === "lights")
       looks.looks.forEach(l => { if (!opts.some(o => o.value === l.name))
         opts.push({value: l.name, label: l.name, look: true,
@@ -1643,6 +1652,7 @@ function pickOptions(c){
 }
 function openPick(c){
   if (!c) return;
+  loadLibrary().then(() => { if (pick && pick.id === c.id){ pick.opts = pickOptions(c); drawPick(); } });
   if (!selSet.has(c.id)) { select([c.id]); draw(); }
   pick = {id: c.id, opts: pickOptions(c), hi: 0};
   el("pick").hidden = false;
@@ -1671,7 +1681,8 @@ function drawPick(){
   const q = el("pick-q").value.trim();
   el("pick-list").innerHTML = list.map((o, i) =>
     `<div class="po ${i === pick.hi ? "hi" : ""} ${o.look ? "look" : ""}" data-i="${i}">` +
-    (o.clip ? `<img src="${thumbUrl(o.clip)}" onerror="this.style.visibility='hidden'">` : `<span class="noimg"></span>`) +
+    (o.clip ? `<img src="${thumbUrl(o.clip)}" onerror="this.style.visibility='hidden'">`
+     : o.img ? `<img src="${o.img}" onerror="this.style.visibility='hidden'">` : `<span class="noimg"></span>`) +
     `<div style="min-width:0"><b>${esc(o.label)}${o.value === c.value ? " ✓" : ""}</b><small>${esc(o.sub)}</small></div></div>`
   ).join("") || `<div class="hint" style="padding:4px 6px">${q ? `enter uses “${esc(q)}” as typed` :
       c.lane === "scenes" ? "no columns seen in Resolume" : "nothing in this layer yet: load a clip, or type a name"}</div>`;
@@ -1699,6 +1710,24 @@ function choosePick(opt){
   draw(); save();
   closePick();
   if (opt && opt.look && comp && comp.live) makeClips([v]);
+  if (opt && opt.lib && comp && comp.live) installFromLibrary(v, c.lane);
+}
+
+// the Library, for the quick picker: what's in the show but maybe not in Resolume
+let libItems = {clips: [], live: []};
+async function loadLibrary(){
+  try { libItems = await (await fetch("/library/list", {cache: "no-store"})).json(); } catch(e){}
+}
+async function installFromLibrary(name, lane){
+  el("save").textContent = `installing ${name}…`;
+  try {
+    const r = await fetch("/library/install", {method: "POST", headers: {"Content-Type": "application/json"},
+                                               body: JSON.stringify({names: [name], lane})});
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.statusText);
+    el("save").textContent = out.installed.length ? `${name} → ${lane === "overlay" ? "Screen B" : "Screen A"}` : `${name} was already there`;
+    compShape = ""; setTimeout(pollCompOnce, 300);
+  } catch(e){ el("save").textContent = "install: " + e.message; el("status").classList.add("err"); }
 }
 el("pick-q").addEventListener("input", () => { if (pick){ pick.hi = 0; drawPick(); } });
 el("pick-q").addEventListener("keydown", e => {
@@ -2114,6 +2143,7 @@ try { showTab(localStorage.getItem("show-tab") || "cue"); } catch(e){ showTab("c
 load().then(() => buildPanel()).then(loadAudio).then(tick);
 pollPlayer();
 pollComp();
+loadLibrary();
 </script>
 <script src="/lib/status.js"></script>
 </body>

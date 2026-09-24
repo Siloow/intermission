@@ -230,6 +230,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path.startswith("/library/clipthumb/"):
             name = os.path.basename(urllib.parse.unquote(path))
             return self.send_file(os.path.join(library.THUMBS, name + ".jpg"))
+        if path == "/library/list":
+            # just the show's visuals, for the timeline's quick picker (no rescan)
+            cfg = library.config()
+            return self._send(200, json.dumps({
+                "clips": [{"name": x["name"], "song": x.get("song"), "tags": x.get("tags", []),
+                           "seconds": x.get("seconds")} for x in cfg["clips"]],
+                "live": [{"name": x["name"], "source": x["source"], "tags": x.get("tags", [])}
+                         for x in cfg["live"]]}).encode())
         if path == "/library/jobs":
             return self._send(200, json.dumps(library.jobs).encode())
         if path == "/library/live-sources":

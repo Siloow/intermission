@@ -5,6 +5,77 @@
     "../../TouchDesigner"
   ],
   "sequence_fps": 30,
-  "clips": [],
+  "clips": [
+    {
+      "name": "ballentent overlay",
+      "file": "content/library/ballentent overlay.png",
+      "source": "/Users/sil/Work/swaile/blender-visualisation/ballentent/full161/out/overlay/0001.png",
+      "kind": "still",
+      "project": "ballentent",
+      "tags": [],
+      "song": "",
+      "who": "",
+      "fit": "fit",
+      "fps": 25.0,
+      "seconds": null,
+      "added": "2026-09-24 10:06"
+    },
+    {
+      "name": "ballentent lines",
+      "file": "content/library/ballentent lines.mov",
+      "source": "/Users/sil/Work/swaile/blender-visualisation/ballentent/full161/out/lines/%04d.png",
+      "kind": "sequence",
+      "project": "ballentent",
+      "tags": [],
+      "song": "",
+      "who": "",
+      "fit": "fit",
+      "fps": 30,
+      "seconds": 5.37,
+      "added": "2026-09-24 10:06"
+    },
+    {
+      "name": "ballentent soft",
+      "file": "content/library/ballentent soft.mov",
+      "source": "/Users/sil/Work/swaile/blender-visualisation/ballentent/full161/out/soft/%04d.png",
+      "kind": "sequence",
+      "project": "ballentent",
+      "tags": [],
+      "song": "",
+      "who": "",
+      "fit": "fit",
+      "fps": 30,
+      "seconds": 5.37,
+      "added": "2026-09-24 10:06"
+    },
+    {
+      "name": "ballentent hard",
+      "file": "content/library/ballentent hard.mov",
+      "source": "/Users/sil/Work/swaile/blender-visualisation/ballentent/detail111/out/hard/%04d.png",
+      "kind": "sequence",
+      "project": "ballentent",
+      "tags": [],
+      "song": "",
+      "who": "",
+      "fit": "fill",
+      "fps": 30,
+      "seconds": 3.7,
+      "added": "2026-09-24 10:07"
+    },
+    {
+      "name": "ballentent lines 2",
+      "file": "content/library/ballentent lines 2.mov",
+      "source": "/Users/sil/Work/swaile/blender-visualisation/ballentent/full161/out/lines/%04d.png",
+      "kind": "sequence",
+      "project": "ballentent",
+      "tags": [],
+      "song": "",
+      "who": "",
+      "fit": "fill",
+      "fps": 30,
+      "seconds": 5.37,
+      "added": "2026-09-24 10:07"
+    }
+  ],
   "live": []
 }

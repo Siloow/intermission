@@ -55,6 +55,16 @@
       "value": "NoHopeJustFear",
       "note": "",
       "layer": 1
+    },
+    {
+      "id": "cks37q8p",
+      "lane": "screen",
+      "song": "Test One",
+      "section": "Start",
+      "offset_bars": 4,
+      "length_bars": 4,
+      "value": "",
+      "note": ""
     }
   ],
   "automation": [

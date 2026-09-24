@@ -30,6 +30,29 @@
   .card .tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
   .tag{font-size:10.5px;padding:1px 6px;border-radius:8px;background:var(--surface-3);color:var(--text-2)}
   #q{width:220px}
+  /* list view */
+  #grid.as-list{display:block;padding:0;overflow-x:auto}
+  table.lib{width:100%;border-collapse:collapse;font-size:var(--fs-sm)}
+  table.lib th{position:sticky;top:0;z-index:2;background:var(--surface-1);text-align:left;font-size:var(--fs-xs);
+    font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:8px 10px;
+    border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none}
+  table.lib th:hover{color:var(--text)}
+  table.lib th.sorted{color:var(--accent)}
+  table.lib td{padding:5px 10px;border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:middle}
+  table.lib td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--text-2)}
+  table.lib td.dim{color:var(--text-3)}
+  table.lib td.name{max-width:280px;overflow:hidden;text-overflow:ellipsis}
+  table.lib td.name b{font-weight:600}
+  table.lib td.name small{display:block;color:var(--text-3);font-size:var(--fs-xs);overflow:hidden;text-overflow:ellipsis}
+  table.lib tr{cursor:pointer}
+  table.lib tbody tr:hover td{background:var(--surface-2)}
+  table.lib tr.is-on td{background:var(--accent-soft)}
+  table.lib tr.grp td{background:var(--bg);color:var(--text-3);font-size:var(--fs-xs);font-weight:650;letter-spacing:.08em;
+    text-transform:uppercase;padding-top:12px;cursor:default}
+  .lthumb{position:relative;width:64px;height:36px;border-radius:4px;overflow:hidden;background:#000}
+  .lthumb img,.lthumb video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+  .lthumb video{opacity:0}.lthumb video.ready{opacity:1}
+  td .badge{height:17px;font-size:10px;padding:0 6px}
   #project,#kind{width:auto}
   #who{width:110px}
   .job{margin:6px 0}
@@ -68,6 +91,9 @@
           <option value="sequence">image sequences</option><option value="still">stills</option></select>
         <label class="check" title="drafts, previews and render passes (depth, EXR)"><input id="drafts" type="checkbox"> drafts</label>
         <span class="spacer"></span>
+        <div class="seg" id="layout" title="cards or a list">
+          <button data-layout="grid" title="cards">▦</button><button data-layout="list" title="list">☰</button>
+        </div>
         <label class="readout" for="who">you</label>
         <input id="who" placeholder="your name" title="goes with what you add, so you know who picked what">
         <button id="rescan" title="look through the sources again">Rescan</button>
@@ -87,8 +113,9 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt
 const mb = b => b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : Math.max(1, Math.round(b / 1e6)) + " MB";
 const secs = s => s ? (s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}` : `${(+s).toFixed(1)} s`) : "";
 let data = {candidates: [], clips: [], live: []}, status = null, songs = [], liveSources = null;
-let view = "sources", sel = new Set(), jobsSeen = {};
-try { view = localStorage.getItem("lib-view") || "sources"; el("who").value = localStorage.getItem("who") || ""; } catch(e){}
+let view = "sources", sel = new Set(), jobsSeen = {}, layout = "grid", sortBy = null, sortDir = 1;
+try { view = localStorage.getItem("lib-view") || "sources"; el("who").value = localStorage.getItem("who") || "";
+      layout = localStorage.getItem("lib-layout") || "grid"; } catch(e){}
 el("who").addEventListener("change", () => { try { localStorage.setItem("who", el("who").value.trim()); } catch(e){} });
 
 async function load(force){
@@ -146,8 +173,66 @@ function card(x){
     `<div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--text-2)">${esc(x.name)}</div></div>` +
     `<div class="meta"><b>${esc(x.name)}</b><small>${esc(x.category || "")}</small></div></div>`;
 }
+// the list view: one row each, sortable, the same selection and hover as the cards
+const COLS = {
+  sources: [["", null], ["name", x => x.suggest], ["project", x => x.project], ["kind", x => x.kind],
+            ["size", x => (x.w || 0) * (x.h || 0)], ["length", x => x.seconds || 0], ["fps", x => x.fps || 0],
+            ["on disk", x => x.bytes || 0], ["", null]],
+  show:    [["", null], ["name", x => x.name], ["song", x => x.song || ""], ["tags", x => (x.tags || []).join(",")],
+            ["length", x => x.seconds || 0], ["project", x => x.project || ""], ["added by", x => x.who || ""],
+            ["in Resolume", x => (inLayer(x.name, "screen") ? 2 : 0) + (inLayer(x.name, "overlay") ? 1 : 0)]],
+  live:    [["name", x => x.name], ["category", x => x.category || ""], ["", null]],
+};
+function row(x){
+  if (view === "sources"){
+    const key = x.id;
+    return `<tr class="${sel.has(key) ? "is-on" : ""}" data-id="${x.id}" data-prev="${x.kind !== "still" ? x.id : ""}">` +
+      `<td><div class="lthumb"><img loading="lazy" src="library/thumb/${x.id}" onerror="this.style.opacity=0"></div></td>` +
+      `<td class="name"><b>${esc(x.suggest)}</b><small title="${esc(x.path)}">${esc(x.name)}</small></td>` +
+      `<td class="dim">${esc(x.project)}</td><td class="dim">${x.kind === "sequence" ? x.frames + " frames" : x.kind}</td>` +
+      `<td class="num">${x.w || "?"}×${x.h || "?"}</td><td class="num">${secs(x.seconds)}</td>` +
+      `<td class="num">${x.fps ? +x.fps : ""}</td><td class="num">${mb(x.bytes)}</td>` +
+      `<td>${x.in_show ? `<span class="badge ok">in the show</span>` : ""} ${x.draft ? `<span class="badge">draft</span>` : ""}</td></tr>`;
+  }
+  if (view === "show"){
+    const a = inLayer(x.name, "screen"), b = inLayer(x.name, "overlay");
+    const th = x._kind === "live" ? `<span class="badge live" style="margin:9px 8px">live</span>`
+      : `<img loading="lazy" src="library/clipthumb/${encodeURIComponent(x.name)}" onerror="this.style.opacity=0">`;
+    return `<tr class="${sel.has(x.name) ? "is-on" : ""}" data-name="${esc(x.name)}" data-prev="${x._kind === "clip" ? x.source_id : ""}">` +
+      `<td><div class="lthumb">${th}</div></td>` +
+      `<td class="name"><b>${esc(x.name)}</b><small>${esc(x._kind === "live" ? "live: " + x.source : x.file || "")}</small></td>` +
+      `<td class="dim">${esc(x.song || "")}</td><td>${(x.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join(" ")}</td>` +
+      `<td class="num">${secs(x.seconds)}</td><td class="dim">${esc(x.project || "")}</td><td class="dim">${esc(x.who || "")}</td>` +
+      `<td>${a ? `<span class="badge ok">A</span>` : ""} ${b ? `<span class="badge ok">B</span>` : ""}</td></tr>`;
+  }
+  const added = data.live.find(l => l.source === x.name);
+  return `<tr class="${sel.has(x.name) ? "is-on" : ""}" data-src="${esc(x.name)}"><td class="name"><b>${esc(x.name)}</b></td>` +
+    `<td class="dim">${esc(x.category || "")}</td><td>${added ? `<span class="badge ok">in the show as ${esc(added.name)}</span>` : ""}</td></tr>`;
+}
+function table(list){
+  const cols = COLS[view];
+  if (sortBy !== null && cols[sortBy] && cols[sortBy][1]){
+    const f = cols[sortBy][1];
+    list = list.slice().sort((a, b) => { const x = f(a), y = f(b); return (x > y ? 1 : x < y ? -1 : 0) * sortDir; });
+  }
+  let body = "", grp = null;
+  const cells = cols.length;
+  list.forEach(x => {
+    if (sortBy === null){
+      const g = view === "sources" ? x.project : view === "show" ? (x.song || "no song yet") : null;
+      if (g !== null && g !== grp){ grp = g; body += `<tr class="grp"><td colspan="${cells}">${esc(g)}</td></tr>`; }
+    }
+    body += row(x);
+  });
+  return `<table class="lib"><thead><tr>${cols.map(([h, f], i) =>
+    `<th ${f ? `data-sort="${i}"` : ""} class="${i === sortBy ? "sorted" : ""}">${h}${i === sortBy ? (sortDir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead>` +
+    `<tbody>${body}</tbody></table>`;
+}
+
 function draw(){
   document.querySelectorAll("#view button").forEach(b => b.classList.toggle("on", b.dataset.view === view));
+  document.querySelectorAll("#layout button").forEach(b => b.classList.toggle("on", b.dataset.layout === layout));
+  el("grid").classList.toggle("as-list", layout === "list");
   el("project").style.display = el("kind").style.display = view === "live" ? "none" : "";
   el("kind").style.display = view === "sources" ? "" : "none";
   el("drafts").closest("label").style.display = view === "sources" ? "" : "none";
@@ -155,13 +240,14 @@ function draw(){
   let html = "", grp = null;
   if (view === "live" && liveSources === null) html = `<div class="empty">Asking Resolume…</div>`;
   else if (view === "live" && !liveSources.length) html = `<div class="empty">Resolume sees no Syphon or NDI sources. Start TouchDesigner with a Syphon Spout Out TOP, then Rescan. ${status && status.live === false ? "(Resolume isn't answering.)" : ""}</div>`;
+  else if (!list.length) html = `<div class="empty" style="padding:14px">${view === "show" ? "Nothing in the show yet — pick from Sources and Add." : "Nothing matches."}</div>`;
+  else if (layout === "list") html = table(list);
   else {
     list.forEach(x => {
       const g = view === "sources" ? x.project : view === "show" ? (x.song || "no song yet") : null;
       if (g !== null && g !== grp){ grp = g; html += `<div class="grp">${esc(g)}</div>`; }
       html += card(x);
     });
-    if (!list.length) html = `<div class="empty">${view === "show" ? "Nothing in the show yet — pick from Sources and Add." : "Nothing matches."}</div>`;
   }
   el("grid").innerHTML = html;
   side();
@@ -169,15 +255,17 @@ function draw(){
 
 // hover: play a small preview in the card
 el("grid").addEventListener("mouseover", e => {
-  const c = e.target.closest(".card"); if (!c || !c.dataset.prev || c.querySelector("video")) return;
+  const c = e.target.closest(".card, tbody tr"); if (!c || !c.dataset.prev || c.querySelector("video")) return;
   const v = document.createElement("video");
   Object.assign(v, {muted: true, loop: true, autoplay: true, playsInline: true, src: "library/preview/" + c.dataset.prev});
   v.addEventListener("playing", () => v.classList.add("ready"));
-  c.querySelector(".thumb").appendChild(v);
+  (c.querySelector(".thumb") || c.querySelector(".lthumb")).appendChild(v);
   c.addEventListener("mouseleave", () => v.remove(), {once: true});
 });
 el("grid").addEventListener("click", e => {
-  const c = e.target.closest(".card"); if (!c) return;
+  const th = e.target.closest("th[data-sort]");
+  if (th){ const i = +th.dataset.sort; sortDir = sortBy === i ? -sortDir : 1; sortBy = i; draw(); return; }
+  const c = e.target.closest(".card, tbody tr:not(.grp)"); if (!c) return;
   const key = c.dataset.id || c.dataset.name || c.dataset.src;
   if (e.shiftKey || e.metaKey) sel.has(key) ? sel.delete(key) : sel.add(key);
   else sel = new Set([key]);
@@ -338,7 +426,13 @@ async function loadLive(){
   catch(e){ liveSources = []; }
   draw();
 }
-el("view").addEventListener("click", e => { const b = e.target.closest("[data-view]"); if (b) setView(b.dataset.view); });
+el("view").addEventListener("click", e => { const b = e.target.closest("[data-view]"); if (b){ sortBy = null; setView(b.dataset.view); } });
+el("layout").addEventListener("click", e => {
+  const b = e.target.closest("[data-layout]"); if (!b) return;
+  layout = b.dataset.layout;
+  try { localStorage.setItem("lib-layout", layout); } catch(err){}
+  draw();
+});
 for (const id of ["q", "project", "kind", "drafts"]) el(id).addEventListener("input", draw);
 el("rescan").onclick = () => { load(true); if (view === "live") loadLive(); };
 addEventListener("keydown", e => { if (e.key === "Escape" && !/input|select/i.test(e.target.tagName)){ sel.clear(); draw(); } });
