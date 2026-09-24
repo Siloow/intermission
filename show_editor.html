@@ -2018,12 +2018,18 @@ function seekToBar(bar){ audio.currentTime = Math.max(0, barToTime(bar)); }
 
 // -------------------------------------------------------------- follow live --
 let driving = false, sentBar = null, sentT = 0;
+const release = () => fetch("/transport", {method: "POST", headers: {"Content-Type": "application/json"},
+                                           body: JSON.stringify({release: true})}).catch(() => {});
 el("drive").onclick = () => {
   driving = !driving;
   el("drive").classList.toggle("on", driving);
   if (driving && following){ following = false; el("follow").classList.remove("on"); }
+  if (!driving) release();                        // Live drives again, from where it is
   sentBar = null;
 };
+addEventListener("pagehide", () => {
+  if (driving) navigator.sendBeacon("/transport", new Blob([JSON.stringify({release: true})], {type: "application/json"}));
+});
 function drive(bar){
   // the player follows this when Live isn't playing; ~25 times a second while
   // the bounce plays, and once whenever you scrub while it's paused
@@ -2038,6 +2044,7 @@ el("follow").onclick = () => {
   following = !following;
   el("follow").classList.toggle("on", following);
   if (following && driving){ driving = false; el("drive").classList.remove("on"); }
+  if (following) release();                       // follow what Live is doing, not an old drive
   if (following && !audio.paused) audio.pause();
 };
 async function pollPlayer(){
@@ -2060,6 +2067,7 @@ function tick(){
   if (driving && !live) drive(bar);
   el("follow").textContent = !following ? "Follow Live"
     : !live ? "no player running"
+    : liveState.source === "timeline" ? "● timeline driving"
     : liveState.live_connected === false ? "Live not reachable"
     : liveState.playing === false ? "● Live · stopped" : "● Live";
   el("follow").title = following && !live

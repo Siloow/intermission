@@ -142,7 +142,8 @@ def health():
     else:
         out["player"] = {"ok": not ps.get("panic"), "warn": bool(ps.get("panic")),
                          "text": "PANIC — cues held, press r to resume" if ps.get("panic")
-                         else f"bar {ps.get('bar', 1):.0f}"}
+                         else f"bar {ps.get('bar', 1):.0f}" + (" · driven by the timeline"
+                                                            if ps.get("source") == "timeline" else "")}
         if not ps.get("live_connected"):
             out["live"] = {"ok": False, "text": "not answering",
                            "fix": "Open the show set; Preferences → Link/Tempo/MIDI → Control Surface: AbletonOSC"}
@@ -461,7 +462,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # The browser never talks to Resolume: it only says where it is.
             try:
                 n = int(self.headers.get("Content-Length", 0))
-                beat = float(json.loads(self.rfile.read(n) or b"{}")["beat"])
+                req = json.loads(self.rfile.read(n) or b"{}")
+                if req.get("release"):             # hand the show back to Live
+                    _udp.sendto(osc_encode("/timeline/release", [1]), ("127.0.0.1", PLAYER_PORT))
+                    return self._send(204)
+                beat = float(req["beat"])
                 _udp.sendto(osc_encode("/timeline/beats", [beat]), ("127.0.0.1", PLAYER_PORT))
             except (ValueError, KeyError, TypeError, OSError) as e:
                 return self._send(400, json.dumps({"error": str(e)}).encode())

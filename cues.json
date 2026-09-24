@@ -5,17 +5,6 @@
   },
   "cues": [
     {
-      "id": "t6",
-      "lane": "lights",
-      "song": "Test One",
-      "section": "Start",
-      "offset_bars": 0,
-      "length_bars": 16,
-      "value": "Metalive",
-      "note": "middle dark",
-      "fade_bars": 0.5
-    },
-    {
       "id": "t7",
       "lane": "note",
       "song": "Test Two",
@@ -39,8 +28,8 @@
       "id": "s1",
       "lane": "scenes",
       "song": "Test One",
-      "section": "Drop 1",
-      "offset_bars": 4,
+      "section": "Build 1",
+      "offset_bars": 0,
       "length_bars": 30,
       "value": "Drop",
       "note": "whole row changes"
@@ -57,14 +46,15 @@
       "layer": 1
     },
     {
-      "id": "cks37q8p",
+      "id": "c86vpfdn",
       "lane": "screen",
       "song": "Test One",
       "section": "Start",
-      "offset_bars": 4,
+      "offset_bars": 0,
       "length_bars": 4,
-      "value": "",
-      "note": ""
+      "value": "SpaceUniverse",
+      "note": "",
+      "layer": 3
     }
   ],
   "automation": [

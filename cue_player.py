@@ -516,6 +516,7 @@ class Player:
                        "playing": now - self.moved_t < 0.6,
                        "live_connected": now - self.heard_t < 6,
                        "panic": self.panicked,
+                       "source": getattr(self, "source", "live"),
                        "values": self.sent, "recent": self.recent[-6:]}, open(tmp, "w"))
             os.replace(tmp, PLAYER_STATE)
         except OSError:
@@ -807,7 +808,7 @@ def follow(show, player, port, live_host, live_port, timeline=True):
     last_fine = 0.0          # when the streamed position last arrived
     live_moved = 0.0         # when Live's position last changed: Live playing beats the timeline
     live_last = None
-    source = "live"          # who is driving: "live", or "timeline" once the browser's ▶ takes over
+    player.source = "live"   # who is driving: "live", or "timeline" once the browser's ▶ takes over
     if timeline:
         print("  the timeline's ▶ can drive this too (Drive, in the timeline); Live wins when it plays")
     try:
@@ -843,12 +844,20 @@ def follow(show, player, port, live_host, live_port, timeline=True):
                     player.heard_t = time.monotonic()
                 if not args:
                     continue
+                if address == "/timeline/release":
+                    # Drive switched off, Follow Live on, or the tab closed: back to Live, now
+                    if player.source != "live":
+                        print(f"{CLEAR}   the timeline let go: following Live again")
+                        player.source = "live"
+                        live_last = None           # take Live's next answer, parked or not
+                        subscribe(); last_ask = time.monotonic()
+                    continue
                 if address == "/timeline/beats":
                     if not timeline or time.monotonic() - live_moved < 1.5:
                         continue       # Live mode, or Live is playing: ignore the browser
-                    if source != "timeline":
+                    if player.source != "timeline":
                         print(f"{CLEAR}   the timeline is driving (Live is stopped)")
-                        source = "timeline"
+                        player.source = "timeline"
                     beat = float(args[0])
                     if not seen:
                         print("   got position from the timeline")
@@ -873,11 +882,11 @@ def follow(show, player, port, live_host, live_port, timeline=True):
                     if moved:
                         live_moved = now
                     live_last = beat
-                    if source == "timeline":
+                    if player.source == "timeline":
                         if not moved:
                             continue   # Live parked somewhere: it doesn't pull the show back
                         print(f"{CLEAR}   Live is playing: it drives again")
-                        source = "live"
+                        player.source = "live"
                     if not seen:
                         print(f"   got position from {address}")
                         seen = True
