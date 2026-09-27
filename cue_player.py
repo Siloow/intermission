@@ -256,6 +256,86 @@ def end_mode(cue):
     return cue.get("end") or DEFAULT_END.get(cue.get("lane"), "hold")
 
 
+# Fades, per lane, in bars, unless a cue sets its own (fade_bars / fade_out_bars;
+# 0 is a cut). cues.json "fade_defaults" overrides these, and picks the easing.
+DEFAULT_FADES = {"screen": {"in": 1, "out": 1}, "overlay": {"in": 1, "out": 1},
+                 "lights": {"in": 0.5, "out": 0.5}}
+FADE_LANES = tuple(DEFAULT_FADES)
+EASES = {"smooth": ("s", 0.5), "linear": ("linear", 0.0),
+         "in": ("linear", 0.6), "out": ("linear", -0.6)}     # shape, curve: as bend() takes them
+
+
+def fade_settings(cues):
+    d = cues.get("fade_defaults") or {}
+    lanes = {l: {k: float((d.get(l) or {}).get(k, v)) for k, v in dv.items()} for l, dv in DEFAULT_FADES.items()}
+    return lanes, EASES.get(d.get("ease"), EASES["smooth"])
+
+
+def fade_of(c, lanes, which):
+    """A cue's fade in or out, in bars: its own, or its lane's default."""
+    key = "fade_bars" if which == "in" else "fade_out_bars"
+    if c.get(key) is not None:
+        return max(0.0, float(c[key]))
+    return (lanes.get(c.get("lane")) or {}).get(which, 0.0)
+
+
+def same_layer(a, b):
+    la = layers_hit(a["messages"], 64) if a["messages"] and not a["problem"] else []
+    lb = layers_hit(b["messages"], 64) if b["messages"] and not b["problem"] else []
+    return bool(la) and la == lb
+
+
+def plan_fades(out, cues, bpb):
+    """How each cue on a video lane comes in and goes out, from its neighbours.
+
+    Into the same layer as the clip before it: Resolume's layer transition, a real
+    crossfade ("cross", in beats). Into an empty layer, or from another layer: the
+    clip's own opacity ramps up ("in"). Out, with nothing after it: its opacity
+    ramps down to the end ("out"), then the layer is cleared. Handing over to a
+    clip on another layer: it fades out while that one fades in, and is cleared
+    after. "active" is how long its opacity is the player's to set."""
+    lanes, ease = fade_settings(cues)
+    by_lane = {}
+    for e in out:
+        if e["beat"] is not None:
+            by_lane.setdefault(e["cue"]["lane"], []).append(e)
+    for lane, es in by_lane.items():
+        es.sort(key=lambda e: e["beat"])
+        for i, e in enumerate(es):
+            c = e["cue"]
+            e["stop"] = e["beat"] + float(c.get("length_bars") or 8) * bpb
+            nxt = es[i + 1] if i + 1 < len(es) else None
+            if nxt and not (end_mode(c) == "hold" or nxt["beat"] <= e["stop"] + 1e-6):
+                nxt = None
+            e["next"] = nxt
+        if lane not in FADE_LANES:
+            continue
+        for i, e in enumerate(es):
+            c, nxt = e["cue"], e["next"]
+            length = e["stop"] - e["beat"]
+            prev = es[i - 1] if i and es[i - 1]["next"] is e else None
+            f = {"in": None, "cross": 0.0, "out": None, "ease": ease}
+            fin = min(fade_of(c, lanes, "in") * bpb, length)
+            if fin > 0:
+                if prev and same_layer(prev, e):
+                    f["cross"] = fin
+                else:
+                    f["in"] = (e["beat"], e["beat"] + fin)
+            if nxt:
+                nfin = min(fade_of(nxt["cue"], lanes, "in") * bpb, nxt["stop"] - nxt["beat"])
+                if end_mode(c) == "clear" and not same_layer(e, nxt) and nfin > 0:
+                    f["out"] = (nxt["beat"], nxt["beat"] + nfin)
+                e["active"] = f["out"][1] if f["out"] else nxt["beat"]
+            elif end_mode(c) == "clear":
+                fout = min(fade_of(c, lanes, "out") * bpb, length)
+                if fout > 0:
+                    f["out"] = (e["stop"] - fout, e["stop"])
+                e["active"] = e["stop"]
+            else:
+                e["active"] = float("inf")         # holds: until something else comes
+            e["fade"] = f
+
+
 def compile_cues(show, cues, mapping, snap=None):
     """Turn the plan into a flat, sorted list of things to fire, in beats.
 
@@ -275,6 +355,7 @@ def compile_cues(show, cues, mapping, snap=None):
         messages, problem = resolve(c["lane"], c.get("value"), mapping, snap, c.get("layer"))
         out.append({"cue": c, "beat": (bar - 1) * bpb, "bar": bar,
                     "messages": messages, "problem": problem})
+    plan_fades(out, cues, bpb)
     ends = []
     for e in out:
         c = e["cue"]
@@ -290,7 +371,9 @@ def compile_cues(show, cues, mapping, snap=None):
             # itself; a clip from another layer would leave this one playing
             # underneath, so that layer is cleared at the switch.
             if nxt["beat"] > e["beat"] + 1e-6:
-                ends.append({"cue": c, "beat": nxt["beat"], "bar": nxt["beat"] / bpb + 1,
+                fo = (e.get("fade") or {}).get("out")
+                at = fo[1] if fo and fo[0] >= nxt["beat"] - 1e-6 else nxt["beat"]   # after its fade out
+                ends.append({"cue": c, "beat": at, "bar": at / bpb + 1,
                              "messages": None, "problem": None, "end_of": e, "handover": nxt})
             continue
         ends.append({"cue": c, "beat": stop, "bar": stop / bpb + 1, "messages": None,
@@ -552,21 +635,14 @@ class Player:
         timeline. It sets that clip's opacity in Resolume while the cue plays (so
         it multiplies with the layer's and the composition's), and puts it back
         to 100% when the cue is over, so the clip is whole the next time it plays."""
-        bpb = self.show.get("beats_per_bar", 4)
         now = {}
         for e in self.plan:
-            c = e["cue"]
-            env = c.get("env")
-            if not env or e.get("end_of") or e["beat"] is None or e["problem"] or not e["messages"]:
+            if not self.shapes_opacity(e):
                 continue
             addr = clip_opacity_address(e["messages"])
-            if not addr:
-                continue
-            start = e["beat"]
-            if start <= beat < start + float(c.get("length_bars") or 8) * bpb:
-                pts = sorted((start + float(p.get("b", 0)) * bpb, float(p.get("v", 1)),
-                              p.get("shape"), float(p.get("curve") or 0)) for p in env)
-                now[addr] = value_at(pts, beat)
+            end = e.get("active", e.get("stop", e["beat"]))
+            if addr and e["beat"] <= beat < end:
+                now[addr] = self.gain(e, beat)
         sent = self.env_sent
         for addr in [a for a in sent if a not in now]:
             del sent[addr]
@@ -577,6 +653,35 @@ class Player:
                 sent[addr] = v
                 if not self.panicked:              # quietly: it streams
                     self.sender.sock.sendto(osc_encode(addr, [float(v)]), self.sender.addr)
+
+    @staticmethod
+    def shapes_opacity(e):
+        """Whether the player sets this cue's clip opacity: an envelope or a ramp."""
+        if e.get("end_of") or e["beat"] is None or e["problem"] or not e["messages"]:
+            return False
+        f = e.get("fade") or {}
+        return bool(e["cue"].get("env") or f.get("in") or f.get("out"))
+
+    def gain(self, e, beat):
+        """The clip's opacity at a beat: its envelope times its fade in and out."""
+        bpb = self.show.get("beats_per_bar", 4)
+        g = 1.0
+        env = e["cue"].get("env")
+        if env:
+            pts = sorted((e["beat"] + float(p.get("b", 0)) * bpb, float(p.get("v", 1)),
+                          p.get("shape"), float(p.get("curve") or 0)) for p in env)
+            g = value_at(pts, beat)
+        f = e.get("fade") or {}
+        shape, curve = f.get("ease") or EASES["smooth"]
+        if f.get("in"):
+            a, b = f["in"]
+            if beat < b:
+                g *= bend((beat - a) / (b - a), shape, curve)
+        if f.get("out"):
+            a, b = f["out"]
+            if beat > a:
+                g *= 1 - bend((beat - a) / (b - a), shape, curve)
+        return max(0.0, min(1.0, g))
 
     def write_state(self, beat, force=False):
         """What the player is doing, for the timeline to mirror. ~20 times a second
@@ -620,12 +725,29 @@ class Player:
         if entry["problem"]:
             print(f"{CLEAR}   !! {tag}   {entry['problem']}")
             return
-        # a fade only when the cue is played into; a restate or a panic snaps
-        secs = fade_seconds(c, self.show) if not why else 0.0
+        # a fade only when the cue is played into; a restate or a panic snaps.
+        # On a video lane Resolume's transition is only for a crossfade within the
+        # layer; fading in from empty is the clip's opacity (below), so it's 0.
+        f = entry.get("fade")
+        if why:
+            secs = 0.0
+        elif f is not None:
+            secs = min(MAX_FADE, f["cross"] * 60.0 / self.show["tempo"])
+        else:
+            secs = fade_seconds(c, self.show)
         if self.fades and entry["messages"]:
             self.fades.set(layers_hit(entry["messages"], self.fades.n_layers), secs)
-        print(f"{CLEAR}   >> {tag}{'   (' + why + ')' if why else ''}"
-              f"{f'   fade {secs:g}s' if secs else ''}")
+        how = f"   crossfade {secs:g}s" if secs else ""
+        if f and f.get("in") and not why:
+            how += f"   fade in {(f['in'][1] - f['in'][0]) * 60 / self.show['tempo']:g}s"
+        print(f"{CLEAR}   >> {tag}{'   (' + why + ')' if why else ''}{how}")
+        if self.shapes_opacity(entry):
+            # its opacity first, so a fade in doesn't start with a frame at full
+            addr = clip_opacity_address(entry["messages"])
+            if addr:
+                g = self.gain(entry, max(entry["beat"], self.pos if self.pos is not None else entry["beat"]))
+                self.sender.sock.sendto(osc_encode(addr, [float(g)]), self.sender.addr)
+                self.env_sent[addr] = g
         for address, args in entry["messages"]:
             self.sender.send(address, args)
         self.recent.append({"bar": entry["bar"], "lane": c["lane"], "value": c.get("value"),
@@ -824,7 +946,18 @@ def dry_run(show, plan, mapping):
             osc = "(note)"
         else:
             osc = "  ".join(f"{a} {args}" for a, args in e["messages"])
-            if c.get("fade_bars"):
+            f = e.get("fade")
+            if f is not None:
+                bpb = show.get("beats_per_bar", 4)
+                bits = []
+                if f["cross"]:
+                    bits.append(f"crossfade {f['cross'] / bpb:g} bar")
+                if f["in"]:
+                    bits.append(f"in {(f['in'][1] - f['in'][0]) / bpb:g} bar")
+                if f["out"]:
+                    bits.append(f"out {(f['out'][1] - f['out'][0]) / bpb:g} bar")
+                osc = (", ".join(bits) or "cut") + "  " + osc
+            elif c.get("fade_bars"):
                 secs = fade_seconds(c, show)
                 full = float(c["fade_bars"]) * show.get("beats_per_bar", 4) * 60 / show["tempo"]
                 osc = f"fade {c['fade_bars']:g} bar(s) = {secs:g}s" + \

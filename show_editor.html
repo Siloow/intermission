@@ -108,6 +108,17 @@
   .cue .fh{position:absolute;top:0;width:14px;height:11px;margin-left:-7px;cursor:ew-resize;z-index:2;
     background:#fff;clip-path:polygon(0 0,100% 0,50% 100%);opacity:0}
   .cue:hover .fh,.cue.sel .fh{opacity:.95}
+  .cue .fadeov.out{left:auto;right:0;
+    background:linear-gradient(to bottom left, transparent calc(50% - 1px), rgba(0,0,0,.55) 50%, transparent calc(50% + 1px)),
+               linear-gradient(to left, rgba(0,0,0,.35), rgba(0,0,0,0))}
+  .cue .fadeov.auto{opacity:.6}
+  #pick-fadeout{display:flex;gap:4px;align-items:center;color:var(--text-2);font-size:var(--fs-sm);flex-wrap:wrap}
+  #pick-fadeout button{height:24px;padding:0 8px}
+  #pick-fadeout button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  #pick-fade .fl,#pick-fadeout .fl{width:24px;color:var(--text-3)}
+  table.fades{width:100%;border-collapse:collapse;margin:4px 0 8px}
+  table.fades td,table.fades th{padding:2px 4px;font-size:var(--fs-sm);text-align:left;color:var(--text-2);font-weight:500}
+  table.fades input{width:64px}
   .cue .pickbtn{position:absolute;right:8px;top:3px;z-index:2;border:none;height:16px;padding:0 5px;
     font-size:10px;background:rgba(0,0,0,.22);color:#101114;border-radius:4px}
   .cue .pickbtn:hover{background:rgba(0,0,0,.4)}
@@ -247,7 +258,8 @@
               <div class="row"><label>Section</label><select id="c-section"></select></div>
               <div class="row"><label>Offset</label><input id="c-offset" type="number" step="1"><span class="pill">bars</span></div>
               <div class="row"><label>Length</label><input id="c-length" type="number" step="1" min="1"><span class="pill">bars</span></div>
-              <div class="row"><label>Fade in</label><input id="c-fade" type="number" step="0.5" min="0"><span class="pill" id="fade-secs">bars</span></div>
+              <div class="row"><label>Fade in</label><input id="c-fade" type="number" step="0.25" min="0"><span class="pill" id="fade-secs">bars</span></div>
+              <div class="row" id="fadeout-row"><label>Fade out</label><input id="c-fadeout" type="number" step="0.25" min="0"><span class="pill" id="fadeout-note">bars</span></div>
               <div class="row" id="end-row"><label>At the end</label><select id="c-end">
                 <option value="" id="end-default">lane's default</option>
                 <option value="clear">clear the layer</option>
@@ -278,6 +290,14 @@
             <div class="section-title">Room now</div>
             <div id="lightstrip"></div>
             <p class="hint" id="playing-look">—</p>
+          </div>
+          <div class="section">
+            <div class="section-title">Fades</div>
+            <p class="hint dim">Every clip on these lanes fades by itself: into the same
+              layer as the one before it, a crossfade; from or to nothing, its opacity eases.
+              Drag a clip's ◤ ◥ handles, or set its own in the Cue tab.</p>
+            <table class="fades" id="fade-defaults"></table>
+            <div class="row"><label>Easing</label><select id="fade-ease"></select></div>
           </div>
           <div class="section">
             <div class="section-title">Setlist</div>
@@ -344,9 +364,12 @@
 <div id="pick" class="pop" hidden>
   <input id="pick-q" placeholder="clip, look or scene…" autocomplete="off">
   <div id="pick-list"></div>
-  <div id="pick-fade">fade in
-    <button data-f="0">cut</button><button data-f="0.5">½</button><button data-f="1">1</button>
-    <button data-f="2">2</button><button data-f="4">4</button> bars</div>
+  <div id="pick-fade"><span class="fl">in</span>
+    <button data-f="auto" title="the lane's default (Show tab → Fades)">auto</button><button data-f="0">cut</button><button data-f="0.5">½</button><button data-f="1">1</button>
+    <button data-f="2">2</button><button data-f="4">4</button></div>
+  <div id="pick-fadeout"><span class="fl">out</span>
+    <button data-fo="auto" title="the lane's default (Show tab → Fades)">auto</button><button data-fo="0">cut</button><button data-fo="0.5">½</button><button data-fo="1">1</button>
+    <button data-fo="2">2</button><button data-fo="4">4</button> <span id="pick-fadeout-note"></span></div>
   <input id="pick-note" placeholder="note — intent, in words" autocomplete="off">
   <div class="hint">↑↓ choose · enter set · tab to note · esc close</div>
 </div>
@@ -549,6 +572,48 @@ const snapPtBar = bar => (+el("snap").value ? Math.round(bar) : Math.round(bar *
 const laneLayer = lane => ((mapping.lanes || {})[lane] || {}).layer;
 const DEFAULT_END = {screen: "clear", overlay: "clear", lights: "clear", td: "clear", scenes: "hold", note: "hold"};
 const endMode = c => c.end || DEFAULT_END[c.lane] || "hold";
+
+// Fades on the video lanes, the same rules the player uses: a cue's own
+// fade_bars / fade_out_bars (0 = cut), else its lane's default. Into the same
+// layer as the clip before it, it's a crossfade; into an empty layer, the clip's
+// opacity eases up; with nothing after it, it eases down before the layer clears.
+const FADE_DEFAULTS = {screen: {in: 1, out: 1}, overlay: {in: 1, out: 1}, lights: {in: 0.5, out: 0.5}};
+const EASE_NAMES = {smooth: "smooth (S-curve)", linear: "straight", in: "ease in", out: "ease out"};
+const fadeDefault = (lane, which) => {
+  const d = (cues.fade_defaults || {})[lane];
+  return d && d[which] != null ? +d[which] : ((FADE_DEFAULTS[lane] || {})[which] || 0);
+};
+const cueLayer = c => +(c.layer || laneLayer(c.lane));
+function fadeText(c){
+  const f = fadeInfo(c);
+  if (!f) return c.fade_bars ? ` · fade ${c.fade_bars}` : "";
+  const bits = [];
+  if (f.fin) bits.push(`${f.cross ? "×" : "◢"} ${f.fin}`);
+  if (f.out) bits.push(`◣ ${f.out}`);
+  return bits.length ? " · " + bits.join(" ") : " · cut";
+}
+function neighbours(c){
+  const bar = cueBar(c);
+  if (bar === null) return {};
+  const same = cues.cues.filter(x => x.lane === c.lane && x !== c && cueBar(x) !== null);
+  const after = same.filter(x => cueBar(x) >= bar).sort((a, b) => cueBar(a) - cueBar(b))[0];
+  const next = after && (endMode(c) === "hold" || cueBar(after) <= bar + (c.length_bars || 8) + 1e-6) ? after : null;
+  const before = same.filter(x => cueBar(x) <= bar).sort((a, b) => cueBar(b) - cueBar(a))[0];
+  const prev = before && (endMode(before) === "hold" || bar <= cueBar(before) + (before.length_bars || 8) + 1e-6) ? before : null;
+  return {prev, next};
+}
+function fadeInfo(c){
+  if (!FADE_DEFAULTS[c.lane]) return null;
+  const len = c.length_bars || 8;
+  const own = k => c[k] != null;
+  const fin = Math.min(len, own("fade_bars") ? +c.fade_bars : fadeDefault(c.lane, "in"));
+  const {prev, next} = neighbours(c);
+  let out = 0, outNote = "";
+  if (next) outNote = cueLayer(next) === cueLayer(c) ? "crossfades into the next clip" : "fades out as the next clip fades in";
+  else if (endMode(c) === "clear") out = Math.min(len, own("fade_out_bars") ? +c.fade_out_bars : fadeDefault(c.lane, "out"));
+  return {fin, out, cross: !!(prev && cueLayer(prev) === cueLayer(c)), outNote,
+          inAuto: !own("fade_bars"), outAuto: !own("fade_out_bars"), hasNext: !!next};
+}
 function findLayer(ref){
   if (!comp || ref === undefined || ref === null || ref === "") return null;
   return comp.layers.find(l => l.index === +ref ||
@@ -607,7 +672,7 @@ function cueDetail(c, r, bar){
     `<b>${bar === null ? "? " : ""}${esc(c.value || "cue")}</b>`,
     `<i class="${r.ok === false ? "bad" : ""}">${mark}${esc(r.text)}</i>`,
     r.column ? `<i>${esc(r.columnClips)}</i>`
-             : `<i>${c.length_bars || 8} bars${c.fade_bars ? ` · fade ${c.fade_bars}` : ""} · ${endMode(c) === "hold" ? "holds" : "clears"} after${esc(sync)}</i>`,
+             : `<i>${c.length_bars || 8} bars${fadeText(c)} · ${endMode(c) === "hold" ? "holds" : "clears"} after${esc(sync)}</i>`,
     c.note ? `<i>“${esc(c.note)}”</i>` : ""];
   return img + `<div class="info">${lines.join("")}</div>`;
 }
@@ -748,17 +813,31 @@ function draw(sidebar){
                                 `${c.length_bars || 8} bars`) +
                 (res.ok === null ? "" : `\n${res.ok ? "✓" : "✗"} ${res.text}`);
       d.dataset.id = c.id;
-      const fb = Math.min(+c.fade_bars || 0, c.length_bars || 8);
+      const fi = fadeInfo(c);
+      const fb = fi ? fi.fin : Math.min(+c.fade_bars || 0, c.length_bars || 8);
+      const bars = n => `${n} bar${n === 1 ? "" : "s"}`;
       if (fb > 0){
-        const ov = document.createElement("div"); ov.className = "fadeov";
+        const ov = document.createElement("div"); ov.className = "fadeov" + (fi && fi.inAuto ? " auto" : "");
         ov.style.width = fb * pxPerBar + "px";
+        d.appendChild(ov);
+      }
+      if (fi && fi.out > 0){
+        const ov = document.createElement("div"); ov.className = "fadeov out" + (fi.outAuto ? " auto" : "");
+        ov.style.width = fi.out * pxPerBar + "px";
         d.appendChild(ov);
       }
       if (c.lane !== "note"){
         const fh = document.createElement("div"); fh.className = "fh"; fh.dataset.grip = "fade";
         fh.style.left = Math.max(5, fb * pxPerBar) + "px";
-        fh.title = fb ? `fade in ${fb} bar${fb === 1 ? "" : "s"}: drag to change` : "drag right to fade in";
+        fh.title = (fb ? `${fi && fi.cross ? "crossfade" : "fade in"} ${bars(fb)}${fi && fi.inAuto ? " (the lane's default)" : ""}: drag to change`
+                       : "drag right to fade in") + (fi ? " · Show tab → Fades for the defaults" : "");
         d.appendChild(fh);
+      }
+      if (fi && !fi.hasNext && endMode(c) === "clear"){
+        const fo = document.createElement("div"); fo.className = "fh out"; fo.dataset.grip = "fadeout";
+        fo.style.left = Math.max(5, ((c.length_bars || 8) - fi.out) * pxPerBar) + "px";
+        fo.title = (fi.out ? `fade out ${bars(fi.out)}${fi.outAuto ? " (the lane's default)" : ""}: drag to change` : "drag left to fade out");
+        d.appendChild(fo);
       }
       if (ENV_LANES.includes(c.lane) && ((c.env && c.env.length) || envEdit === c.id)){
         d.appendChild(envSvg(c, open));
@@ -912,7 +991,32 @@ el("tl").addEventListener("click", e => {
   }
 });
 
+function drawFadeDefaults(){
+  const t = el("fade-defaults");
+  if (!t || document.activeElement && t.contains(document.activeElement)) return;
+  t.innerHTML = `<tr><th></th><th>in</th><th>out</th><th></th></tr>` +
+    Object.keys(FADE_DEFAULTS).map(l => `<tr><td>${esc((LANES.find(x => x[0] === l) || [])[1] || l)}</td>` +
+      ["in", "out"].map(w => `<td><input type="number" min="0" step="0.25" data-fd="${l}:${w}" value="${fadeDefault(l, w)}"></td>`).join("") +
+      `<td class="dim">bars</td></tr>`).join("");
+  const ease = (cues.fade_defaults || {}).ease || "smooth";
+  el("fade-ease").innerHTML = Object.entries(EASE_NAMES).map(([k, n]) =>
+    `<option value="${k}" ${k === ease ? "selected" : ""}>${n}</option>`).join("");
+}
+el("fade-defaults").addEventListener("change", e => {
+  const k = e.target.dataset && e.target.dataset.fd; if (!k) return;
+  const [lane, which] = k.split(":");
+  mark();
+  cues.fade_defaults = cues.fade_defaults || {};
+  cues.fade_defaults[lane] = Object.assign({}, cues.fade_defaults[lane], {[which]: Math.max(0, Math.round(+e.target.value * 4) / 4)});
+  draw(); save();
+});
+el("fade-ease").addEventListener("change", e => {
+  mark();
+  cues.fade_defaults = Object.assign({}, cues.fade_defaults, {ease: e.target.value});
+  draw(); save();
+});
 function drawSidebar(){
+  drawFadeDefaults();
   el("setlist").innerHTML = show.songs.map(g =>
     `<tr><td>${g.name}</td><td style="text-align:right;color:var(--dim)">${g.bars.toFixed(0)} bars</td>
      <td style="text-align:right;color:var(--dim)">${(g.seconds/60).toFixed(1)}m</td></tr>`).join("");
@@ -993,10 +1097,20 @@ function drawSidebar(){
   fillMedia(c.lane);
   el("c-offset").value = c.offset_bars || 0;
   el("c-length").value = c.length_bars || 8;
-  el("c-fade").value = c.fade_bars || 0;
+  const fi = fadeInfo(c);
+  el("c-fade").value = c.fade_bars != null ? c.fade_bars : (fi ? "" : 0);
+  el("c-fade").placeholder = fi ? `${fadeDefault(c.lane, "in")} (lane's)` : "0";
   el("c-fade").closest(".row").style.display = c.lane === "note" ? "none" : "";
-  const fs = (+c.fade_bars || 0) * bpb() * 60 / show.tempo;
-  el("fade-secs").textContent = fs ? `bars · ${fs.toFixed(1)}s` + (fs > 10 ? " → 10s, Resolume's max" : "") : "bars";
+  const fs = (fi ? fi.fin : (+c.fade_bars || 0)) * bpb() * 60 / show.tempo;
+  el("fade-secs").textContent = (fs ? `bars · ${fs.toFixed(1)}s` : "bars") + (fi && fi.cross ? " · crossfade" : "") +
+                                (fi && fi.cross && fs > 10 ? " → 10s, Resolume's max" : "");
+  el("fadeout-row").style.display = fi ? "" : "none";
+  if (fi){
+    el("c-fadeout").value = c.fade_out_bars != null ? c.fade_out_bars : "";
+    el("c-fadeout").placeholder = `${fadeDefault(c.lane, "out")} (lane's)`;
+    el("c-fadeout").disabled = fi.hasNext || endMode(c) !== "clear";
+    el("fadeout-note").textContent = fi.hasNext ? fi.outNote : endMode(c) !== "clear" ? "holds: no fade out" : "bars";
+  }
   el("make-row").style.display = r.look && !many ? "" : "none";
   el("end-row").style.display = ["screen", "overlay", "lights", "td", "scenes"].includes(c.lane) ? "" : "none";
   el("end-default").textContent = `lane's default — ${DEFAULT_END[c.lane] === "clear" ? "clears" : "holds"}`;
@@ -1261,11 +1375,13 @@ el("tl").addEventListener("pointerdown", e => {
   if (head){                                        // scrub, like Live's ruler
     drag = {kind:"scrub"};
     seekToBar(Math.max(1, xToBar(x)));
-  } else if (cueEl && e.target.dataset.grip === "fade"){
+  } else if (cueEl && (e.target.dataset.grip === "fade" || e.target.dataset.grip === "fadeout")){
     const c = byId(cueEl.dataset.id);
     if (!selSet.has(c.id)) select([c.id]);
-    drag = {kind:"fade", pending:true, x0:x,
-            start: selected().map(c => ({c, fade:+c.fade_bars || 0, len:c.length_bars || 8}))};
+    const out = e.target.dataset.grip === "fadeout";
+    drag = {kind:"fade", out, pending:true, x0:x,
+            start: selected().map(c => { const fi = fadeInfo(c);
+              return {c, fade: fi ? (out ? fi.out : fi.fin) : +c.fade_bars || 0, len: c.length_bars || 8}; })};
     draw();
   } else if (cueEl && e.target.dataset.grip){
     const c = byId(cueEl.dataset.id);
@@ -1383,12 +1499,16 @@ el("tl").addEventListener("pointermove", e => {
   }
 
   if (drag.kind === "fade"){
-    const delta = (x - drag.x0) / pxPerBar;
+    const delta = (x - drag.x0) / pxPerBar * (drag.out ? -1 : 1);
     drag.start.forEach(({c, fade, len}) => {
-      const f = Math.max(0, Math.min(len, Math.round((fade + delta) * 2) / 2));
-      if (f) c.fade_bars = f; else delete c.fade_bars;
+      const f = Math.max(0, Math.min(len, Math.round((fade + delta) * 4) / 4));
+      if (FADE_DEFAULTS[c.lane]) c[drag.out ? "fade_out_bars" : "fade_bars"] = f;      // 0 is a cut
+      else if (f) c.fade_bars = f; else delete c.fade_bars;
     });
     draw(); save();
+    const f = drag.start[0] && fadeInfo(drag.start[0].c);
+    if (f) readoutText(e, drag.out ? `fade out ${f.out} bar${f.out === 1 ? "" : "s"}`
+                                   : `${f.cross ? "crossfade" : "fade in"} ${f.fin} bar${f.fin === 1 ? "" : "s"}`);
     return;
   }
 
@@ -1679,7 +1799,7 @@ el("zoom").addEventListener("input", () => { pxPerBar = +el("zoom").value; draw(
 el("snap").addEventListener("change", () => el("snap").blur());
 
 // ------------------------------------------------------------- inspector ----
-const GROUP_FIELDS = ["c-value","c-lane","c-length","c-note","c-fade","c-end"];
+const GROUP_FIELDS = ["c-value","c-lane","c-length","c-note","c-fade","c-fadeout","c-end"];
 function bind(id, apply){
   el(id).addEventListener("change", () => {
     const list = selected();
@@ -1697,7 +1817,11 @@ bind("c-layer", (c,v) => { if (v && +v !== +laneLayer(c.lane)) c.layer = +v; els
 bind("c-length", (c,v) => c.length_bars = Math.max(1, Math.round(+v)));
 bind("c-note", (c,v) => c.note = v);
 bind("c-end", (c,v) => { if (v) c.end = v; else delete c.end; });
-bind("c-fade", (c,v) => { const f = Math.max(0, Math.round(+v * 2) / 2); if (f) c.fade_bars = f; else delete c.fade_bars; });
+bind("c-fade", (c,v) => { const f = Math.max(0, Math.round(+v * 4) / 4);
+  if (v === "" && FADE_DEFAULTS[c.lane]) delete c.fade_bars;              // empty: the lane's default
+  else if (f || FADE_DEFAULTS[c.lane]) c.fade_bars = f; else delete c.fade_bars; });
+bind("c-fadeout", (c,v) => { if (!FADE_DEFAULTS[c.lane]) return;
+  if (v === "") delete c.fade_out_bars; else c.fade_out_bars = Math.max(0, Math.round(+v * 4) / 4); });
 el("make-clip").onclick = () => { const c = (primary && byId(primary.id)) || selected()[0]; if (c) makeClips([c.value]); };
 bind("c-song", (c,v) => { c.song = v; const s = sectionsOf(v)[0]; if (s) c.section = s.name; });
 bind("c-section", (c,v) => c.section = v);
@@ -1805,6 +1929,7 @@ function openPick(c){
   el("pick-q").placeholder = c.lane === "note" ? "note text…" : c.lane === "scenes" ? "column…" : "clip or look…";
   el("pick-list").style.display = c.lane === "note" ? "none" : "";
   el("pick-fade").style.display = c.lane === "note" ? "none" : "";
+  el("pick-fadeout").style.display = FADE_DEFAULTS[c.lane] ? "" : "none";
   el("pick-note").style.display = c.lane === "note" ? "none" : "";
   el("pick-note").value = c.note || "";
   const cur = pick.opts.findIndex(o => o.value === c.value);
@@ -1831,8 +1956,13 @@ function drawPick(){
     `<div style="min-width:0"><b>${esc(o.label)}${o.value === c.value ? " ✓" : ""}</b><small>${esc(o.sub)}</small></div></div>`
   ).join("") || `<div class="hint" style="padding:4px 6px">${q ? `enter uses “${esc(q)}” as typed` :
       c.lane === "scenes" ? "no columns seen in Resolume" : "nothing in this layer yet: load a clip, or type a name"}</div>`;
-  const f = +c.fade_bars || 0;
-  el("pick-fade").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.f === f));
+  const own = (k, v) => v === "auto" ? c[k] == null : c[k] != null && +c[k] === +v;
+  const fi = fadeInfo(c);
+  el("pick-fade").querySelectorAll("button").forEach(b => b.classList.toggle("on",
+    fi ? own("fade_bars", b.dataset.f) : +b.dataset.f === (+c.fade_bars || 0)));
+  el("pick-fade").querySelector('[data-f="auto"]').style.display = fi ? "" : "none";
+  el("pick-fadeout").querySelectorAll("button").forEach(b => b.classList.toggle("on", own("fade_out_bars", b.dataset.fo)));
+  el("pick-fadeout-note").textContent = fi && fi.hasNext ? `· ${fi.outNote}` : fi && endMode(c) !== "clear" ? "· it holds" : "";
   const hi = el("pick-list").querySelector(".hi");
   if (hi) hi.scrollIntoView({block: "nearest"});
 }
@@ -1894,10 +2024,22 @@ el("pick-fade").addEventListener("click", e => {
   const b = e.target.closest("button[data-f]"); if (!b || !pick) return;
   const c = byId(pick.id); if (!c) return;
   mark();
-  const f = +b.dataset.f;
-  selected().forEach(x => { if (f) x.fade_bars = f; else delete x.fade_bars; });
+  const f = b.dataset.f;
+  selected().forEach(x => {
+    if (f === "auto") delete x.fade_bars;
+    else if (FADE_DEFAULTS[x.lane] || +f) x.fade_bars = +f;
+    else delete x.fade_bars;
+  });
   draw(); save(); drawPick(); placePick();
   el("pick-q").focus();                         // keep typing where you were
+});
+el("pick-fadeout").addEventListener("click", e => {
+  const b = e.target.closest("button[data-fo]"); if (!b || !pick) return;
+  mark();
+  selected().forEach(x => { if (!FADE_DEFAULTS[x.lane]) return;
+    if (b.dataset.fo === "auto") delete x.fade_out_bars; else x.fade_out_bars = +b.dataset.fo; });
+  draw(); save(); drawPick(); placePick();
+  el("pick-q").focus();
 });
 el("pick-note").addEventListener("keydown", e => {
   if (e.key === "Enter" || e.key === "Escape"){ e.preventDefault(); e.target.blur(); closePick(); }

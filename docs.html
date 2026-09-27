@@ -583,16 +583,28 @@ frame</i> keeps it (the cue shows a striped right edge).</p>
 shows what the plan says there, including nothing.</p>
 
 <h3>Fades</h3>
-<p>Every cue can <b>fade in</b>, in bars. Drag the small ▾ on a cue's top edge to
-the right (a diagonal line shows the fade), use the fade chips in the quick
-picker, or the <b>Fade in</b> field. When the player fires the cue it first sets
-that layer's transition time in Resolume, so Resolume crossfades on its own clock
-— smooth, and in time. A scene fades every layer.</p>
+<p>Every clip on <b>Screen A</b>, <b>Screen B</b> and <b>Lights</b> fades in and out by
+itself, with easing — nothing to draw. How depends on its neighbours:</p>
+<table>
+  <tr><th>Where the clip is</th><th>What happens</th></tr>
+  <tr><td>right after a clip in the <b>same layer</b></td><td>a real crossfade: Resolume's layer transition, on its own clock</td></tr>
+  <tr><td>into an <b>empty</b> layer</td><td>its own opacity eases up from 0</td></tr>
+  <tr><td>with <b>nothing after it</b></td><td>its opacity eases down to its end, then the layer clears</td></tr>
+  <tr><td>followed by a clip from <b>another layer</b></td><td>it fades out while that one fades in, and is cleared after</td></tr>
+</table>
 <ul>
-  <li>No fade is a cut. Jumping around the arrangement, and panic, always cut.</li>
-  <li>Resolume's longest transition is 10 s (5 bars at 120 bpm). Longer is capped,
-    and the sidebar says so. For long swells, draw an automation lane instead.</li>
-  <li>The crossfade uses the layer's blend mode: leave it on <b>Alpha</b>.</li>
+  <li><b>Defaults</b> per lane, in bars, and the easing (smooth, straight, ease in,
+    ease out): Show tab → <b>Fades</b>. Screen A/B start at 1 bar in and out, Lights at ½.</li>
+  <li><b>Per clip</b>: drag the ▾ on its top edge (fade in, from the left) or the one
+    near its right end (fade out); or <b>in</b>/<b>out</b> in the quick picker; or the
+    Cue tab's fields. <i>auto</i> (an empty field) is the lane's default, <i>cut</i> is none.
+    A faded-by-default part is drawn lighter than one you set.</li>
+  <li>The clip's opacity multiplies with its envelope (◠), the layer's and the
+    composition's automation. After the cue it's put back to 100%.</li>
+  <li>Jumping around the arrangement, and panic, always cut.</li>
+  <li>A crossfade is at most 10 s (5 bars at 120 bpm), Resolume's longest
+    transition. It uses the layer's blend mode: leave it on <b>Alpha</b>.</li>
+  <li>Other lanes (Scenes, TD) keep a plain fade in, as Resolume's transition.</li>
 </ul>
 
 <h3>Working fast: the quick picker</h3>
