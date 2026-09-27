@@ -1965,24 +1965,47 @@ el("tl").addEventListener("drop", e => {
   e.preventDefault();
   mark();
   const layerOf = lane => dragItem.kind === "clip" && dragItem.layer !== +laneLayer(lane) ? dragItem.layer : null;
+  let placed;
   if (t.swap){                                    // onto a cue: same place, new clip
-    t.swap.value = dragItem.name;
-    const L = layerOf(t.swap.lane);
-    if (L) t.swap.layer = L; else delete t.swap.layer;
-    select([t.swap.id]);
+    placed = t.swap;
+    placed.value = dragItem.name;
   } else {
-    const c = {id: newId(), lane: t.lane, song: "", section: "", offset_bars: 0,
-               length_bars: +el("snap").value || 8, value: dragItem.name, note: ""};
-    const L = layerOf(t.lane);
-    if (L) c.layer = L;
-    anchor(c, t.bar);
-    cues.cues.push(c);
-    select([c.id]);
+    placed = {id: newId(), lane: t.lane, song: "", section: "", offset_bars: 0,
+              length_bars: +el("snap").value || 8, value: dragItem.name, note: ""};
+    anchor(placed, t.bar);
+    cues.cues.push(placed);
   }
+  const L = layerOf(placed.lane);
+  if (L) placed.layer = L; else delete placed.layer;
+  select([placed.id]);
+  if (L && ["screen", "overlay", "lights"].includes(placed.lane)) copyToLane(placed, L);
   dragItem = null;
   if (panelStale){ panelStale = false; }
   buildPanel(); draw(); save();
 });
+
+// A clip from another layer is copied into the lane's layer, so the lane
+// switches inside one layer: Resolume crossfades it, and the layer's effects
+// and automation apply. Until it's there (or if it can't be, a live source)
+// the cue plays it where it is.
+async function copyToLane(c, from){
+  const where = (LANES.find(l => l[0] === c.lane) || [])[1] || c.lane;
+  el("save").textContent = `copying ${c.value} into ${where}…`;
+  try {
+    const r = await fetch("/arena/copy", {method: "POST", headers: {"Content-Type": "application/json"},
+                                          body: JSON.stringify({from, name: c.value, lane: c.lane})});
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.statusText);
+    cues.cues.filter(x => x.lane === c.lane && x.value === c.value && +x.layer === +from)
+             .forEach(x => delete x.layer);
+    el("save").textContent = out.installed.length ? `${c.value} → ${where} (layer ${out.layer})`
+                                                  : `${c.value} was already in ${where}`;
+    compShape = ""; setTimeout(pollCompOnce, 300);
+    draw(); save();
+  } catch(e){
+    el("save").textContent = `${c.value} plays from layer ${from}: ${e.message}`;
+  }
+}
 
 // ------------------------------------------------------------------ audio ---
 const audio = new Audio();

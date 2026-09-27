@@ -455,6 +455,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._send(502, json.dumps({"error": str(e)}).encode())
             _comp["t"] = 0                                  # the timeline sees them on its next poll
             return self._send(200, json.dumps(report).encode())
+        if path == "/arena/copy":
+            # a clip dropped on a lane from another layer: the same file into the
+            # lane's layer, so a lane switches inside one layer (crossfades, the
+            # layer's effects and automation all apply). A live source has no file.
+            try:
+                n = int(self.headers.get("Content-Length", 0))
+                req = json.loads(self.rfile.read(n) or b"{}")
+                comp = arena_load.fetch(ARENA)
+                _, src = arena_load.find_layer(comp, int(req["from"]))
+                clip = next((c for c in src.get("clips", []) if arena_load.name_of(c) == req["name"]), None)
+                info = ((clip or {}).get("video") or {}).get("fileinfo") or {}
+                if not info.get("path"):
+                    return self._send(409, json.dumps({"error": f"{req['name']} has no file to copy (a live source?)"}).encode())
+                lane = req["lane"]
+                layer = (arena_load.lanes().get(lane) or {}).get("layer")
+                report = arena_load.install_items(ARENA, layer, [{"name": req["name"], "url": arena_load.file_url(info["path"])}],
+                                                  lane=lane, sync=lane == "lights")
+            except (ValueError, KeyError, TypeError, OSError, RuntimeError, SystemExit) as e:
+                return self._send(502, json.dumps({"error": str(e)}).encode())
+            _comp["t"] = 0
+            return self._send(200, json.dumps(report).encode())
         if path.startswith("/library/"):
             return self.library_post(path)
         if path == "/transport":

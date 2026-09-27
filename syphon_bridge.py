@@ -26,6 +26,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, ".live", "screen.rgba")
 HEADER = struct.Struct("<4sIII")
+BAND = 120          # rows under the picture that only the lights read (band.py)
 
 
 class Sink:
@@ -41,6 +42,9 @@ class Sink:
     def write_topdown(self, img, bgra=False):
         """img: (H, W, 4) uint8, top row first (Metal / Syphon order)."""
         sh, sw = img.shape[:2]
+        if (sh - BAND) * 16 == sw * 9:
+            # 16:9 plus the light band under it (1920x1200): the band isn't projected
+            img, sh = img[:sh - BAND], sh - BAND
         if self._src != (sh, sw):
             self._src = (sh, sw)
             # nearest-neighbour index maps, flipped vertically for Blender

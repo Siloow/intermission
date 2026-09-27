@@ -71,6 +71,13 @@ def check_resolume(show, cues, mapping):
         print("      The timeline shows them striped with ✗; drag the right clip onto each.")
     else:
         say(OK, "every cue finds its clip or scene in Resolume, by name")
+    lanes = arena_load.lanes()
+    stray = [c for c in cues.get("cues", []) if c.get("layer") and c["lane"] in lanes
+             and c["layer"] != lanes[c["lane"]].get("layer")]
+    if stray:
+        say(WARN, f"{len(stray)} cue(s) play from another layer than their lane's: no crossfade, "
+                  "and that layer's effects instead of the lane's",
+            "Drag the clip from the Resolume panel onto the cue again: it's copied into the lane's layer.")
     # automation lanes aimed at Resolume parameters, found by name the same way
     try:
         index = arena_load.params(arena_load.fetch(ARENA))

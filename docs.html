@@ -234,6 +234,34 @@ the bridge needs internet once, then it is cached.</p>
 Change a number, rebuild, and the previz, the floor plan, the browser's 3D view
 and the printable plan all follow.</p>
 
+<h2>The show composition</h2>
+<p>One layer per job, the same three as the timeline's lanes. A lane then
+switches inside one layer, so Resolume crossfades it and the layer's own
+effects, blend mode and automation stay on whatever plays there.</p>
+<table>
+  <tr><th>Layer</th><th>Name</th><th>Holds</th><th>Lane</th></tr>
+  <tr><td>3 (top)</td><td>Lights</td><td>the presets and looks, 1920x120, moved down onto the band</td><td>Lights</td></tr>
+  <tr><td>2</td><td>Screen B</td><td>overlays, text, TouchDesigner live sources</td><td>Screen B</td></tr>
+  <tr><td>1</td><td>Screen A</td><td>every background visual</td><td>Screen A</td></tr>
+</table>
+<ol>
+  <li><b>Size 1920x1200</b>: the 1080 picture on top, the 120-row light band under it.</li>
+  <li><b>Name the layers</b> as above. The tools go by the numbers in
+    <code>osc_map.json</code> → <code>lanes</code>; the names are for you.</li>
+  <li><b>Move the picture up and the lights down.</b> Clips fit to the width
+    and sit in the middle, so with the layer's Transform: Screen A and B up 60 px,
+    Lights down 540 px. Check it in the composition preview once.</li>
+  <li><b>Columns are scenes</b>, if you use them: name them, the Scenes lane
+    fires them by name. They fire every layer at once.</li>
+  <li><b>Advanced Output</b>: the projector's slice takes the top 1920x1080; the
+    Lumiverse fixtures sit on the band at <code>python3 band.py</code>'s points,
+    in patch order. The Syphon bridge drops the band by itself.</li>
+  <li><b>Fill it from here</b>: Library → Screen A/B, the preset browser's
+    Install, or drag a clip from another layer onto a lane — it's copied into
+    the lane's layer.</li>
+  <li><b>Save</b> it, and play <code>identify</code> to check the patch.</li>
+</ol>
+
 <h2>Driving the pars</h2>
 <p>Resolume drives DMX by sampling pixels, so the pars need pixels of their own.
 They do <b>not</b> need video: a Solid Color layer whose opacity you automate
