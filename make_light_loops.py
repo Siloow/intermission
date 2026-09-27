@@ -290,16 +290,24 @@ def render(name, fn, bars, S, h, fps, bpm, out_dir, crf):
     frames = max(1, round(seconds * fps))
     beats = bars * 4
     path = os.path.join(out_dir, f"{name}.mp4")
-    cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24",
-           "-s", f"{S.w}x{h}", "-r", str(fps), "-i", "-",
-           "-c:v", "libx264", "-preset", "slow", "-crf", str(crf),
-           "-pix_fmt", "yuv420p", "-movflags", "+faststart", path]
-    p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    raw = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24",
+           "-s", f"{S.w}x{h}", "-r", str(fps), "-i", "-"]
+    # two files from the same frames: an mp4 for the browser's previews, and
+    # DXV for Resolume. Arena decodes H.264 badly when BPM Sync stretches it
+    # (it held the first frame for a whole loop); DXV is every frame whole.
+    encoders = [raw + ["-c:v", "libx264", "-preset", "slow", "-crf", str(crf),
+                       "-pix_fmt", "yuv420p", "-movflags", "+faststart", path],
+                raw + ["-vf", "format=rgba", "-c:v", "dxv", "-f", "mov",
+                       os.path.join(out_dir, f"{name}.mov")]]
+    procs = [subprocess.Popen(cmd, stdin=subprocess.PIPE) for cmd in encoders]
     for i in range(frames):
         row = (np.clip(rgb(fn(i / frames, S, beats)), 0, 1) * 255).astype(np.uint8)
-        p.stdin.write(np.repeat(row[None], h, 0).tobytes())
-    p.stdin.close()
-    if p.wait() != 0:
+        frame = np.repeat(row[None], h, 0).tobytes()
+        for p in procs:
+            p.stdin.write(frame)
+    for p in procs:
+        p.stdin.close()
+    if any(p.wait() != 0 for p in procs):
         raise SystemExit(f"ffmpeg failed on {name}")
     return path, frames, seconds
 

@@ -21,8 +21,8 @@ them, or a Colorize on top. The Colour category carries its own.
 | clip | bars | what |
 |---|---|---|
 | `wave.mp4` | 2 | a smooth sine travelling across the stage |
-| `sweep-lr.mp4` | 2 | a soft head crossing stage right to left |
-| `sweep-rl.mp4` | 2 | the same, the other way |
+| `sweep-lr.mp4` | 2 | a soft head crossing the stage, left to right on the plan |
+| `sweep-rl.mp4` | 2 | the same, right to left on the plan |
 | `pingpong.mp4` | 4 | a head sweeping across and back |
 | `sweep-out.mp4` | 2 | from you outward, the nearest first |
 | `sweep-in.mp4` | 2 | from the far edges in toward you |

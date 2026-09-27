@@ -389,6 +389,10 @@ def install_items(base, layer_ref, items, lane=None, refresh=False, sync=False):
             report["installed"].append(it["name"])
         cid = clips[slot - 1]["id"]
         live = it["url"].startswith("source:")
+        if it["name"] in have:
+            # Arena 7.19 hangs opening a file over a loaded clip: empty the slot first
+            api(base, f"/composition/clips/by-id/{cid}/clear", "POST")
+            time.sleep(0.3)
         try:
             # opening a live source hangs in Arena 7.19: give it a few seconds, then
             # leave it to be dragged in by hand and named with adopt_selected()
@@ -440,6 +444,13 @@ def install(base, lane="lights", names=None, refresh=False, sync=True):
         order = []
     files = [f for f in order if os.path.isfile(os.path.join(folder, f))]
     files += [f for f in media_in(folder) if f not in files and f.lower().endswith((".mp4", ".mov", ".m4v"))]
+    # a DXV .mov next to an mp4 is the same clip made for Resolume: that one goes in
+    stems = {}
+    for f in files:
+        stem = os.path.splitext(f)[0]
+        if stem not in stems or f.lower().endswith(".mov"):
+            stems[stem] = f
+    files = [stems[s] for s in dict.fromkeys(os.path.splitext(f)[0] for f in files)]
     if names:
         want = set(names)
         files = [f for f in files if os.path.splitext(f)[0] in want]
