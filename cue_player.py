@@ -297,7 +297,9 @@ def compile_cues(show, cues, mapping, snap=None):
                      "problem": None, "end_of": e})
     out += ends
     # at the same beat an end goes first, so a cue starting there is not cleared
-    out.sort(key=lambda e: (e["beat"] is None, e["beat"] or 0, 0 if e.get("end_of") else 1))
+    # and a scene (a whole column) before the lanes, so their own clips land on top of it
+    out.sort(key=lambda e: (e["beat"] is None, e["beat"] or 0, 0 if e.get("end_of") else 1,
+                            0 if e["cue"].get("lane") == "scenes" else 1))
     return out
 
 
@@ -419,6 +421,7 @@ def watch_composition(player, mapping, base, every=5.0):
                                + [[p["path"], p["id"]] for p in index])
             if shape != last:
                 last = shape
+                player.snap, player.param_index = snap, index
                 reresolve(player.plan + player.panic_plan, mapping, snap)
                 repoint_automation(player.automation, index)
                 arena_load.save_cache(snap)
@@ -653,29 +656,65 @@ class Player:
         elif k in ("r", "R"):
             self.resume()
 
-    def restate(self, beat):
-        """After a jump: put every lane where it would be if we had played here."""
-        print(f"{CLEAR}   .. jump to bar {beat / self.show.get('beats_per_bar', 4) + 1:.0f}")
-        self.fired = {id(e) for e in self.plan if e["beat"] is not None and e["beat"] <= beat}
-        latest = {}
-        for entry in self.plan:
+    def latest(self, beat, plan=None):
+        """Per lane, the last entry at or before `beat`: what that lane shows there."""
+        out = {}
+        for entry in (self.plan if plan is None else plan):
             if entry["beat"] is None or entry["beat"] > beat:
                 continue
-            latest[entry["cue"]["lane"]] = entry     # an end counts: that lane is empty now
+            out[entry["cue"]["lane"]] = entry          # an end counts: that lane is empty now
+        return out
+
+    def reload(self, show, plan, automation):
+        """The plan was edited while running: take the new one, and change only
+        the lanes whose clip right here is different now. A cue added ahead of
+        the playhead just waits to be crossed."""
+        def sig(e):
+            if e is None or e.get("end_of"):
+                return None
+            return (repr(e["messages"]), e["problem"])
+        pos = self.pos
+        before = self.latest(pos) if pos is not None else {}
+        self.show, self.plan = show, plan
+        self.automation = [a for a in (automation or [])
+                           if not a["problem"] or (a["spec"] and a["spec"].get("resolume") and a["points"])]
+        if pos is None:
+            return []
+        self.fired = {id(e) for e in plan if e["beat"] is not None and e["beat"] <= pos}
+        after = self.latest(pos)
+        changed = [l for l in dict.fromkeys(list(before) + list(after))
+                   if sig(before.get(l)) != sig(after.get(l))]
+        if changed and not self.panicked:
+            self.restate(pos, only=changed, old=before)
+        self.automate(pos, force=True)
+        return changed
+
+    def restate(self, beat, only=None, old=None):
+        """After a jump: put every lane where it would be if we had played here.
+        With `only`, just those lanes (after an edit); `old` is what they showed."""
+        if only is None:
+            print(f"{CLEAR}   .. jump to bar {beat / self.show.get('beats_per_bar', 4) + 1:.0f}")
+        self.fired = {id(e) for e in self.plan if e["beat"] is not None and e["beat"] <= beat}
+        latest = self.latest(beat)
         # every layer the plan uses shows what the plan says here, and that
         # includes nothing: a layer no current cue plays on is cleared first
         n = self.fades.n_layers if self.fades else 8
         hit = lambda e: layers_hit(e["messages"], n) if e["messages"] and not e["problem"] else []
-        managed = {L for e in self.plan if not e.get("end_of") for L in hit(e)}
         claimed = {L for e in latest.values() if not e.get("end_of") for L in hit(e)}
+        if only is None:
+            managed = {L for e in self.plan if not e.get("end_of") for L in hit(e)}
+        else:                                  # only what the edited lanes were playing
+            managed = {L for l in only for e in [(old or {}).get(l)] if e and not e.get("end_of") for L in hit(e)}
         stale = sorted(managed - claimed)
         if stale:
             print(f"{CLEAR}   >> nothing plays on layer {', '.join(map(str, stale))} here: cleared")
             for L in stale:
                 self.clear(L)
         for lane in ("scenes", "screen", "overlay", "lights", "td"):
+            if only is not None and lane not in only:
+                continue
             if lane in latest and not latest[lane].get("end_of"):
-                self.fire(latest[lane], "restate")
+                self.fire(latest[lane], "restate" if only is None else "edited")
 
 
 # ------------------------------------------------------------------- modes ---
@@ -814,6 +853,47 @@ class Keys:
             termios.tcsetattr(self.fd, termios.TCSADRAIN, self.saved)
 
 
+class PlanWatch:
+    """Notice when the timeline (or anyone) saves cues.json, show.json or
+    osc_map.json, and hand the player the new plan: no restart needed."""
+    FILES = (CUES, SHOW, MAP)
+
+    def __init__(self, player, every=0.5):
+        self.player, self.every, self.t = player, every, 0.0
+        self.stamp = self.stamps()
+
+    def stamps(self):
+        out = []
+        for f in self.FILES:
+            try:
+                out.append(os.stat(f).st_mtime_ns)
+            except OSError:
+                out.append(None)
+        return out
+
+    def check(self):
+        now = time.monotonic()
+        if now - self.t < self.every:
+            return
+        self.t = now
+        stamp = self.stamps()
+        if stamp == self.stamp:
+            return
+        try:
+            show, cues, mapping = (json.load(open(f)) for f in self.FILES)
+        except (OSError, ValueError):
+            return                             # caught mid-save: try again next time
+        self.stamp = stamp
+        p = self.player
+        plan = compile_cues(show, cues, mapping, getattr(p, "snap", None))
+        automation = compile_automation(show, cues, mapping, getattr(p, "param_index", None))
+        p.mapping = mapping
+        changed = p.reload(show, plan, automation)
+        n = sum(1 for e in plan if not e.get("end_of") and e["beat"] is not None)
+        print(f"{CLEAR}   .. plan edited: {n} cue(s)"
+              + (f", now showing the new {', '.join(changed)} here" if changed else ""))
+
+
 def follow(show, player, port, live_host, live_port, timeline=True):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -850,8 +930,11 @@ def follow(show, player, port, live_host, live_port, timeline=True):
     player.source = "live"   # who is driving: "live", or "timeline" once the browser's ▶ takes over
     if timeline:
         print("  the timeline's ▶ can drive this too (Drive, in the timeline); Live wins when it plays")
+    plan_watch = PlanWatch(player)
     try:
         while True:
+            plan_watch.check()
+            show = player.show
             ready = select.select([sock] + keys.fds, [], [], 0.5)[0]
             if keys.fds and keys.fd in ready:
                 player.key(keys.read())
@@ -1009,6 +1092,7 @@ def main():
                     panic=compile_panic(mapping, snap),
                     fades=Fades(f"http://{sender.addr[0]}:8080", len(snap["layers"])) if snap else None,
                     rest=Rest(sender.addr[0]))
+    player.snap, player.param_index, player.mapping = snap, param_index, mapping
     if snap and not a.rehearse:
         watch_composition(player, mapping, f"http://{sender.addr[0]}:8080")
     live_lanes = [x for x in automation if not x["problem"]]
