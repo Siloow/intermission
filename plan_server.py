@@ -542,6 +542,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 library.remove(req["name"]); out = {"removed": req["name"]}; _scan["t"] = 0
             elif path == "/library/live":
                 out = {"name": library.add_live(req["source"], req.get("name"), req.get("tags") or [], req.get("who", ""))}
+            elif path == "/library/adopt":
+                # a live source dragged into a slot by hand: name the selected clip
+                out = arena_load.adopt_selected(ARENA, req["name"]); _comp["t"] = 0
             elif path == "/library/install":
                 out = library.install(ARENA, req["names"], req.get("lane", "screen"))
                 _comp["t"] = 0

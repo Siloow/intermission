@@ -332,6 +332,20 @@ class Rest:
     def __init__(self, host, port=8080):
         self.host, self.port, self.conn, self.warned = host, port, None, False
 
+    by_id = True                 # Arena 7.19 has no /parameter/by-id: then through the owner
+
+    def set(self, param, value):
+        """Set a Resolume parameter: by its id where Arena can, else through the
+        layer or composition that owns it (one parameter per request)."""
+        if self.by_id:
+            status = self.request("PUT", f"/api/v1/parameter/by-id/{param['id']}", json.dumps({"value": value}))
+            if status != 404:
+                return status
+            self.by_id = False
+            print(f"{CLEAR}   (this Arena sets parameters through their layer: fine)")
+        path, body = arena_load.param_update(param, value)
+        return self.request("PUT", "/api/v1" + path, json.dumps(body))
+
     def put(self, pid, value):
         return self.request("PUT", f"/api/v1/parameter/by-id/{pid}", json.dumps({"value": value}))
 
@@ -346,8 +360,9 @@ class Rest:
                     self.conn = http.client.HTTPConnection(self.host, self.port, timeout=0.3)
                 self.conn.request(method, path, body,
                                   {"Content-Type": "application/json"} if body else {})
-                self.conn.getresponse().read()
-                return True
+                resp = self.conn.getresponse()
+                resp.read()
+                return resp.status
             except (OSError, http.client.HTTPException):
                 self.conn = None                   # reconnect once, then give up this value
         if not self.warned:
@@ -494,7 +509,7 @@ class Player:
                 self.sent[lid] = v
                 if a["spec"].get("resolume"):
                     if a.get("param") and self.rest:
-                        self.rest.put(a["param"]["id"], float(scaled(a["spec"], v)))
+                        self.rest.set(a["param"], float(scaled(a["spec"], v)))
                     continue
                 self.sender_for(a["spec"]).sock.sendto(
                     osc_encode(a["spec"]["address"], [float(scaled(a["spec"], v))]),

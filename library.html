@@ -347,8 +347,17 @@ function side(){
         <button id="i-b" ${status && status.live ? "" : "disabled"}>${chosen.every(x => inLayer(x.name, "overlay")) ? "✓ " : ""}Screen B</button>
       </div>
       <p class="hint dim" style="margin-top:6px">Installs into ${esc(layerName("screen"))} or ${esc(layerName("overlay"))}; one clip can be in both. Columns are added at the end if a layer is full.</p>
+      ${one && one._kind === "live" ? `<div class="btns"><button id="e-adopt" ${status && status.live ? "" : "disabled"}
+         title="after dragging the source into a slot in Arena and clicking that clip">Name the selected Arena clip “${esc(one.name)}”</button></div>
+         <p class="hint dim">Arena 7.19 can't load live sources by itself: drag it in once from Arena's Sources, select that clip, then press this.</p>` : ""}
       <div class="btns"><button id="e-del" class="danger">Remove from the show</button></div>
     </div>`;
+    if (el("e-adopt")) el("e-adopt").onclick = async () => {
+      const r = await fetch("library/adopt", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({name: one.name})});
+      const out = await r.json();
+      alert(r.ok ? `Named: “${out.name}”${out.layer ? ` — layer ${out.layer}, clip ${out.clip}` : ""}. The timeline can fire it by that name now.` : "Couldn't: " + out.error);
+      loadStatus();
+    };
     el("i-a").onclick = () => install(chosen.map(x => x.name), "screen");
     el("i-b").onclick = () => install(chosen.map(x => x.name), "overlay");
     if (one){
@@ -394,7 +403,12 @@ async function install(names, lane){
     if (out.installed.length) bits.push(`${out.installed.length} installed`);
     if (out.skipped.length) bits.push(`${out.skipped.length} already there`);
     if (out.columns_added) bits.push(`${out.columns_added} column${out.columns_added > 1 ? "s" : ""} added`);
-    alert(`${lane === "overlay" ? "Screen B" : "Screen A"}: ${bits.join(" · ") || "nothing to do"}`);
+    let msg = `${lane === "overlay" ? "Screen B" : "Screen A"}: ${bits.join(" · ") || "nothing to do"}`;
+    if ((out.by_hand || []).length)
+      msg += `\n\nThis Arena can't load live sources itself (7.19). For ${out.by_hand.join(", ")}:\n` +
+             `1. In Arena, drag the Syphon source from Sources into a free slot in ${lane === "overlay" ? "Screen B" : "Screen A"}'s layer.\n` +
+             `2. Click that clip so it's selected.\n3. Here, select the live entry and press “Name the selected Arena clip”.`;
+    alert(msg);
   } catch(e){ alert("Install: " + e.message); }
   loadStatus();
 }

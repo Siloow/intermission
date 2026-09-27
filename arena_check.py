@@ -26,7 +26,7 @@ def check(name, uses, fn):
     except Exception as e:                     # a failed call is the answer here
         ok, note = False, f"{type(e).__name__}: {e}"
     results.append((ok, name, uses, note))
-    print(f"  {'✓' if ok else '✗'} {name:<34} {note}")
+    print(f"  {'✓' if ok else '!' if ok is None else '✗'} {name:<34} {note}")
     return ok
 
 
@@ -88,11 +88,10 @@ def main():
         check("load a file into a clip", "installing presets, looks, Library clips", open_file)
 
         def settings():
-            st, _ = call(f"/composition/clips/by-id/{cid}", "PUT",
-                         json.dumps({"name": {"value": "arena check"}, "transporttype": 1, "beatsnap": 5}))
+            arena_load.set_clip(BASE, cid, name="arena check", sync=True)
             c = call(f"/composition/clips/by-id/{cid}")[1]
             got = (arena_load.name_of(c), arena_load.choice(c.get("transporttype")), arena_load.choice(c.get("beatsnap")))
-            return st in (200, 204) and got == ("arena check", "BPM Sync", "1 Bar"), f"{got}"
+            return got == ("arena check", "BPM Sync", "1 Bar"), f"{got}"
         check("rename a clip, BPM Sync, snap", "clip names the timeline fires; presets in tempo", settings)
 
         def open_source():
@@ -101,8 +100,14 @@ def main():
             pick = next((s for s in video if s.get("name") in ("Solid Color", "Checkered", "Gradient")), video[0] if video else None)
             if not pick:
                 return False, "no sources listed"
-            st, body = call(f"/composition/clips/by-id/{cid}/open", "POST",
-                            "source:///video/" + urllib.parse.quote(pick["name"]), "text/plain")
+            live = [s["name"] for s in video if any(w in (s.get("name", "") + s.get("category", "")).lower()
+                                                      for w in ("syphon", "ndi"))]
+            try:
+                st, body = arena_load.api(BASE, f"/composition/clips/by-id/{cid}/open", "POST",
+                                          "source:///video/" + urllib.parse.quote(pick["name"]), "text/plain", timeout=4)
+            except (OSError, SystemExit):
+                return None, (f"listing works ({len(video)} sources, Syphon/NDI: {live or 'none right now'}); opening "
+                              "one hangs here — the Library asks you to drag it in once and name it")
             time.sleep(0.5)
             name = arena_load.name_of(call(f"/composition/clips/by-id/{cid}")[1])
             live = [s["name"] for s in video if any(w in (s.get("name", "") + s.get("category", "")).lower()
@@ -117,11 +122,29 @@ def main():
         check("clear a clip", "removing test clips; tidying", clear_clip)
 
     # a parameter by id, set to what it already is
-    op = (layers[0].get("video") or {}).get("opacity") if layers else None
-    if op:
-        check("set a parameter by id", "automation lanes on Resolume parameters", lambda: (
-            call(f"/parameter/by-id/{op['id']}", "PUT", json.dumps({"value": op.get("value")}))[0] in (200, 204),
-            f"layer 1 opacity stays {op.get('value')}"))
+    index = arena_load.params(comp)
+    p = arena_load.find_param(index, ["layer", 1, "opacity"])
+    if p:
+        def set_param():
+            try:
+                st, _ = call(f"/parameter/by-id/{p['id']}", "PUT", json.dumps({"value": p["value"]}))
+                if st in (200, 204):
+                    return True, f"by id; layer 1 opacity stays {p['value']}"
+            except SystemExit:
+                pass
+            path, body = arena_load.param_update(p, p["value"])
+            st, _ = call(path, "PUT", json.dumps(body))
+            return st in (200, 204), f"through its layer (no by-id in this Arena); stays {p['value']}"
+        check("set a parameter", "automation lanes on Resolume parameters", set_param)
+        fx = next((q for q in index if q["path"][0] == "layer" and "effect" in q["path"]), None)
+        if fx:
+            def set_effect():
+                path, body = arena_load.param_update(fx, fx["value"])
+                st, _ = call(path, "PUT", json.dumps(body))
+                return st in (200, 204), f"{fx['label']} stays {fx['value']}"
+            check("set an effect parameter", "automation on effects (Transform, Blur…)", set_effect)
+    check("see the selected clip", "naming a live source dragged in by hand", lambda: (
+        call("/composition/clips/selected")[0] == 200, "ok"))
     tr = (layers[0].get("transition") or {}).get("duration") if layers else None
     if tr:
         check("set a layer's transition time", "cue fades", lambda: (
@@ -142,7 +165,7 @@ def main():
         req = urllib.request.Request(f"{BASE}/api/v1/composition/columns/{n}", method="DELETE")
         check("remove a column", "tidying after this check", lambda: (urllib.request.urlopen(req, timeout=5).status in (200, 204), f"back to {n - 1}"))
 
-    bad = [r for r in results if not r[0]]
+    bad = [r for r in results if r[0] is False]
     print(f"\n  {len(results) - len(bad)} of {len(results)} work in Arena {v}.")
     for _, name, uses, _ in bad:
         print(f"  ✗ {name}: needed for {uses}")

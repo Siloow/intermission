@@ -43,14 +43,14 @@ def media_in(folder):
         return []
 
 
-def api(base, path, method="GET", body=None, ctype="application/json"):
+def api(base, path, method="GET", body=None, ctype="application/json", timeout=10):
     url = f"{base}/api/v1{path}"
     data = body.encode() if isinstance(body, str) else body
     req = urllib.request.Request(url, data=data, method=method)
     if data is not None:
         req.add_header("Content-Type", ctype)
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             raw = r.read()
             return r.status, (json.loads(raw) if raw and r.headers.get_content_type()
                               == "application/json" else raw.decode(errors="replace"))
@@ -88,16 +88,38 @@ def file_url(path):
     return "file://" + urllib.parse.quote(os.path.abspath(path))
 
 
+def set_clip(base, clip_id, name=None, sync=False):
+    """Name a clip and/or put it in tempo, one setting per request, each read
+    back until it has taken: Arena 7.19 ignores a request that changes several
+    settings at once, and drops changes that arrive too quickly after another.
+    BPM Sync resets the snap, so the snap goes last."""
+    path = f"/composition/clips/by-id/{clip_id}"
+    wants = []
+    if name:
+        wants.append(("name", name, [{"name": {"value": name}}]))
+    if sync:
+        # lock playback to the tempo, and start on a bar. With Ableton Link on in
+        # Arena, that tempo follows Live, so a 2-bar loop stays in time.
+        wants.append(("transporttype", "BPM Sync", [{"transporttype": {"value": "BPM Sync"}}, {"transporttype": BPM_SYNC}]))
+        wants.append(("beatsnap", "1 Bar", [{"beatsnap": {"value": "1 Bar"}}, {"beatsnap": ONE_BAR}]))
+    for field, value, bodies in wants:
+        for attempt in range(6):
+            api(base, path, "PUT", json.dumps(bodies[attempt % len(bodies)]))
+            time.sleep(0.15 + 0.1 * attempt)
+            _, c = api(base, path)
+            got = name_of(c) if field == "name" else choice((c or {}).get(field))
+            if got == value:
+                break
+        else:
+            raise RuntimeError(f"Arena didn't take {field} = {value!r} for that clip")
+
+
 def load_clip(base, clip_id, path, sync=True):
     status, body = api(base, f"/composition/clips/by-id/{clip_id}/open", "POST",
                        file_url(path), "text/plain")
     if status not in (200, 204) or (isinstance(body, str) and body.strip() == "mismatch"):
         raise RuntimeError(f"loading {os.path.basename(path)} failed: {status} {body}")
-    if sync:
-        # lock playback to the tempo, and start on a bar. With Ableton Link on in
-        # Arena, that tempo follows Live, so a 2-bar loop stays in time.
-        api(base, f"/composition/clips/by-id/{clip_id}",
-            "PUT", json.dumps({"transporttype": BPM_SYNC, "beatsnap": ONE_BAR}))
+    set_clip(base, clip_id, sync=sync)
 
 
 def map_write(entries):
@@ -268,7 +290,7 @@ def _effects(fx_list, prefix, label, out):
                 out.append({"path": prefix + ["effect", key, pname],
                             "label": f"{label} · {key} · {pname}", "group": label,
                             "id": node["id"], "min": node.get("min", 0), "max": node.get("max", 1),
-                            "value": node.get("value")})
+                            "value": node.get("value"), "fx_id": fx.get("id")})
 
 
 def params(comp):
@@ -303,6 +325,27 @@ def params(comp):
     return out
 
 
+def param_update(p, value):
+    """(url path, body) to set a parameter through what owns it, for Arena
+    versions without /parameter/by-id (7.19). One parameter per request."""
+    path = p["path"]
+    v = {"value": value}
+    if path[0] == "composition":
+        owner = "/composition"
+        if path[1] == "master":
+            return owner, {"master": v}
+        if path[1] == "opacity":
+            return owner, {"video": {"opacity": v}}
+    else:
+        owner = f"/composition/layers/{path[1]}"
+        if path[2] == "master":
+            return owner, {"master": v}
+        if path[2] == "opacity":
+            return owner, {"video": {"opacity": {"id": p["id"], "value": value}}}
+    # an effect's parameter: the effect by its id, the parameter by its name
+    return owner, {"video": {"effects": [{"id": p["fx_id"], "params": {path[-1]: v}}]}}
+
+
 def find_param(index, path):
     want = json.dumps(path)
     return next((p for p in index if json.dumps(p["path"]) == want), None)
@@ -331,7 +374,8 @@ def install_items(base, layer_ref, items, lane=None, refresh=False, sync=False):
     if added:
         index, layer = find_layer(composition(base), layer_ref)
     clips = layer.get("clips", [])
-    report = {"installed": [], "refreshed": [], "skipped": [], "columns_added": added, "layer": index}
+    report = {"installed": [], "refreshed": [], "skipped": [], "columns_added": added, "layer": index,
+              "by_hand": []}
     mapping = {}
     for it in items:
         if it["name"] in have:
@@ -344,18 +388,44 @@ def install_items(base, layer_ref, items, lane=None, refresh=False, sync=False):
             slot = free.pop(0)
             report["installed"].append(it["name"])
         cid = clips[slot - 1]["id"]
-        status, body = api(base, f"/composition/clips/by-id/{cid}/open", "POST", it["url"], "text/plain")
+        live = it["url"].startswith("source:")
+        try:
+            # opening a live source hangs in Arena 7.19: give it a few seconds, then
+            # leave it to be dragged in by hand and named with adopt_selected()
+            status, body = api(base, f"/composition/clips/by-id/{cid}/open", "POST", it["url"],
+                               "text/plain", timeout=4 if live else 10)
+        except (OSError, SystemExit) as e:
+            if not live:
+                raise
+            for group in ("installed", "refreshed"):
+                if it["name"] in report[group]:
+                    report[group].remove(it["name"])
+            report["by_hand"].append(it["name"])
+            if it["name"] not in have:
+                free.insert(0, slot)
+            continue
         if status not in (200, 204) or (isinstance(body, str) and body.strip() == "mismatch"):
             raise RuntimeError(f"loading {it['name']} failed: {status} {body}")
-        settings = {"name": {"value": it["name"]}}
-        if sync:
-            settings.update({"transporttype": BPM_SYNC, "beatsnap": ONE_BAR})
-        api(base, f"/composition/clips/by-id/{cid}", "PUT", json.dumps(settings))
+        set_clip(base, cid, name=it["name"], sync=sync)
         if lane:
             mapping[f"{lane}:{it['name']}"] = {"layer": index, "clip": slot}
     if mapping:
         map_write(mapping)
     return report
+
+
+def adopt_selected(base, name):
+    """Name the clip selected in Arena: for a live source dragged in by hand."""
+    status, c = api(base, "/composition/clips/selected")
+    if status != 200 or not isinstance(c, dict) or not c.get("id"):
+        raise RuntimeError("no clip is selected in Arena: click the slot you dragged the source into")
+    set_clip(base, c["id"], name=name)
+    comp = composition(base)
+    for i, l in enumerate(comp.get("layers", []), 1):
+        for j, x in enumerate(l.get("clips", []), 1):
+            if x.get("id") == c["id"]:
+                return {"name": name, "layer": i, "clip": j}
+    return {"name": name}
 
 
 def install(base, lane="lights", names=None, refresh=False, sync=True):

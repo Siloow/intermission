@@ -804,6 +804,24 @@ looks, plan and bounces — no Ableton project to move.</p>
   </div>
 </div>
 
+<h3>Arena 7.19.2 (the licensed version)</h3>
+<p>The show runs on Arena <b>7.19.2</b>. Newer versions run as a demo there, with a
+watermark. <code>python3 arena_check.py</code> tries every Resolume call the tools use
+against whatever Arena is open, and cleans up after itself. On 7.19 it all works,
+with one exception, and the tools handle the rest by themselves:</p>
+<ul>
+  <li><b>Live sources</b> (TouchDesigner over Syphon) can't be loaded by the API: drag
+    the source into a slot in Arena once, select that clip, and press <b>Name the
+    selected Arena clip</b> on the live entry in the Library.</li>
+  <li>7.19 has no parameter-by-id: automation sets Resolume parameters through their
+    layer or the composition instead — automatically.</li>
+  <li>7.19 ignores a request that changes several clip settings at once, and drops
+    quick successive ones on a clip that's loading: names and BPM Sync are set one
+    by one and checked.</li>
+</ul>
+<p>A composition saved in a newer Arena may not open in 7.19: build the show
+composition in 7.19.</p>
+
 <h2>When something is wrong</h2>
 <table>
   <tr><th>What you see</th><th>Why</th></tr>
