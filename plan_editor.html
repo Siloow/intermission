@@ -18,10 +18,20 @@
   #bandstrip{flex:none;background:var(--surface-1);border-top:1px solid var(--border);padding:8px 12px 10px}
   #bandstrip canvas{display:block;width:100%;max-width:100%;border-radius:var(--r-sm);background:#000}
   #bandstrip .hint{margin:6px 0 0}
-  #divider{height:5px;flex:none;background:var(--border);cursor:row-resize}
+  /* the plan and the 3D preview side by side; either can be hidden */
+  #split{flex:1 1 auto;display:flex;min-height:0;min-width:0}
+  #planwrap{flex:1 1 auto;min-width:160px}
+  #divider{width:5px;flex:none;background:var(--border);cursor:col-resize}
   #divider:hover{background:var(--border-strong)}
-  #view3d{position:relative;flex:0 0 40%;min-height:0;background:var(--surface-0)}
-  #view3d.hidden{display:none}
+  #view3d{position:relative;flex:0 0 45%;min-width:0;min-height:0;background:var(--surface-0)}
+  #split[data-view="plan"] #divider,#split[data-view="plan"] #view3d{display:none}
+  #split[data-view="3d"] #divider,#split[data-view="3d"] #planwrap{display:none}
+  #split[data-view="3d"] #view3d{flex:1 1 auto}
+  @media (max-width:760px){
+    #split{flex-direction:column}
+    #divider{width:auto;height:5px;cursor:row-resize}
+    #view3d{flex-basis:40%}
+  }
   #gl{display:block;width:100%;height:100%}
   #view3d-bar{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   #gl-note{color:var(--text);font-weight:550}
@@ -110,10 +120,14 @@
         <span class="readout" id="room-note"></span>
         <span class="spacer"></span>
         <button id="to-blender" title="show what Look and Loop preview in the Blender previz too, over what Resolume sends — Resolume takes it back when you switch to Live or close this tab">→ Blender</button>
+        <div class="seg" id="viewmode" title="V — the plan, the 3D preview, or both side by side">
+          <button data-v="plan">Plan</button><button data-v="both">Both</button><button data-v="3d">3D</button>
+        </div>
         <button id="band-toggle" title="B — the control band, with where each fixture samples it">Band</button>
         <button id="focus" class="icon" title="hide the inspector">⤢</button>
       </div>
 
+      <div id="split" data-view="both">
       <div id="planwrap">
         <svg id="plan"></svg>
         <div id="view-tools">
@@ -123,10 +137,6 @@
         <div id="hint" class="float">drag a fixture · drag a box to select ·
           <span class="kbd">shift</span> add · <span class="kbd">alt</span> pan ·
           <span class="kbd">S</span> snap · <span class="kbd">⌘Z</span> undo</div>
-      </div>
-      <div id="bandstrip" hidden>
-        <canvas id="band" width="1920" height="140"></canvas>
-        <p class="hint" id="band-note"></p>
       </div>
       <div id="divider" title="drag to resize"></div>
       <div id="view3d">
@@ -138,6 +148,11 @@
           <button id="gl-seat">From my seat</button>
           <button id="gl-top">From above</button>
         </div>
+      </div>
+      </div>
+      <div id="bandstrip" hidden>
+        <canvas id="band" width="1920" height="140"></canvas>
+        <p class="hint" id="band-note"></p>
       </div>
     </main>
 
@@ -231,6 +246,7 @@
           <div class="section">
             <div class="section-title">3D preview</div>
             <label class="check"><input id="gl-on" type="checkbox" checked> Show the 3D preview</label>
+            <p class="hint dim" style="margin-top:4px">Or <b>Plan · Both · 3D</b> in the toolbar (<span class="kbd">V</span>).</p>
             <p class="hint" style="margin-top:6px">The plan and the beams follow the <b>Live · Look · Loop</b> switch.</p>
           </div>
           <div class="section">
@@ -1326,7 +1342,7 @@ addEventListener("keyup", e => {
   if (e.key === "s" || e.key === "S") snapHeld = false;
   if (e.code === "Space") spaceHeld = false;
 });
-addEventListener("resize", () => { if (view.auto) fit(); draw(); });
+addEventListener("resize", () => { if (!rig) return; if (view.auto) fit(); draw(); });   // not before the rig is in
 el("fit").onclick = () => { fit(); draw(); };
 
 document.addEventListener("rig:select", e => {
@@ -1338,23 +1354,43 @@ document.addEventListener("rig:select", e => {
 
 // plan / preview divider
 (function(){
-  const div = el("divider"), stage = el("stage"), view = el("view3d");
+  const div = el("divider"), split = el("split"), view = el("view3d");
   let dragging = false;
+  const stacked = () => getComputedStyle(split).flexDirection === "column";
   div.addEventListener("pointerdown", e => { dragging = true; div.setPointerCapture(e.pointerId); });
   div.addEventListener("pointermove", e => {
     if (!dragging) return;
-    const r = stage.getBoundingClientRect();
-    const h = Math.max(80, Math.min(r.height - 120, r.bottom - e.clientY));
-    view.style.flexBasis = h + "px";
+    const r = split.getBoundingClientRect();
+    const size = stacked() ? Math.max(80, Math.min(r.height - 120, r.bottom - e.clientY))
+                           : Math.max(160, Math.min(r.width - 200, r.right - e.clientX));
+    view.style.flexBasis = size + "px";
     dispatchEvent(new Event("resize"));
   });
-  div.addEventListener("pointerup", () => { dragging = false; });
-  el("gl-on").addEventListener("change", () => {
-    const on = el("gl-on").checked;
-    view.classList.toggle("hidden", !on);
-    div.style.display = on ? "" : "none";
-    dispatchEvent(new Event("resize"));
+  div.addEventListener("pointerup", () => {
+    dragging = false;
+    try { localStorage.setItem("plan-split", view.style.flexBasis); } catch(e){}
   });
+  // Plan · Both · 3D, remembered between visits; V steps through them
+  const MODES = ["plan", "both", "3d"];
+  function setView(v){
+    split.dataset.view = v;
+    el("viewmode").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+    el("gl-on").checked = v !== "plan";
+    try { localStorage.setItem("plan-view", v); } catch(e){}
+    dispatchEvent(new Event("resize"));
+  }
+  window.setView = setView;
+  el("viewmode").addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (b) setView(b.dataset.v); });
+  el("gl-on").addEventListener("change", () => setView(el("gl-on").checked ? "both" : "plan"));
+  addEventListener("keydown", e => {
+    if (e.key.toLowerCase() !== "v" || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (/input|textarea|select/i.test(e.target.tagName)) return;
+    setView(MODES[(MODES.indexOf(split.dataset.view) + 1) % MODES.length]);
+  });
+  let saved = null, basis = null;
+  try { saved = localStorage.getItem("plan-view"); basis = localStorage.getItem("plan-split"); } catch(e){}
+  if (basis) view.style.flexBasis = basis;
+  setView(MODES.includes(saved) ? saved : "both");
 })();
 
 // inspector tabs, remembered between visits
