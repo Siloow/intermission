@@ -127,6 +127,16 @@ def layers_hit(messages, n_layers):
     return sorted(out)
 
 
+def handover_layers(end, n_layers):
+    """The layers an end entry clears: its cue's, less any the next cue plays on."""
+    layers = layers_hit(end["end_of"]["messages"], n_layers)
+    nxt = end.get("handover")
+    if nxt:
+        keep = set(layers_hit(nxt["messages"], n_layers)) if not nxt["problem"] else set()
+        layers = [L for L in layers if L not in keep]
+    return layers
+
+
 class Fades:
     """Set each layer's transition time just before a cue fires on it.
 
@@ -271,10 +281,18 @@ def compile_cues(show, cues, mapping, snap=None):
         if e["beat"] is None or end_mode(c) != "clear":
             continue
         stop = e["beat"] + float(c.get("length_bars") or 8) * bpb
-        after = [o["beat"] for o in out if o is not e and o["beat"] is not None
-                 and o["cue"]["lane"] == c["lane"] and o["beat"] > e["beat"] - 1e-6]
-        if any(b <= stop + 1e-6 for b in after):
-            continue                       # the next cue takes over; nothing to clear
+        after = sorted((o for o in out if o is not e and o["beat"] is not None
+                        and o["cue"]["lane"] == c["lane"] and o["beat"] > e["beat"] - 1e-6),
+                       key=lambda o: o["beat"])
+        nxt = next((o for o in after if o["beat"] <= stop + 1e-6), None)
+        if nxt:
+            # the next cue takes over. On the same layer Resolume switches by
+            # itself; a clip from another layer would leave this one playing
+            # underneath, so that layer is cleared at the switch.
+            if nxt["beat"] > e["beat"] + 1e-6:
+                ends.append({"cue": c, "beat": nxt["beat"], "bar": nxt["beat"] / bpb + 1,
+                             "messages": None, "problem": None, "end_of": e, "handover": nxt})
+            continue
         ends.append({"cue": c, "beat": stop, "bar": stop / bpb + 1, "messages": None,
                      "problem": None, "end_of": e})
     out += ends
@@ -544,7 +562,9 @@ class Player:
             if src["problem"] or not src["messages"]:
                 return
             n = self.fades.n_layers if self.fades else 8
-            layers = layers_hit(src["messages"], n)
+            layers = handover_layers(entry, n)
+            if not layers:
+                return
             print(f"{CLEAR}   >> bar {entry['bar']:.0f}  {c['lane']:<6} ({c.get('value')} ends)   "
                   f"clear layer {', '.join(map(str, layers))}{'   (' + why + ')' if why else ''}")
             for L in layers:
@@ -707,8 +727,12 @@ def dry_run(show, plan, mapping):
         place = f"{g_s[0]['name']} / {g_s[1]['name']}" if g_s else ""
         if e.get("end_of"):
             src = e["end_of"]
-            osc = ("(its cue does nothing)" if src["problem"] or not src["messages"] else
-                   "clear layer " + ", ".join(map(str, layers_hit(src["messages"], 8))))
+            if src["problem"] or not src["messages"]:
+                osc = "(its cue does nothing)"
+            elif not handover_layers(e, 8):
+                continue                       # the next clip plays on the same layer
+            else:
+                osc = "clear layer " + ", ".join(map(str, handover_layers(e, 8)))
             print(f"  {timecode(e['beat'], tempo):>6}  {e['bar']:>5.0f}  {place:<28} "
                   f"{c['lane']:<7} {'(' + str(c.get('value')) + ' ends)':<22} {osc}")
             continue
