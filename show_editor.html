@@ -60,8 +60,19 @@
   .alane .ahead .val{color:var(--auto);font-variant-numeric:tabular-nums;min-width:36px;font-size:var(--fs-sm);
     padding:0 4px;font-weight:600}
   .apt{cursor:grab}
-  .addlane{display:flex;gap:6px;align-items:center;padding:10px 12px;color:var(--text-3);font-size:var(--fs-sm)}
-  .addlane select{width:auto}
+  .agroup{position:relative;height:30px;border-bottom:1px solid var(--border);background:#0f1114}
+  .agroup .name{position:absolute;left:6px;top:5px;padding:1px 8px 1px 4px;font-size:var(--fs-xs);font-weight:650;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);display:flex;gap:8px;align-items:center}
+  .agroup .addauto{position:absolute;left:62px;top:4px;height:22px;padding:0 8px;font-size:var(--fs-xs)}
+  .lane .name .addauto{pointer-events:auto;margin-left:6px;height:16px;padding:0 5px;font-size:10px;line-height:1;
+    background:none;border:1px solid var(--border);color:var(--text-3);border-radius:4px;cursor:pointer}
+  .lane .name .addauto:hover{color:var(--text);border-color:var(--border-strong)}
+  .cue svg.env{position:absolute;left:0;top:0;pointer-events:none;z-index:1}
+  .cue .ept{pointer-events:auto;fill:#fff;stroke:#15161a;stroke-width:1.5;cursor:grab}
+  .cue.envedit{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--auto);z-index:3}
+  .cue .envbtn{position:absolute;right:30px;top:3px;z-index:2;border:none;height:16px;padding:0 5px;
+    font-size:10px;background:rgba(0,0,0,.22);color:#101114;border-radius:4px}
+  .cue .envbtn:hover,.cue .envbtn.on{background:rgba(0,0,0,.5);color:#fff}
 
   .grid{position:absolute;top:0;bottom:0;width:1px;background:#15181d;pointer-events:none}
   .grid.strong{background:#20242c}
@@ -326,7 +337,7 @@
   <div class="btns"><button id="sh-apply" class="primary">Draw it</button><button id="sh-cancel">Cancel</button></div>
 </div>
 <div id="tpick" class="pop" hidden>
-  <h3>Automate a Resolume parameter</h3>
+  <h3 id="tp-title">Automate</h3>
   <input id="tp-q" placeholder="layer, effect or parameter…" autocomplete="off">
   <div id="tp-list"></div>
 </div>
@@ -449,6 +460,75 @@ function valueAt(a, bar){
   return pts[pts.length - 1].value;
 }
 const targetOf = a => (mapping.targets || []).find(t => t.name === a.target);
+const cloneCue = (c, extra) => Object.assign(JSON.parse(JSON.stringify(c)), extra || {});
+// Automation sits under the layer it changes: Screen A's under Screen A, the
+// Lights' under Lights. "main" is the whole composition (and anything else).
+const AUTO_LANES = ["screen", "overlay", "lights", "td"];
+function groupOfLayer(n){ const l = laneForLayer(n); return AUTO_LANES.includes(l) ? l : "main"; }
+function autoGroup(a){
+  const t = targetOf(a);
+  if (!t) return "main";
+  if (t.resolume) return t.resolume[0] === "layer" ? groupOfLayer(t.resolume[1]) : "main";
+  const m = /^\/composition\/layers\/(\d+)\//.exec(t.address || "");
+  if (m) return groupOfLayer(+m[1]);
+  if ((t.address || "").startsWith("/composition/")) return "main";
+  return t.port && +t.port !== +((mapping.resolume || {}).port || 7000) ? "td" : "main";
+}
+const paramGroup = p => p.path[0] === "layer" ? groupOfLayer(p.path[1]) : "main";
+const groupLabel = g => g === "main" ? "Main — the whole composition" : ((LANES.find(l => l[0] === g) || [])[1] || g);
+
+// A clip's own opacity line, inside the clip: it moves and copies with it. The
+// player sets that clip's opacity from it while the cue plays (times the layer's
+// and the composition's), and puts it back to 100% after.
+const ENV_LANES = ["screen", "overlay", "lights"], ENV_PAD = 3;
+let envEdit = null;                               // the cue whose envelope is being edited
+function envSvg(c, open){
+  const len = c.length_bars || 8, w = Math.max(16, len * pxPerBar), h = open ? 72 : 24;
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "env"); svg.setAttribute("width", w); svg.setAttribute("height", h);
+  const X = b => Math.max(0, Math.min(len, b)) * pxPerBar, Y = v => ENV_PAD + (1 - v) * (h - 2 * ENV_PAD);
+  const pts = (c.env || []).slice().sort((a, b) => a.b - b.b);
+  if (pts.length){
+    let d = `M0,${Y(pts[0].v)}`;
+    pts.forEach(p => d += ` L${X(p.b)},${Y(p.v)}`);
+    d += ` L${w},${Y(pts[pts.length - 1].v)}`;
+    const shade = document.createElementNS(ns, "path");      // darker where it's dimmer
+    shade.setAttribute("d", d + ` L${w},0 L0,0 Z`); shade.setAttribute("fill", "rgba(10,11,14,.42)");
+    const line = document.createElementNS(ns, "path");
+    line.setAttribute("d", d); line.setAttribute("fill", "none");
+    line.setAttribute("stroke", "#fff"); line.setAttribute("stroke-width", "1.5");
+    svg.append(shade, line);
+  }
+  if (envEdit === c.id) pts.forEach(p => {
+    const k = document.createElementNS(ns, "circle");
+    k.setAttribute("cx", X(p.b)); k.setAttribute("cy", Y(p.v)); k.setAttribute("r", 5);
+    k.setAttribute("class", "ept");
+    k.dataset.cue = c.id; k.dataset.i = c.env.indexOf(p);
+    svg.appendChild(k);
+  });
+  return svg;
+}
+function envAt(cueEl, e, c){
+  const r = cueEl.getBoundingClientRect(), len = c.length_bars || 8;
+  let b = (e.clientX - r.left) / pxPerBar;
+  if (!e.shiftKey) b = Math.round(b * 4) / 4;              // quarter bars; shift: free
+  return {b: Math.max(0, Math.min(len, Math.round(b * 1000) / 1000)),
+          v: Math.round(Math.max(0, Math.min(1, 1 - (e.clientY - r.top - ENV_PAD) / (r.height - 2 * ENV_PAD))) * 100) / 100};
+}
+function toggleEnv(c){
+  if (!c || !ENV_LANES.includes(c.lane)) return;
+  if (envEdit === c.id){
+    envEdit = null;
+    if (c.env && c.env.every(p => p.v >= 0.999)){ mark(); delete c.env; save(); }   // flat at 100%: nothing
+  } else {
+    envEdit = c.id;
+    if (!c.env || !c.env.length){ mark(); c.env = [{b: 0, v: 1}, {b: c.length_bars || 8, v: 1}]; save(); }
+    select([c.id]);
+  }
+  draw();
+  el("save").textContent = envEdit ? "clip opacity: drag the points · double-click adds or removes one · E or esc when done" : "";
+}
 function nativeOf(a, v){                         // 0..1 -> the target's own units
   const t = targetOf(a);
   if (!t) return null;
@@ -632,13 +712,22 @@ function draw(sidebar){
   tl.append(songs, secs, ruler);
 
   laneRows = [];
+  autoRows = [];
+  const W = barToX(show.total_bars + 4);
+  const autos = cues.automation || [];
+  const mainRow = document.createElement("div"); mainRow.className = "agroup";
+  mainRow.innerHTML = `<span class="name">Main</span><button class="addauto" data-addauto="main" ` +
+    `title="automate the whole composition: master, opacity, its effects">＋ automation</button>`;
+  tl.appendChild(mainRow);
+  autos.filter(a => autoGroup(a) === "main").forEach(a => tl.appendChild(autoLane(a, W)));
   LANES.forEach(([id, label, varName]) => {
     const open = openLanes.has(id) && id !== "note";
     const lane = document.createElement("div");
     lane.className = "lane" + (open ? " open" : ""); lane.dataset.lane = id;
     const n = document.createElement("span"); n.className = "name";
     n.innerHTML = (id === "note" ? "" :
-      `<button class="fold" data-fold="${id}" title="${open ? "fold" : "show each cue's clip"}">${open ? "▾" : "▸"}</button>`) + label;
+      `<button class="fold" data-fold="${id}" title="${open ? "fold" : "show each cue's clip"}">${open ? "▾" : "▸"}</button>`) + label +
+      (AUTO_LANES.includes(id) ? `<button class="addauto" data-addauto="${id}" title="automate this layer: its opacity, master, effects">＋</button>` : "");
     lane.appendChild(n);
     cues.cues.filter(c => c.lane === id).forEach(c => {
       const bar = cueBar(c);
@@ -671,6 +760,16 @@ function draw(sidebar){
         fh.title = fb ? `fade in ${fb} bar${fb === 1 ? "" : "s"}: drag to change` : "drag right to fade in";
         d.appendChild(fh);
       }
+      if (ENV_LANES.includes(c.lane) && ((c.env && c.env.length) || envEdit === c.id)){
+        d.appendChild(envSvg(c, open));
+        if (envEdit === c.id) d.classList.add("envedit");
+      }
+      if (selSet.has(c.id) && ENV_LANES.includes(c.lane) && (c.length_bars || 8) * pxPerBar > 84){
+        const eb = document.createElement("button");
+        eb.className = "envbtn" + (envEdit === c.id ? " on" : ""); eb.dataset.env = c.id;
+        eb.textContent = "◠"; eb.title = "this clip's own opacity, inside the clip (E)";
+        d.appendChild(eb);
+      }
       if (selSet.has(c.id) && (c.length_bars || 8) * pxPerBar > 60){
         const pb = document.createElement("button"); pb.className = "pickbtn"; pb.dataset.pick = c.id;
         pb.textContent = "▾"; pb.title = "pick clip, fade and note (enter)";
@@ -683,10 +782,16 @@ function draw(sidebar){
     });
     tl.appendChild(lane);
     laneRows.push({id, el: lane});
+    autos.filter(a => autoGroup(a) === id).forEach(a => tl.appendChild(autoLane(a, W)));
   });
-  autoRows = [];
-  const W = barToX(show.total_bars + 4);
-  (cues.automation || []).forEach(a => {
+
+  if (keepPlayhead) tl.appendChild(keepPlayhead);
+  if (sidebar !== false) drawSidebar();
+  paintStates();
+  if (pick) requestAnimationFrame(placePick);
+}
+
+function autoLane(a, W){
     const lane = document.createElement("div");
     lane.className = "alane"; lane.dataset.alane = a.id;
     const H = 86;
@@ -767,22 +872,8 @@ function draw(sidebar){
     }
     lane.title = "double-click: add a point · alt-drag a line: bend it · ⌘-drag: draw";
     lane.appendChild(svg);
-    tl.appendChild(lane);
     autoRows.push({a, el: lane, H});
-  });
-
-  const add = document.createElement("div"); add.className = "addlane";
-  add.innerHTML = `automation lane for <select id="new-target">` +
-    (mapping.targets || []).map(t => `<option>${esc(t.name)}</option>`).join("") +
-    `</select><button id="add-auto">+ add</button>` +
-    `<button id="add-auto-rz" title="pick any parameter in the open composition">＋ from Resolume…</button>` +
-    `<span class="sub">targets live in osc_map.json</span>`;
-  tl.appendChild(add);
-
-  if (keepPlayhead) tl.appendChild(keepPlayhead);
-  if (sidebar !== false) drawSidebar();
-  paintStates();
-  if (pick) requestAnimationFrame(placePick);
+    return lane;
 }
 
 // fold a lane open to see what each cue is; alt-click folds every lane
@@ -806,16 +897,12 @@ el("tl").addEventListener("change", e => {
   mark(); a.target = e.target.value.replace(/ \(missing\)$/, ""); draw(); save();
 });
 el("tl").addEventListener("click", e => {
-  if (e.target.id === "add-auto-rz"){ openTargetPicker(e.target, null); return; }
+  const ad = e.target.closest("[data-addauto]");
+  if (ad){ openTargetPicker(ad, null, ad.dataset.addauto); return; }
   const rg = e.target.dataset && e.target.dataset.range;
   if (rg){ const a = cues.automation.find(x => x.id === rg); if (a) editRange(a); return; }
   const sh = e.target.dataset && e.target.dataset.shape;
   if (sh){ const a = cues.automation.find(x => x.id === sh); if (a) openShape(e.target, a); return; }
-  if (e.target.id === "add-auto"){
-    mark();
-    cues.automation.push({id: newId(), target: el("new-target").value, points: []});
-    draw(); save();
-  }
   const rm = e.target.dataset && e.target.dataset.rmlane;
   if (rm){
     const a = cues.automation.find(a => a.id === rm);
@@ -1010,7 +1097,7 @@ function duplicateSelected(){
   const made = [];
   list.forEach(c => {
     const bar = cueBar(c);
-    const copy = Object.assign({}, c, {id:newId()});
+    const copy = cloneCue(c, {id:newId()});
     if (bar !== null) anchor(copy, bar + (c.length_bars || 8));
     cues.cues.push(copy); made.push(copy.id);
   });
@@ -1026,7 +1113,7 @@ function copySelected(){
     if (clipPts.length) el("save").textContent = `copied ${clipPts.length} point${clipPts.length > 1 ? "s" : ""}`;
     return;
   }
-  clipboard = selected().map(c => Object.assign({}, c));
+  clipboard = selected().map(c => cloneCue(c));
   lastCopied = "cues";
   if (clipboard.length) el("save").textContent = `copied ${clipboard.length}`;
 }
@@ -1054,7 +1141,7 @@ function pasteAtPlayhead(){
   const first = Math.min(...clipboard.map(c => cueBar(c) ?? at));
   const made = [];
   clipboard.forEach(c => {
-    const copy = Object.assign({}, c, {id:newId()});
+    const copy = cloneCue(c, {id:newId()});
     anchor(copy, at + ((cueBar(c) ?? at) - first));
     cues.cues.push(copy); made.push(copy.id);
   });
@@ -1091,16 +1178,21 @@ el("tl").addEventListener("pointerdown", e => {
   e.preventDefault();                       // this also suppresses native dblclick
   const [x, y] = tlPoint(e);
   const add = e.shiftKey || e.metaKey;
-  if (e.target.closest(".ahead") || e.target.closest(".addlane") || e.target.closest(".fold")) return;   // lane controls
+  if (e.target.closest(".ahead") || e.target.closest(".agroup") || e.target.closest(".fold") ||
+      e.target.closest(".addauto")) return;                                            // lane controls
+  const envBtn = e.target.closest("[data-env]");
+  if (envBtn){ toggleEnv(byId(envBtn.dataset.env)); return; }
   if (e.target.closest(".pickbtn")){ const c = byId(e.target.dataset.pick); if (c) openPick(c); return; }
   const cueEl = e.target.closest(".cue");
   const head = e.target.closest(".head");
   const laneEl = e.target.closest(".lane");
   const ptEl = e.target.classList && e.target.classList.contains("apt") ? e.target : null;
   const aLaneEl = e.target.closest(".alane");
+  const eptEl = e.target.classList && e.target.classList.contains("ept") ? e.target : null;
+  if (envEdit && !(cueEl && cueEl.dataset.id === envEdit)){ toggleEnv(byId(envEdit)); }   // clicked away: done
 
   // double-click, detected by hand: add on a lane, remove on a cue
-  const key = ptEl ? "pt:" + ptEl.dataset.pt : aLaneEl ? "alane:" + aLaneEl.dataset.alane
+  const key = eptEl ? "ept:" + eptEl.dataset.i : ptEl ? "pt:" + ptEl.dataset.pt : aLaneEl ? "alane:" + aLaneEl.dataset.alane
             : cueEl ? "cue:" + cueEl.dataset.id : laneEl ? "lane:" + laneEl.dataset.lane : "";
   const now = performance.now();
   const isDouble = key && key === lastDown.key && now - lastDown.t < DOUBLE_MS &&
@@ -1109,13 +1201,29 @@ el("tl").addEventListener("pointerdown", e => {
   if (isDouble){
     lastDown.t = 0;                         // a third click starts over
     drag = null;
-    if (ptEl){ selPts = new Set([ptEl.dataset.pt]); removePoints(); }
+    if (eptEl){                                   // a clip envelope point: gone
+      const c = byId(eptEl.dataset.cue);
+      mark(); c.env.splice(+eptEl.dataset.i, 1);
+      if (!c.env.length){ delete c.env; envEdit = null; }
+      draw(); save();
+    }
+    else if (cueEl && envEdit === cueEl.dataset.id){   // inside the clip being edited: a point
+      const c = byId(envEdit);
+      mark(); c.env.push(envAt(cueEl, e, c)); draw(); save();
+    }
+    else if (ptEl){ selPts = new Set([ptEl.dataset.pt]); removePoints(); }
     else if (aLaneEl){ addPoint(aLaneEl, x, y); }
     else if (cueEl){ select([cueEl.dataset.id]); removeSelected(); }
     else if (laneEl){ addCue(laneEl.dataset.lane, snapBar(xToBar(x))); }
     return;
   }
 
+  if (eptEl){                                       // drag a clip envelope point
+    drag = {kind:"envpt", pending:true, x0:x, y0:y, c: byId(eptEl.dataset.cue), i: +eptEl.dataset.i,
+            cueEl: eptEl.closest(".cue")};
+    try { el("tl").setPointerCapture(e.pointerId); } catch (err) {}
+    return;
+  }
   if (ptEl){                                        // grab one or more points
     const id = ptEl.dataset.pt;
     if (add) selPts.has(id) ? selPts.delete(id) : selPts.add(id);
@@ -1193,6 +1301,16 @@ el("tl").addEventListener("pointermove", e => {
   }
 
   if (drag.kind === "scrub"){ seekToBar(Math.max(1, xToBar(x))); return; }
+
+  if (drag.kind === "envpt"){
+    const p = drag.c.env[drag.i];
+    if (!p) return;
+    const cueEl = document.querySelector(`.cue[data-id="${drag.c.id}"]`) || drag.cueEl;
+    Object.assign(p, envAt(cueEl, e, drag.c));
+    draw(); save();
+    readoutText(e, `${Math.round(p.v * 100)}% · ${p.b} bar${p.b === 1 ? "" : "s"} into the clip`);
+    return;
+  }
 
   if (drag.kind === "marquee"){
     const bar0 = xToBar(Math.min(marquee.x0, x)), bar1 = xToBar(Math.max(marquee.x0, x));
@@ -1293,7 +1411,7 @@ el("tl").addEventListener("pointermove", e => {
     if (drag.alt && !drag.copied){                 // alt-drag leaves a copy behind
       drag.copied = true;
       const made = drag.start.map(s => {
-        const copy = Object.assign({}, s.c, {id:newId()});
+        const copy = cloneCue(s.c, {id:newId()});
         cues.cues.push(copy);
         return {c: copy, bar: s.bar, lane: s.lane};
       });
@@ -1452,9 +1570,11 @@ el("sh-apply").onclick = () => {
 };
 
 // ＋ a Resolume parameter: any range parameter in the open composition
-let tpFor = null, tpParams = [], tpHi = 0;
-async function openTargetPicker(anchorEl, lane){
+let tpFor = null, tpParams = [], tpHi = 0, tpGroup = null;
+async function openTargetPicker(anchorEl, lane, group){
   tpFor = lane;
+  tpGroup = group || (lane ? autoGroup(lane) : null);
+  el("tp-title").textContent = tpGroup ? `Automate ${groupLabel(tpGroup)}` : "Automate";
   const P = el("tpick"), r = anchorEl.getBoundingClientRect();
   P.hidden = false;
   P.style.left = Math.min(r.left, innerWidth - P.offsetWidth - 8) + "px";
@@ -1462,11 +1582,27 @@ async function openTargetPicker(anchorEl, lane){
   el("tp-q").value = ""; tpHi = 0;
   el("tp-list").innerHTML = `<div class="sub" style="padding:6px">asking Resolume…</div>`;
   el("tp-q").focus();
+  let params = [], live = false;
   try {
     const out = await (await fetch("/arena/params", {cache: "no-store"})).json();
-    tpParams = out.params || [];
-    if (!out.live){ el("tp-list").innerHTML = `<div class="sub" style="padding:6px">Resolume isn't answering: open Arena with its web server on.</div>`; return; }
-  } catch(e){ tpParams = []; }
+    params = out.params || []; live = out.live;
+  } catch(e){}
+  // an OSC target can be the same thing as a parameter ("Lights base" is layer 3's opacity)
+  const oscPath = a => { let m = /^\/composition\/layers\/(\d+)\/video\/opacity$/.exec(a || "");
+                         if (m) return ["layer", +m[1], "opacity"];
+                         return a === "/composition/video/opacity" ? ["composition", "opacity"] : null; };
+  const same = (t, p) => JSON.stringify(t.resolume || oscPath(t.address)) === JSON.stringify(p.path);
+  // what's set up already for this layer first, then the rest of what Resolume has there
+  const known = (mapping.targets || []).filter(t => !tpGroup || autoGroup({target: t.name}) === tpGroup)
+    .map(t => ({target: t.name, label: t.name, group: "Set up already", min: t.min ?? 0, max: t.max ?? 1}));
+  const fresh = params.filter(p => (!tpGroup || paramGroup(p) === tpGroup) &&
+                                   !(mapping.targets || []).some(t => same(t, p)));
+  tpParams = [...known, ...fresh];
+  if (!tpParams.length){
+    el("tp-list").innerHTML = `<div class="sub" style="padding:6px">${live ? "nothing to automate here yet: add an effect to this layer in Resolume"
+                                                                          : "Resolume isn't answering: open Arena with its web server on."}</div>`;
+    return;
+  }
   drawTargetPicker();
 }
 function tpFiltered(){
@@ -1479,7 +1615,7 @@ function drawTargetPicker(){
   let html = "", grp = null;
   list.forEach((p, i) => {
     if (p.group !== grp){ grp = p.group; html += `<div class="grp">${esc(grp)}</div>`; }
-    const used = (mapping.targets || []).some(t => JSON.stringify(t.resolume) === JSON.stringify(p.path));
+    const used = !!p.target;
     html += `<div class="it ${i === tpHi ? "hi" : ""}" data-i="${i}"><span>${esc(p.label.startsWith(p.group + " · ") ? p.label.slice(p.group.length + 3) : p.label)}${used ? " ✓" : ""}</span>` +
             `<small>${+(+p.min).toFixed(2)}…${+(+p.max).toFixed(2)}</small></div>`;
   });
@@ -1489,6 +1625,13 @@ function drawTargetPicker(){
 async function chooseTarget(p){
   if (!p) return;
   el("tpick").hidden = true;
+  if (p.target){                                  // set up already: just use it
+    mark();
+    if (tpFor) tpFor.target = p.target;
+    else cues.automation.push({id: newId(), target: p.target, points: []});
+    draw(); save();
+    return;
+  }
   try {
     const r = await fetch("/targets/add", {method: "POST", headers: {"Content-Type": "application/json"},
                                            body: JSON.stringify({path: p.path})});
@@ -1514,7 +1657,7 @@ el("tp-list").addEventListener("pointerdown", e => {
   e.preventDefault(); chooseTarget(tpFiltered()[+d.dataset.i]);
 });
 document.addEventListener("pointerdown", e => {
-  if (!e.target.closest("#tpick") && !e.target.closest("[data-target]") && !e.target.closest("#add-auto-rz")) el("tpick").hidden = true;
+  if (!e.target.closest("#tpick") && !e.target.closest("[data-target]") && !e.target.closest("[data-addauto]")) el("tpick").hidden = true;
   if (!e.target.closest("#shape") && !e.target.closest("[data-shape]")) el("shape").hidden = true;
 }, true);
 el("tl").addEventListener("pointerup", endDrag);
@@ -1602,6 +1745,8 @@ addEventListener("keydown", e => {
     return;
   }
   if (e.code === "Space"){ e.preventDefault(); el("play").onclick(); return; }
+  if (k === "escape" && envEdit){ toggleEnv(byId(envEdit)); return; }
+  if (k === "e" && selected().length){ toggleEnv((primary && byId(primary.id)) || selected()[0]); return; }
   if (k === "escape"){ if (pick){ closePick(); return; } selSet.clear(); selPts.clear(); primary = null; draw(); return; }
   if (k === "enter" && selected().length){ e.preventDefault(); openPick((primary && byId(primary.id)) || selected()[0]); return; }
   if (k === "backspace" || k === "delete"){

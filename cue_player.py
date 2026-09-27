@@ -443,6 +443,15 @@ def bend(t, shape, curve):
     return t ** (6 ** curve) if curve else t
 
 
+def clip_opacity_address(messages):
+    """A cue that connects one clip: that clip's own opacity, for its envelope."""
+    for address, _ in messages or []:
+        m = re.match(r"(/composition/layers/\d+/clips/\d+)/connect$", address)
+        if m:
+            return m.group(1) + "/video/opacity"
+    return None
+
+
 def value_at(points, beat):
     """The lane's value (0..1) at a beat: linear or hold between points."""
     if not points:
@@ -498,6 +507,7 @@ class Player:
                            if not a["problem"] or (a["spec"] and a["spec"].get("resolume") and a["points"])]
         self.senders = senders or {}
         self.sent = {}               # lane id -> last value sent (0..1)
+        self.env_sent = {}           # clip opacity address -> last envelope value sent
         self.recent = []             # last few fired cues, for the timeline
         self.state_t = 0.0
         self.moved_t = 0.0           # when the position last changed
@@ -535,6 +545,38 @@ class Player:
                 self.sender_for(a["spec"]).sock.sendto(
                     osc_encode(a["spec"]["address"], [float(scaled(a["spec"], v))]),
                     self.sender_for(a["spec"]).addr)
+        self.envelopes(beat, force)
+
+    def envelopes(self, beat, force=False):
+        """Clip envelopes: a cue's own opacity line, drawn inside the clip in the
+        timeline. It sets that clip's opacity in Resolume while the cue plays (so
+        it multiplies with the layer's and the composition's), and puts it back
+        to 100% when the cue is over, so the clip is whole the next time it plays."""
+        bpb = self.show.get("beats_per_bar", 4)
+        now = {}
+        for e in self.plan:
+            c = e["cue"]
+            env = c.get("env")
+            if not env or e.get("end_of") or e["beat"] is None or e["problem"] or not e["messages"]:
+                continue
+            addr = clip_opacity_address(e["messages"])
+            if not addr:
+                continue
+            start = e["beat"]
+            if start <= beat < start + float(c.get("length_bars") or 8) * bpb:
+                pts = sorted((start + float(p.get("b", 0)) * bpb, float(p.get("v", 1)),
+                              p.get("shape"), float(p.get("curve") or 0)) for p in env)
+                now[addr] = value_at(pts, beat)
+        sent = self.env_sent
+        for addr in [a for a in sent if a not in now]:
+            del sent[addr]
+            if not self.panicked:                  # over: the clip back to whole
+                self.sender.sock.sendto(osc_encode(addr, [1.0]), self.sender.addr)
+        for addr, v in now.items():
+            if force or addr not in sent or abs(v - sent[addr]) > 0.002:
+                sent[addr] = v
+                if not self.panicked:              # quietly: it streams
+                    self.sender.sock.sendto(osc_encode(addr, [float(v)]), self.sender.addr)
 
     def write_state(self, beat, force=False):
         """What the player is doing, for the timeline to mirror. ~20 times a second

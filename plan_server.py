@@ -328,6 +328,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 index = arena_load.params(arena_load.fetch(ARENA))
             except (OSError, ValueError):
                 return self._send(200, json.dumps({"live": False, "params": []}).encode())
+            # not the Transforms that put the band where the fixtures read: the Lights
+            # layer's, and the composition's (it moves everything, band included)
+            lights = (arena_load.lanes().get("lights") or {}).get("layer")
+            index = [p for p in index if p["path"][:4] != ["layer", lights, "effect", "Transform"]
+                     and p["path"][:3] != ["composition", "effect", "Transform"]]
             return self._send(200, json.dumps({"live": True, "params": [
                 {k: p[k] for k in ("path", "label", "group", "min", "max", "value")} for p in index]}).encode())
         if path == "/presets/status":

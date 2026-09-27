@@ -664,15 +664,27 @@ is the first point's shape:</p>
   <li><kbd>⌘C</kbd> / <kbd>⌘V</kbd> copy points and paste them at the playhead, in the same lanes.</li>
 </ul>
 
+<h3>Three levels: main, layer, clip</h3>
+<p>They multiply, like Resolume's own faders do:</p>
+<table>
+  <tr><th>Level</th><th>Where</th><th>Changes</th></tr>
+  <tr><td><b>Main</b></td><td>the <b>Main</b> row at the top, <b>＋ automation</b></td><td>the whole composition: master, opacity, its effects. It dims the screen <i>and</i> the lights — the band is part of the composition.</td></tr>
+  <tr><td><b>Layer</b></td><td><b>＋</b> next to a lane's name; its lanes sit right under it</td><td>that layer: opacity, master, every effect on it. On Lights: the dimmer for the whole rig, and colour through the Colorize (how much) and Hue Rotate (which) effects on layer 3.</td></tr>
+  <tr><td><b>Clip</b></td><td><b>◠</b> on a selected clip, or <kbd>E</kbd></td><td>that clip's own opacity, drawn inside the clip: it moves and copies with it. Drag the points, double-click inside to add one, double-click a point to remove it; <kbd>E</kbd> or <kbd>esc</kbd> when done. Fold the lane open for room. After the cue, the clip is put back to 100%.</td></tr>
+</table>
+<p>The picker shows what's set up already for that level first, then everything
+else Resolume has there. The Transforms that place the band — the Lights layer's
+and the composition's — aren't offered: moving them would move what the fixtures read.</p>
+
 <h3>Automating Resolume parameters</h3>
-<p>A lane's menu ends with <b>＋ a Resolume parameter…</b>, and the bottom row has
-<b>＋ from Resolume…</b>. Both list every parameter in the open composition that
-can move: the master, composition and layer opacity, and every parameter of every
-effect (<i>Layer 3 · Transform · Scale</i>). Type any words to find one.</p>
+<p>The <b>＋</b> buttons and a lane's menu (<b>＋ a Resolume parameter…</b>) list the
+parameters in the open composition that can move: the master, composition and layer
+opacity, and every parameter of every effect (<i>Lights · Colorize · Opacity</i>).
+Type any words to find one.</p>
 <ul>
   <li>It's stored by its <b>name</b> — layer, effect, parameter — not by an id, so it
-    survives Arena restarting. The player sends it by id over the REST API at
-    ~60 per second (about 0.2 ms each).</li>
+    survives Arena restarting. The player sends it over the REST API at
+    ~60 per second (about 0.2 ms each); an effect goes by its place in the layer's list, the only way Arena 7.19 takes it.</li>
   <li>The button next to the lane's value (<i>80…150</i>) sets what 0% and 100%
     mean in the parameter's own units. It starts at the full range, which is often
     too wide: Scale goes to 1000, where 100 is normal size.</li>

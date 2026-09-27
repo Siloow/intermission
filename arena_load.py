@@ -283,7 +283,7 @@ def _range(node):
 
 def _effects(fx_list, prefix, label, out):
     seen = {}
-    for fx in fx_list or []:
+    for fx_index, fx in enumerate(fx_list or []):
         name = fx.get("name") or "effect"
         seen[name] = seen.get(name, 0) + 1
         key = name if seen[name] == 1 else f"{name} #{seen[name]}"
@@ -292,7 +292,7 @@ def _effects(fx_list, prefix, label, out):
                 out.append({"path": prefix + ["effect", key, pname],
                             "label": f"{label} · {key} · {pname}", "group": label,
                             "id": node["id"], "min": node.get("min", 0), "max": node.get("max", 1),
-                            "value": node.get("value"), "fx_id": fx.get("id")})
+                            "value": node.get("value"), "fx_id": fx.get("id"), "fx_index": fx_index})
 
 
 def params(comp):
@@ -344,8 +344,10 @@ def param_update(p, value):
             return owner, {"master": v}
         if path[2] == "opacity":
             return owner, {"video": {"opacity": {"id": p["id"], "value": value}}}
-    # an effect's parameter: the effect by its id, the parameter by its name
-    return owner, {"video": {"effects": [{"id": p["fx_id"], "params": {path[-1]: v}}]}}
+    # an effect's parameter, the effect by its place in the owner's list: Arena
+    # 7.19 answers 204 to an effect given by id but changes nothing
+    effects = [{} for _ in range(p.get("fx_index", 0))] + [{"params": {path[-1]: v}}]
+    return owner, {"video": {"effects": effects}}
 
 
 def find_param(index, path):

@@ -136,13 +136,24 @@ def main():
             st, _ = call(path, "PUT", json.dumps(body))
             return st in (200, 204), f"through its layer (no by-id in this Arena); stays {p['value']}"
         check("set a parameter", "automation lanes on Resolume parameters", set_param)
-        fx = next((q for q in index if q["path"][0] == "layer" and "effect" in q["path"]), None)
+        # an effect parameter, really changed and read back: Arena 7.19 answers 204
+        # to some requests it ignores. Not a Transform: that one places the band.
+        fx = next((q for q in index if q["path"][0] == "layer" and "effect" in q["path"]
+                   and "Transform" not in q["path"]), None)
         if fx:
             def set_effect():
-                path, body = arena_load.param_update(fx, fx["value"])
-                st, _ = call(path, "PUT", json.dumps(body))
-                return st in (200, 204), f"{fx['label']} stays {fx['value']}"
-            check("set an effect parameter", "automation on effects (Transform, Blur…)", set_effect)
+                lo, hi = float(fx.get("min", 0)), float(fx.get("max", 1))
+                was = float(fx["value"])
+                probe = was + (hi - lo) * (0.1 if was < (lo + hi) / 2 else -0.1)
+                def put(v):
+                    path, body = arena_load.param_update(fx, v)
+                    call(path, "PUT", json.dumps(body)); time.sleep(0.4)
+                    return arena_load.find_param(arena_load.params(arena_load.fetch(BASE)), fx["path"])["value"]
+                got = put(probe)
+                back = put(was)
+                return abs(got - probe) < 1e-3 and abs(back - was) < 1e-3, \
+                       f"{fx['label']}: {was:.2f} → {got:.2f} → {back:.2f}"
+            check("set an effect parameter", "automation on effects (Colorize, Hue…)", set_effect)
     check("see the selected clip", "naming a live source dragged in by hand", lambda: (
         call("/composition/clips/selected")[0] == 200, "ok"))
     tr = (layers[0].get("transition") or {}).get("duration") if layers else None
