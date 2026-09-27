@@ -591,6 +591,7 @@ class Player:
         self.senders = senders or {}
         self.sent = {}               # lane id -> last value sent (0..1)
         self.env_sent = {}           # clip opacity address -> last envelope value sent
+        self.cleared_at = {}         # layer -> when it was last cleared
         self.recent = []             # last few fired cues, for the timeline
         self.state_t = 0.0
         self.moved_t = 0.0           # when the position last changed
@@ -600,6 +601,17 @@ class Player:
         """Empty a layer: over the REST API, since Resolume ignores it over OSC."""
         if not (self.rest and self.rest.clear_layer(layer)):
             self.sender.send(f"/composition/layers/{layer}/clear", [1])
+        self.cleared_at[layer] = time.monotonic()
+
+    CLEAR_GAP = 0.04     # s. Arena answers a clear at once but does it a frame later: a
+                         # clip connected in between is cleared too. Measured on 7.19.
+
+    def after_clear(self, messages):
+        n = self.fades.n_layers if self.fades else 8
+        wait = max((self.CLEAR_GAP - (time.monotonic() - self.cleared_at.get(L, -1e9))
+                    for L in layers_hit(messages, n)), default=0)
+        if wait > 0:
+            time.sleep(wait)
 
     def sender_for(self, spec):
         key = (spec.get("host"), spec.get("port"))
@@ -741,6 +753,7 @@ class Player:
         if f and f.get("in") and not why:
             how += f"   fade in {(f['in'][1] - f['in'][0]) * 60 / self.show['tempo']:g}s"
         print(f"{CLEAR}   >> {tag}{'   (' + why + ')' if why else ''}{how}")
+        self.after_clear(entry["messages"])
         if self.shapes_opacity(entry):
             # its opacity first, so a fade in doesn't start with a frame at full
             addr = clip_opacity_address(entry["messages"])
