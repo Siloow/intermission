@@ -10,8 +10,11 @@ gathers them:
   sources   folders to look in (library.json "sources"); scanned for videos,
             image sequences and stills, drafts flagged by their names
   add       copies a chosen one into content/library/, converted to one show
-            format: 1920x1080, Resolume's own DXV codec, the frame rate it was
-            made at. Drafts stay where they are.
+            format: 1920x1080, the frame rate it was made at, and a codec
+            Resolume plays on the GPU: DXV, stills too. ffmpeg's DXV has no
+            alpha, so anything really transparent goes to ProRes 4444 (video)
+            or stays PNG (a still). Drafts stay where they are.
+            --reconvert brings clips added before that up to it.
   live      a video source Resolume can see (TouchDesigner over Syphon, NDI),
             named and tagged like the rest
   install   puts library clips and live sources into a screen layer in
@@ -199,6 +202,46 @@ def find(cid):
     return None
 
 
+# ------------------------------------------------------------------- codecs --
+ALPHA_FMT = re.compile(r"(^|[^a-z])(rgba|bgra|argb|abgr|ya|yuva|gbrap|pal8)")
+
+
+def has_alpha(c):
+    """Whether a candidate is really transparent somewhere: an alpha channel
+    that isn't all opaque. Renders often carry one that is 255 everywhere."""
+    first = c["first"] if c["kind"] == "sequence" else c["path"]
+    try:
+        fmt = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                              "stream=pix_fmt", "-of", "csv=p=0", first],
+                             capture_output=True, text=True, timeout=20).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return False
+    if not ALPHA_FMT.search(fmt):
+        return False
+    # the lowest alpha over the first frames (a sequence: its first image)
+    src = ["-i", first] if c["kind"] != "video" else ["-i", c["path"], "-t", "2"]
+    try:
+        err = subprocess.run(["ffmpeg", "-hide_banner", *src, "-vf",
+                              "format=rgba,alphaextract,signalstats,metadata=print:key=lavfi.signalstats.YMIN",
+                              "-f", "null", "-"], capture_output=True, text=True, timeout=60).stderr
+    except (OSError, subprocess.SubprocessError):
+        return True                            # can't tell: keep the alpha, to be safe
+    lows = [int(v) for v in re.findall(r"YMIN=(\d+)", err)]
+    return bool(lows) and min(lows) < 250
+
+
+def codec_of(c, alpha):
+    """(extension, ffmpeg output arguments, label) for a candidate."""
+    if c["kind"] == "still":
+        if alpha:
+            return ".png", ["-frames:v", "1"], "PNG (transparent)"
+        return ".mov", ["-frames:v", "1", "-c:v", "dxv", "-f", "mov"], "DXV"
+    if alpha:
+        return ".mov", ["-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le",
+                        "-alpha_bits", "16", "-f", "mov"], "ProRes 4444 (transparent)"
+    return ".mov", ["-c:v", "dxv", "-f", "mov"], "DXV"
+
+
 # -------------------------------------------------------- thumbs and previews --
 def _input(c, seconds=None):
     """ffmpeg input arguments for a candidate."""
@@ -260,20 +303,23 @@ def add(cid, name, tags=(), who="", song="", fit="fit"):
 def _convert(job, c, name, tags, who, song, fit):
     os.makedirs(LIB_DIR, exist_ok=True)
     os.makedirs(THUMBS, exist_ok=True)
+    alpha = has_alpha(c)
+    # letterbox bars are black, or see-through when the clip is
     frame = (f"scale={SHOW_W}:{SHOW_H}:force_original_aspect_ratio=increase,crop={SHOW_W}:{SHOW_H}"
              if fit == "fill" else
-             f"scale={SHOW_W}:{SHOW_H}:force_original_aspect_ratio=decrease,"
-             f"pad={SHOW_W}:{SHOW_H}:(ow-iw)/2:(oh-ih)/2:black")
+             f"scale={SHOW_W}:{SHOW_H}:force_original_aspect_ratio=decrease,format=rgba,"
+             f"pad={SHOW_W}:{SHOW_H}:(ow-iw)/2:(oh-ih)/2:{'black@0' if alpha else 'black'}")
+    ext, codec, label = codec_of(c, alpha)
+    out = os.path.join(LIB_DIR, name + ext)
     try:
-        if c["kind"] == "still":
-            out = os.path.join(LIB_DIR, name + ".png")
+        if ext == ".png":
             r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", c["path"], "-vf", frame,
                                 "-frames:v", "1", out], capture_output=True, text=True)
         else:
-            out = os.path.join(LIB_DIR, name + ".mov")
-            total = max(0.1, float(c.get("seconds") or 1))
-            p = subprocess.Popen(["ffmpeg", "-v", "error", "-y", *_input(c), "-vf", frame + ",format=rgba",
-                                  "-an", "-c:v", "dxv", "-f", "mov", "-progress", "pipe:1", out + ".part"],
+            total = 1.0 if c["kind"] == "still" else max(0.1, float(c.get("seconds") or 1))
+            src = ["-i", c["path"]] if c["kind"] == "still" else _input(c)
+            p = subprocess.Popen(["ffmpeg", "-v", "error", "-y", *src, "-vf", frame + ",format=rgba",
+                                  "-an", *codec, "-progress", "pipe:1", out + ".part"],
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             for line in p.stdout:
                 if line.startswith("out_time_ms="):
@@ -291,10 +337,22 @@ def _convert(job, c, name, tags, who, song, fit):
         if t:
             shutil.copy(t, os.path.join(THUMBS, name + ".jpg"))
         cfg = config()
-        cfg["clips"].append({"name": name, "file": os.path.relpath(out, HERE), "source": c["path"],
-                             "kind": c["kind"], "project": c["project"], "tags": tags, "song": song,
-                             "who": who, "fit": fit, "fps": c.get("fps"), "seconds": c.get("seconds"),
-                             "added": time.strftime("%Y-%m-%d %H:%M")})
+        entry = {"name": name, "file": os.path.relpath(out, HERE), "source": c["path"],
+                 "kind": c["kind"], "project": c["project"], "tags": tags, "song": song,
+                 "who": who, "fit": fit, "fps": c.get("fps"), "seconds": c.get("seconds"),
+                 "codec": label, "added": time.strftime("%Y-%m-%d %H:%M")}
+        old = next((x for x in cfg["clips"] if x["name"] == name), None)
+        if old:                                 # a reconvert: same name, new file
+            for k in ("tags", "song", "who", "added"):
+                entry[k] = old.get(k, entry[k])
+            if old.get("file") and old["file"] != entry["file"]:
+                try:
+                    os.remove(os.path.join(HERE, old["file"]))
+                except OSError:
+                    pass
+            cfg["clips"] = [entry if x is old else x for x in cfg["clips"]]
+        else:
+            cfg["clips"].append(entry)
         save(cfg)
         jobs[job].update(state="done", progress=1.0)
     except (OSError, RuntimeError, ValueError) as e:
@@ -302,6 +360,49 @@ def _convert(job, c, name, tags, who, song, fit):
         for leftover in (os.path.join(LIB_DIR, name + ".mov.part"),):
             if os.path.exists(leftover):
                 os.remove(leftover)
+
+
+def candidate_for(x):
+    """A library clip's source, described the way scan() would, to convert again."""
+    path = x["source"]
+    if x["kind"] == "sequence":
+        folder = os.path.dirname(path)
+        pat = re.compile("^" + re.escape(os.path.basename(path)).replace(re.escape("%04d"), r"(\d{4})") + "$")
+        nums = sorted(int(m.group(1)) for f in os.listdir(folder) if (m := pat.match(f)))
+        if not nums:
+            raise ValueError(f"{x['name']}: its frames are gone from {folder}")
+        first = os.path.join(folder, os.path.basename(path) % nums[0])
+        return {"id": hashlib.sha1(path.encode()).hexdigest()[:12],
+                "path": path, "kind": "sequence", "first": first, "start": nums[0],
+                "fps": x.get("fps") or config().get("sequence_fps", 30), "frames": len(nums),
+                "seconds": x.get("seconds"), "project": x.get("project", "")}
+    if not os.path.exists(path):
+        raise ValueError(f"{x['name']}: {path} is gone")
+    return {"id": hashlib.sha1(path.encode()).hexdigest()[:12],
+            "path": path, "kind": x["kind"], "first": path, "fps": x.get("fps"),
+            "seconds": x.get("seconds"), "project": x.get("project", "")}
+
+
+def wants_reconvert(x):
+    """Whether a clip was made before every clip went to a GPU codec."""
+    if x.get("codec"):
+        return False
+    return x["kind"] == "still" and x["file"].lower().endswith(".png") or \
+        not x["file"].lower().endswith(".mov")
+
+
+def reconvert(names=None, wait=True):
+    """Convert library clips again from their sources, under the same names."""
+    cfg = config()
+    todo = [x for x in cfg["clips"] if (x["name"] in names if names else wants_reconvert(x))]
+    done = []
+    for x in todo:
+        c = candidate_for(x)
+        job = hashlib.sha1(f"re{x['name']}{time.time()}".encode()).hexdigest()[:10]
+        jobs[job] = {"name": x["name"], "state": "converting", "progress": 0.0, "error": None}
+        _convert(job, c, x["name"], x.get("tags", []), x.get("who", ""), x.get("song", ""), x.get("fit", "fit"))
+        done.append((x["name"], jobs[job]["state"], jobs[job]["error"]))
+    return done
 
 
 def update(name, **fields):
@@ -374,7 +475,15 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--scan", action="store_true")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--reconvert", nargs="*", metavar="NAME",
+                    help="convert clips again from their sources: the named ones, or every one "
+                         "made before stills went to DXV too")
     a = ap.parse_args()
+    if a.reconvert is not None:
+        for name, state, err in reconvert(a.reconvert or None):
+            x = next(c for c in config()["clips"] if c["name"] == name)
+            print(f"  {name:<24} {state:<8} {x.get('codec') or ''} {x['file']}{'  ' + err if err else ''}")
+        return
     if a.scan:
         for c in scan():
             print(f"  {c['project']:<14} {c['kind']:<8} {'draft ' if c['draft'] else '      '}"
@@ -382,7 +491,8 @@ def main():
     else:
         cfg = config()
         for x in cfg["clips"]:
-            print(f"  clip  {x['name']:<24} {x.get('seconds') or '':>6}s  {', '.join(x.get('tags') or [])}")
+            print(f"  clip  {x['name']:<24} {x.get('seconds') or '':>6}s  {x.get('codec') or os.path.splitext(x['file'])[1]:<10} "
+                  f"{', '.join(x.get('tags') or [])}")
         for x in cfg["live"]:
             print(f"  live  {x['name']:<24} {x['source']}")
 

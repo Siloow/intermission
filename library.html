@@ -164,7 +164,7 @@ function card(x){
       : `<img loading="lazy" src="library/clipthumb/${encodeURIComponent(x.name)}" onerror="this.style.opacity=0">`;
     return `<div class="card ${sel.has(x.name) ? "is-on" : ""}" data-name="${esc(x.name)}" data-prev="${x._kind === "clip" ? x.source_id : ""}">` +
       `<div class="thumb"><div class="flags">${flags}</div>${thumb}</div>` +
-      `<div class="meta"><b>${esc(x.name)}</b><small>${esc([x.project, x.seconds ? secs(x.seconds) : "", x.who ? "added by " + x.who : ""].filter(Boolean).join(" · "))}</small>` +
+      `<div class="meta"><b>${esc(x.name)}</b><small>${esc([x.project, x.seconds ? secs(x.seconds) : "", x.codec || "", x.who ? "added by " + x.who : ""].filter(Boolean).join(" · "))}</small>` +
       `<div class="tags">${x.song ? `<span class="tag">♪ ${esc(x.song)}</span>` : ""}${(x.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div></div></div>`;
   }
   const added = data.live.find(l => l.source === x.name);
@@ -200,7 +200,7 @@ function row(x){
       : `<img loading="lazy" src="library/clipthumb/${encodeURIComponent(x.name)}" onerror="this.style.opacity=0">`;
     return `<tr class="${sel.has(x.name) ? "is-on" : ""}" data-name="${esc(x.name)}" data-prev="${x._kind === "clip" ? x.source_id : ""}">` +
       `<td><div class="lthumb">${th}</div></td>` +
-      `<td class="name"><b>${esc(x.name)}</b><small>${esc(x._kind === "live" ? "live: " + x.source : x.file || "")}</small></td>` +
+      `<td class="name"><b>${esc(x.name)}</b><small>${esc(x._kind === "live" ? "live: " + x.source : [x.codec, x.file].filter(Boolean).join(" · "))}</small></td>` +
       `<td class="dim">${esc(x.song || "")}</td><td>${(x.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join(" ")}</td>` +
       `<td class="num">${secs(x.seconds)}</td><td class="dim">${esc(x.project || "")}</td><td class="dim">${esc(x.who || "")}</td>` +
       `<td>${a ? `<span class="badge ok">A</span>` : ""} ${b ? `<span class="badge ok">B</span>` : ""}</td></tr>`;

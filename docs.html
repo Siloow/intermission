@@ -498,9 +498,20 @@ painting never means hunting through folders. Three views:</p>
     Syphon, NDI. Add one and it's in the show like a clip, named your way.</li>
 </ul>
 <p><b>Add to the show</b> converts a copy into <code>content/library/</code>:
-1920×1080, Resolume's own <b>DXV</b> codec, at the frame rate it was made at, fitted
-(black sides) or filled (cropped) — the portrait renders need that choice. The
-original stays where it is. Roughly 9 MB per second of video.</p>
+1920×1080, at the frame rate it was made at, fitted (black sides) or filled
+(cropped) — the portrait renders need that choice — in a codec Resolume decodes on
+the GPU. The original stays where it is.</p>
+<table>
+  <tr><th>What it is</th><th>Becomes</th></tr>
+  <tr><td>video or image sequence</td><td><b>DXV</b> — roughly 9 MB per second</td></tr>
+  <tr><td>still</td><td><b>DXV</b>, one frame</td></tr>
+  <tr><td>anything really <b>transparent</b></td><td>ProRes 4444 (video) or PNG (still): ffmpeg's DXV has no alpha. For a lighter file, convert it in Resolume's <b>Alley</b> to DXV with alpha.</td></tr>
+</table>
+<p>"Really" means some pixel isn't opaque: renders often carry an alpha channel
+that is full everywhere, and those go to DXV. The codec shows on each clip.
+<code>python3 library.py --reconvert</code> converts clips added before this again
+from their sources, under the same names; <b>Install</b> with the clip in a layer
+reloads it there.</p>
 <div class="note"><code>library.json</code> is the list and goes in git;
 <code>content/library/</code> is the media — gigabytes — and lives in the shared
 folder, not git.</div>
