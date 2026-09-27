@@ -152,5 +152,14 @@ PIDS+=$!
 
 # the player runs here, in front, so its keys work. --preview lets lights cues
 # show in the previz when Resolume isn't sending (live Art-Net always wins)
-python3 cue_player.py --follow --preview
-stty sane 2>/dev/null
+# If it crashes, it comes back by itself, like on show night, and the previz
+# stays open; ctrl-C or quitting Blender still ends the session.
+while true; do
+  python3 cue_player.py --follow --preview
+  code=$?
+  stty sane 2>/dev/null
+  [[ $code -eq 0 || $code -eq 130 ]] && break
+  kill -0 $BLENDER_PID 2>/dev/null || break
+  echo "\n  the player stopped (exit $code) — restarting it in 2 s"
+  sleep 2
+done

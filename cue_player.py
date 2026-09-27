@@ -856,7 +856,7 @@ class Keys:
 class PlanWatch:
     """Notice when the timeline (or anyone) saves cues.json, show.json or
     osc_map.json, and hand the player the new plan: no restart needed."""
-    FILES = (CUES, SHOW, MAP)
+    FILES = (SHOW, CUES, MAP)                  # in the order check() unpacks them
 
     def __init__(self, player, every=0.5):
         self.player, self.every, self.t = player, every, 0.0
@@ -885,10 +885,15 @@ class PlanWatch:
             return                             # caught mid-save: try again next time
         self.stamp = stamp
         p = self.player
-        plan = compile_cues(show, cues, mapping, getattr(p, "snap", None))
-        automation = compile_automation(show, cues, mapping, getattr(p, "param_index", None))
-        p.mapping = mapping
-        changed = p.reload(show, plan, automation)
+        try:
+            plan = compile_cues(show, cues, mapping, getattr(p, "snap", None))
+            automation = compile_automation(show, cues, mapping, getattr(p, "param_index", None))
+            p.mapping = mapping
+            changed = p.reload(show, plan, automation)
+        except Exception as e:                 # a bad edit must never stop the show
+            print(f"{CLEAR}   !! couldn't take the edited plan ({type(e).__name__}: {e}); "
+                  "still playing the last good one")
+            return
         n = sum(1 for e in plan if not e.get("end_of") and e["beat"] is not None)
         print(f"{CLEAR}   .. plan edited: {n} cue(s)"
               + (f", now showing the new {', '.join(changed)} here" if changed else ""))
@@ -1079,8 +1084,10 @@ def main():
     plan = compile_cues(show, cues, mapping, snap)
     automation = compile_automation(show, cues, mapping, param_index)
     if not plan and not automation:
-        print("[cues] nothing planned yet: add cues in the show timeline first")
-        return 1
+        print("[cues] nothing planned yet: add cues in the show timeline"
+              + (" first" if a.dry_run else " — they're picked up as you add them"))
+        if a.dry_run:
+            return 1
 
     if a.dry_run:
         bad = dry_run(show, plan, mapping)
