@@ -15,6 +15,7 @@ import urllib.parse, urllib.request
 import arena_load                    # talks to Resolume's REST API
 import band                          # the control band: looks rendered as clips
 import library                       # the show's visuals, gathered from everywhere
+import host                          # projects, and starting the software
 import hashlib
 import socket
 from cue_player import osc_encode    # to hand the timeline's playhead to the player
@@ -38,6 +39,7 @@ PAGE = os.path.join(HERE, "plan_editor.html")
 SHOW_PAGE = os.path.join(HERE, "show_editor.html")
 DOCS_PAGE = os.path.join(HERE, "docs.html")
 LIBRARY_PAGE = os.path.join(HERE, "library.html")
+HOST_PAGE = os.path.join(HERE, "host.html")
 _scan = {"t": 0.0, "v": None}
 
 
@@ -141,7 +143,7 @@ def health():
                        "fix": "Start the player first"}
     else:
         out["player"] = {"ok": not ps.get("panic"), "warn": bool(ps.get("panic")),
-                         "text": "PANIC — cues held, press r to resume" if ps.get("panic")
+                         "text": "PANIC — cues held: Resume on the Host page (or r)" if ps.get("panic")
                          else f"bar {ps.get('bar', 1):.0f}" + (" · driven by the timeline"
                                                             if ps.get("source") == "timeline" else "")}
         if not ps.get("live_connected"):
@@ -208,6 +210,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
             except OSError:
                 return self._send(404, b"docs.html is missing", "text/plain")
             return self._send(200, body, "text/html; charset=utf-8")
+        if path in ("/host", "/host.html"):
+            try:
+                body = open(HOST_PAGE, "rb").read()
+            except OSError:
+                return self._send(404, b"host.html is missing", "text/plain")
+            return self._send(200, body, "text/html; charset=utf-8")
+        if path == "/host/status":
+            return self._send(200, json.dumps({**host.HOST.status(), "health": health(),
+                                               "local": self.is_local()}).encode())
+        if path == "/host/log":
+            q = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            name = (q.get("name") or ["player.log"])[0]
+            return self._send(200, json.dumps({"name": name, "text": host.tail(name)}).encode())
+        if path == "/projects":
+            return self._send(200, json.dumps(host.listing()).encode())
         if path in ("/library", "/library.html"):
             try:
                 body = open(LIBRARY_PAGE, "rb").read()
@@ -483,6 +500,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(200, json.dumps(report).encode())
         if path.startswith("/library/"):
             return self.library_post(path)
+        if path.startswith("/host/") or path.startswith("/projects/"):
+            return self.host_post(path)
         if path == "/transport":
             # the timeline's playhead, for the player to follow when Live isn't playing.
             # The browser never talks to Resolume: it only says where it is.
@@ -553,6 +572,62 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except (ValueError, TypeError, RuntimeError, SystemExit) as e:
             return self._send(502, json.dumps({"error": str(e)}).encode())
         return self._send(200, json.dumps({"name": name, "layer": layer, "clip": clip}).encode())
+
+    def is_local(self):
+        return self.client_address[0] in ("127.0.0.1", "::1", "::ffff:127.0.0.1")
+
+    def host_post(self, path):
+        """Projects (anyone the editors are shared with), and starting and
+        stopping software (only this Mac: it's this Mac's software)."""
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+            req = json.loads(self.rfile.read(n) or b"{}")
+            if path.startswith("/host/") and not self.is_local():
+                return self._send(403, json.dumps({"error": "only the show Mac can start or stop things"}).encode())
+            H = host.HOST
+            if path == "/projects/save":
+                out = {"name": host.save(req.get("name"))}
+            elif path == "/projects/load":
+                out = host.load(req["name"])
+            elif path == "/projects/new":
+                out = {"name": host.new(req["name"])}
+            elif path == "/projects/settings":
+                out = host.settings(req["name"], **{k: v for k, v in req.items() if k != "name"})
+            elif path == "/host/start":
+                H.start("show" if req.get("mode") == "show" else "test", host.current())
+                out = H.status()
+            elif path == "/host/stop":
+                H.stop()
+                out = H.status()
+            elif path == "/host/part":
+                part, action = req["part"], req["action"]
+                meta = host._meta(host.current()) if host.current() else {}
+                if part == "arena" and action == "start":
+                    H.open_arena(meta.get("composition"))
+                elif part == "live" and action == "start":
+                    H.open_live(meta.get("live_set") or host._live_set_of_show())
+                elif part == "blender":
+                    H.start_blender() if action == "start" else H.stop_blender()
+                elif part == "bridge":
+                    H.start_bridge() if action == "start" else H.stop_bridge()
+                elif part == "player":
+                    if action == "start":
+                        H.start_player("show" if req.get("mode") == "show" else "test")
+                    else:
+                        H.stop_player()
+                else:
+                    raise ValueError(f"can't {action} {part} from here")
+                out = H.status()
+            elif path in ("/host/panic", "/host/resume"):
+                H.player_osc("/player/" + path.rsplit("/", 1)[1])
+                out = {"ok": True}
+            elif path == "/host/preflight":
+                out = host.preflight(req.get("mode", "test"))
+            else:
+                return self._send(404, b'{"error":"not found"}')
+        except (KeyError, ValueError, RuntimeError, OSError) as e:
+            return self._send(400, json.dumps({"error": str(e)}).encode())
+        return self._send(200, json.dumps(out).encode())
 
     def library_post(self, path):
         try:

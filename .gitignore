@@ -11,3 +11,7 @@ __pycache__/
 # the show's media: many GB, kept in the shared folder, not in git (library.json is the list)
 content/library/*
 !content/library/.thumbs/
+
+# the host: backups made before a load, and which project this Mac has open
+projects/.autosave/
+projects/.current

@@ -1159,6 +1159,10 @@ def follow(show, player, port, live_host, live_port, timeline=True):
                     player.heard_t = time.monotonic()
                 if not args:
                     continue
+                if address in ("/player/panic", "/player/resume"):
+                    # the Host page's buttons: the same as p and r in a terminal
+                    player.panic() if address == "/player/panic" else player.resume()
+                    continue
                 if address == "/timeline/release":
                     # Drive switched off, Follow Live on, or the tab closed: back to Live, now
                     if player.source != "live":

@@ -47,6 +47,7 @@
 <nav class="topbar">
   <div class="brand"><i></i><span>Intermission</span></div>
   <div class="tabs-nav">
+    <a href="/host">Host</a>
     <a href="/">Floor plan</a>
     <a href="/show">Show timeline</a>
     <a href="/library">Library</a>
@@ -61,6 +62,35 @@
 <p class="lead">The show is planned in files, played by one small program, and
 previewed in a model of the room. This page is the map — read it when it has
 been a few weeks and nothing looks familiar.</p>
+
+<h2>The host — one click</h2>
+<p>Double-click <b><code>Intermission.command</code></b>. The editors start and the
+<b>Host</b> page opens (the first tab on every page). Everything else is a click there:</p>
+<table>
+  <tr><th></th><th>What it does</th></tr>
+  <tr><td><b>Project</b></td><td>Save, Save as, New, Load. A project is a folder in <code>projects/</code>
+    with the plan files — timeline, rig, looks, lanes and targets, the Library list —
+    and which Live set, Resolume composition and Advanced Output preset go with it.
+    Loading first copies what's here to <code>projects/.autosave/</code>, and every open
+    editor reloads, so nothing old is saved over what came in. <b>New</b> keeps the rig,
+    lanes, looks and Library, and starts the timeline empty.</td></tr>
+  <tr><td><b>▶ Test</b></td><td>Opens Resolume (with the project's composition) and the
+    set in Live, starts the Blender previz, the screen feed and the player.</td></tr>
+  <tr><td><b>● The show</b></td><td>Runs the check first, then Resolume, Live and the player
+    only — it follows Live, never the timeline — stops Blender and the feed, and keeps
+    the Mac awake.</td></tr>
+  <tr><td><b>PANIC / Resume</b></td><td>The same as <kbd>p</kbd> and <kbd>r</kbd> in the player's window.</td></tr>
+</table>
+<ul>
+  <li>Each part also starts and stops on its own, with its status and log
+    (<i>What happened</i>). A crashed player is restarted in a second.</li>
+  <li>Resolume and Live are opened, never quit, from here: they hold the show.
+    Arena opens as <b>7.19</b> (the licence); Live as the release that has AbletonOSC
+    set up, not the beta (<code>LIVE_APP=…</code> picks another).</li>
+  <li>With the editors shared (<code>./Intermission.command --lan</code>) the other laptop
+    can save and load projects, but only this Mac starts and stops software.</li>
+</ul>
+<p><code>Test.command</code> and <code>Live.command</code> below still work as they always did.</p>
 
 <h2>Two modes</h2>
 <p>There are only two things to start, and each is one double-click. Open

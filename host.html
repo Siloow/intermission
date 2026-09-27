@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Show host</title>
+<link rel="stylesheet" href="/lib/ui.css">
+<style>
+  /* the host's own layout; everything else comes from ui.css */
+  .page{overflow-y:auto;padding:var(--s4);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);
+    gap:var(--s4);align-content:start}
+  @media (max-width:980px){ .page{grid-template-columns:minmax(0,1fr)} }
+  .box{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--s4)}
+  .box h2{margin:0 0 var(--s3);font-size:var(--fs-md);font-weight:650;display:flex;align-items:center;gap:var(--s2)}
+  .box h2 .spacer{flex:1}
+  .cur{display:flex;align-items:baseline;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s2)}
+  .cur b{font-size:var(--fs-lg);font-weight:650}
+  .btns{display:flex;gap:var(--s2);flex-wrap:wrap}
+  .ask{display:none;gap:var(--s2);margin-top:var(--s2)}
+  .ask.on{display:flex}
+  .ask input{flex:1}
+  table.list{width:100%;border-collapse:collapse;font-size:var(--fs-sm);margin-top:var(--s2)}
+  table.list td,table.list th{padding:7px 8px;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle}
+  table.list th{font-size:var(--fs-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);font-weight:650}
+  table.list tr.on td{background:var(--accent-soft)}
+  table.list td.dim{color:var(--text-3)}
+  table.list td:last-child{text-align:right;white-space:nowrap}
+  .fld{margin-bottom:var(--s2)}
+  .fld label{display:block;color:var(--text-2);font-size:var(--fs-sm);margin-bottom:3px}
+  .fld input,.fld select,.fld textarea{width:100%;box-sizing:border-box}
+  .fld textarea{min-height:56px;resize:vertical}
+  .go{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);margin-bottom:var(--s3)}
+  .go button{height:54px;font-size:var(--fs-md);flex-direction:column;gap:1px}
+  .go button small{font-size:var(--fs-xs);font-weight:500;opacity:.75}
+  .go button.show{background:#3a1d1a;border-color:#6a2f28;color:#ffc3b8}
+  .go button.show:hover{background:#4a2420}
+  .go button.running{box-shadow:0 0 0 2px var(--ok) inset}
+  .parts{width:100%;border-collapse:collapse;font-size:var(--fs-sm)}
+  .parts td{padding:8px 6px;border-bottom:1px solid var(--border);vertical-align:middle}
+  .parts td:first-child{width:18px}
+  .parts td.what{font-weight:600;white-space:nowrap}
+  .parts td.how{color:var(--text-2)}
+  .parts td:last-child{text-align:right;white-space:nowrap}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--text-3);display:inline-block}
+  .dot.ok{background:var(--ok);box-shadow:0 0 6px rgba(79,199,135,.6)}
+  .dot.warn{background:var(--warn)}
+  .dot.bad{background:var(--err)}
+  .panic{display:grid;grid-template-columns:2fr 1fr;gap:var(--s2);margin-top:var(--s3)}
+  .panic button{height:44px;font-weight:700}
+  #panic{background:var(--err);border-color:var(--err);color:#fff}
+  #panic:hover{background:#f07560}
+  pre{font-family:var(--mono);font-size:11px;line-height:1.5;background:var(--surface-0);border:1px solid var(--border);
+    border-radius:var(--r);padding:var(--s2) var(--s3);max-height:260px;overflow:auto;white-space:pre-wrap;margin:var(--s2) 0 0;
+    color:var(--text-2);user-select:text;-webkit-user-select:text}
+  .events{font-size:var(--fs-sm);color:var(--text-2);margin:0;padding:0;list-style:none}
+  .events li{padding:2px 0}
+  .events time{color:var(--text-3);font-variant-numeric:tabular-nums;margin-right:6px}
+  .wide{grid-column:1/-1}
+  .pnote{font-size:var(--fs-sm);color:var(--text-2);margin:var(--s2) 0 0}
+  .badge.warn{background:rgba(232,163,61,.14);color:var(--warn)}
+  .badge.live{background:rgba(229,99,79,.2);color:#ffb3a6}
+</style>
+</head>
+<body class="app-page">
+<div class="app">
+  <nav class="topbar">
+    <div class="brand"><i></i><span>Intermission</span></div>
+    <div class="tabs-nav">
+      <a href="/host" class="here">Host</a>
+      <a href="/">Floor plan</a>
+      <a href="/show">Show timeline</a>
+      <a href="/library">Library</a>
+      <a href="/docs">How it works</a>
+    </div>
+  </nav>
+  <div class="workspace">
+    <main class="main page" id="page">
+
+      <!-- ------------------------------------------------------------ project -->
+      <section class="box">
+        <h2>Project <span class="spacer"></span><span id="changed"></span></h2>
+        <div class="cur"><b id="cur-name">—</b><span class="hint dim" id="cur-saved"></span></div>
+        <div class="btns">
+          <button id="save" class="primary" title="⌘S">Save</button>
+          <button id="saveas">Save as…</button>
+          <button id="new">New…</button>
+        </div>
+        <div class="ask" id="ask"><input id="ask-name" placeholder="project name" autocomplete="off">
+          <button id="ask-ok" class="primary">OK</button><button id="ask-cancel" class="ghost">Cancel</button></div>
+        <p class="pnote" id="proj-note"></p>
+
+        <table class="list" id="projects"></table>
+
+        <div id="settings" style="margin-top:var(--s4)">
+          <div class="section-title">Goes with this project</div>
+          <div class="fld"><label>Live set</label><input id="s-live" placeholder="…/Your Set.als"></div>
+          <div class="fld"><label>Resolume composition</label><select id="s-comp"></select></div>
+          <div class="fld"><label>Advanced Output preset <span class="dim">(load it yourself: Arena can't be told)</span></label>
+            <input id="s-preset" placeholder="Intermission"></div>
+          <div class="fld"><label>Notes</label><textarea id="s-notes" placeholder="what this version is"></textarea></div>
+        </div>
+      </section>
+
+      <!-- ---------------------------------------------------------------- run -->
+      <section class="box">
+        <h2>Run <span class="spacer"></span><span id="mode"></span></h2>
+        <div class="go">
+          <button id="go-test"><span>▶ Test</span><small>everything, with the previz</small></button>
+          <button id="go-show" class="show"><span>● The show</span><small>only what the night needs</small></button>
+        </div>
+        <table class="parts" id="parts"></table>
+        <div class="btns" style="margin-top:var(--s3)">
+          <button id="stop" class="danger">Stop</button>
+          <button id="check">Check everything</button>
+          <span class="hint dim" style="align-self:center;margin:0" id="stop-note">Resolume and Live stay open: they hold the show.</span>
+        </div>
+        <div class="panic">
+          <button id="panic" title="the safe look, cues held">PANIC</button>
+          <button id="resume">Resume</button>
+        </div>
+        <pre id="check-out" hidden></pre>
+      </section>
+
+      <section class="box wide">
+        <h2>What happened <span class="spacer"></span>
+          <select id="log-name" style="width:auto"><option value="">events</option><option>player.log</option>
+            <option>bridge.log</option><option>blender.log</option><option>server.log</option></select></h2>
+        <ul class="events" id="events"></ul>
+        <pre id="log" hidden></pre>
+      </section>
+    </main>
+  </div>
+</div>
+<script>
+const el = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const base = p => p ? String(p).split("/").pop() : "";
+const tell = (t, bad) => { el("proj-note").textContent = t; el("proj-note").style.color = bad ? "var(--err)" : ""; };
+let projects = null, status = null, asking = null;
+
+async function post(path, body){
+  const r = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body || {})});
+  const out = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(out.error || r.statusText);
+  return out;
+}
+// every open editor reloads when a project comes in, so none saves an old plan over it
+const channel = "BroadcastChannel" in window ? new BroadcastChannel("intermission") : null;
+
+// ------------------------------------------------------------------ projects --
+async function loadProjects(){
+  projects = await (await fetch("/projects", {cache: "no-store"})).json();
+  drawProjects();
+}
+function drawProjects(){
+  const p = projects, cur = p.projects.find(x => x.current);
+  el("cur-name").textContent = p.current || "Not saved as a project yet";
+  el("cur-saved").textContent = cur && cur.saved ? `saved ${cur.saved}` : "";
+  const ch = p.changed || [];
+  el("changed").innerHTML = !p.current ? `<span class="badge warn">unsaved</span>`
+    : ch.length ? `<span class="badge warn" title="${esc(ch.join(", "))}">changed: ${esc(ch.map(f => f.replace(".json", "")).join(", "))}</span>`
+    : `<span class="badge ok">saved</span>`;
+  el("save").disabled = !p.current;
+  el("projects").innerHTML = p.projects.length
+    ? `<tr><th>Project</th><th>Saved</th><th>Cues</th><th>Live set · composition</th><th></th></tr>` +
+      p.projects.map(x => `<tr class="${x.current ? "on" : ""}"><td><b>${esc(x.name)}</b>${x.notes ? `<br><span class="dim">${esc(x.notes)}</span>` : ""}</td>` +
+        `<td class="dim">${esc(x.saved || "")}</td><td class="dim">${x.cues}</td>` +
+        `<td class="dim">${esc(base(x.live_set) || "—")}<br>${esc(base(x.composition) || "—")}</td>` +
+        `<td>${x.current ? `<span class="badge ok">open</span>` : `<button data-load="${esc(x.name)}">Load</button>`}</td></tr>`).join("")
+    : `<tr><td class="dim">No projects yet. <b>Save as…</b> keeps what you have now as the first one.</td></tr>`;
+  // settings of the open project
+  el("settings").style.display = cur ? "" : "none";
+  if (cur && !el("settings").contains(document.activeElement)){
+    el("s-live").value = cur.live_set || "";
+    el("s-live").placeholder = p.live_set_now || "…/Your Set.als";
+    el("s-comp").innerHTML = `<option value="">— whatever Arena opens with —</option>` +
+      p.compositions.map(c => `<option value="${esc(c)}" ${c === cur.composition ? "selected" : ""}>${esc(base(c).replace(/\.avc$/, ""))}</option>`).join("");
+    el("s-preset").value = cur.output_preset || "";
+    el("s-notes").value = cur.notes || "";
+  }
+}
+function ask(kind){
+  asking = kind;
+  el("ask").classList.add("on");
+  el("ask-name").value = kind === "saveas" && projects.current ? projects.current + " 2" : "";
+  el("ask-name").placeholder = kind === "new" ? "new project: the rig and Library come along, the timeline starts empty" : "save as…";
+  el("ask-name").focus(); el("ask-name").select();
+}
+el("saveas").onclick = () => ask("saveas");
+el("new").onclick = () => ask("new");
+el("ask-cancel").onclick = () => { el("ask").classList.remove("on"); asking = null; };
+el("ask-name").addEventListener("keydown", e => { if (e.key === "Enter") el("ask-ok").click(); if (e.key === "Escape") el("ask-cancel").click(); });
+el("ask-ok").onclick = async () => {
+  const name = el("ask-name").value.trim();
+  if (!name) return;
+  try {
+    if (asking === "new"){
+      if (!confirmLeave("start a new project")) return;
+      await post("/projects/new", {name});
+      channel && channel.postMessage("project-loaded");
+      tell(`New project “${name}”: the timeline is empty; the rig, lanes, looks and Library came along.`);
+    } else {
+      await post("/projects/save", {name});
+      tell(`Saved as “${name}”.`);
+    }
+    el("ask").classList.remove("on"); asking = null;
+    await loadProjects();
+  } catch(e){ tell(e.message, true); }
+};
+el("save").onclick = async () => {
+  try { const r = await post("/projects/save", {}); tell(`Saved “${r.name}”.`); await loadProjects(); }
+  catch(e){ tell(e.message, true); }
+};
+addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s"){ e.preventDefault(); projects && projects.current ? el("save").click() : ask("saveas"); }
+});
+function confirmLeave(what){
+  const ch = projects.current ? projects.changed || [] : ["everything"];
+  if (!ch.length) return true;
+  return confirm(`${projects.current ? `“${projects.current}” has changes that aren't saved (${ch.join(", ")})`
+                                      : "What's here isn't saved as a project"}.\n\n` +
+                 `${what[0].toUpperCase() + what.slice(1)} anyway? A copy goes to projects/.autosave either way.`);
+}
+el("projects").addEventListener("click", async e => {
+  const b = e.target.closest("[data-load]"); if (!b) return;
+  if (!confirmLeave(`load “${b.dataset.load}”`)) return;
+  try {
+    const r = await post("/projects/load", {name: b.dataset.load});
+    channel && channel.postMessage("project-loaded");
+    tell(`Loaded “${r.name}”. What was here is in ${r.backup}. The player and Blender follow by themselves.`);
+    await loadProjects();
+  } catch(err){ tell(err.message, true); }
+});
+async function setting(field, value){
+  if (!projects.current) return;
+  try { await post("/projects/settings", {name: projects.current, [field]: value}); await loadProjects(); }
+  catch(e){ tell(e.message, true); }
+}
+el("s-live").addEventListener("change", e => setting("live_set", e.target.value.trim()));
+el("s-comp").addEventListener("change", e => setting("composition", e.target.value));
+el("s-preset").addEventListener("change", e => setting("output_preset", e.target.value.trim()));
+el("s-notes").addEventListener("change", e => setting("notes", e.target.value));
+
+// ----------------------------------------------------------------------- run --
+const HOST_PARTS = [
+  ["arena",   "Resolume Arena", h => h.resolume],
+  ["live",    "Ableton Live",   h => h.live],
+  ["player",  "Player",         h => h.player],
+  ["blender", "Blender previz", h => h.blender],
+  ["bridge",  "Screen feed",    h => h.screen],
+  ["artnet",  "Art-Net",        h => h.artnet],
+];
+function dotOf(p){ return !p || p.ok === null || p.ok === undefined ? "" : p.warn ? "warn" : p.ok ? "ok" : "bad"; }
+function drawStatus(){
+  const s = status, h = s.health || {}, parts = s.parts;
+  el("mode").innerHTML = s.mode === "show" ? `<span class="badge live">the show${s.awake ? " · kept awake" : ""}</span>`
+                       : s.mode === "test" ? `<span class="badge ok">test</span>` : "";
+  el("go-test").classList.toggle("running", s.mode === "test");
+  el("go-show").classList.toggle("running", s.mode === "show");
+  el("parts").innerHTML = HOST_PARTS.map(([k, label, hk]) => {
+    const p = parts[k] || {}, hp = hk(h) || {};
+    let how = hp.text || "", act = "";
+    if (k === "arena"){
+      if (p.other_version) how = "another Arena version is open: the show needs 7.19 (the licence)";
+      else if (p.running && !p.answering) how = "open, starting up (or its web server is off)";
+      act = p.running ? "" : `<button data-part="arena" data-act="start">Open</button>`;
+    } else if (k === "live"){
+      if (!p.running) how = "not open";
+      else if (p.wrong_app) how = `${p.app} is open: AbletonOSC is set up in the other Live — close it and open the set here`;
+      act = p.running ? "" : `<button data-part="live" data-act="start">Open the set</button>`;
+    } else if (k === "player"){
+      if (p.running && !p.ours) how += " · started outside the host";
+      if (p.restarts) how += ` · restarted ${p.restarts}×`;
+      act = p.running ? `<button data-part="player" data-act="stop">Stop</button>`
+                      : `<button data-part="player" data-act="start">Start</button>`;
+    } else if (k === "blender" || k === "bridge"){
+      if (!p.running) how = "off";
+      act = p.running ? `<button data-part="${k}" data-act="stop">Stop</button>`
+                      : `<button data-part="${k}" data-act="start">Start</button>`;
+    }
+    const d = k === "arena" && !p.running ? "bad" : k === "live" && !p.running ? "bad"
+            : (k === "blender" || k === "bridge") && !p.running ? "" : dotOf(hp);
+    return `<tr><td><i class="dot ${d}"></i></td><td class="what">${label}</td>` +
+           `<td class="how" title="${esc(hp.fix || "")}">${esc(how)}</td><td>${act}</td></tr>`;
+  }).join("");
+  const local = s.local;
+  document.querySelectorAll("#go-test,#go-show,#stop,#panic,#resume,[data-part]").forEach(b => b.disabled = !local);
+  el("stop-note").textContent = local ? "Resolume and Live stay open: they hold the show." : "Only the show Mac can start or stop things.";
+  if (!el("log-name").value)
+    el("events").innerHTML = (s.events || []).slice().reverse().map(e => `<li><time>${e.t}</time>${esc(e.text)}</li>`).join("") ||
+      `<li class="dim">Nothing started from here yet.</li>`;
+}
+async function poll(){
+  try { status = await (await fetch("/host/status", {cache: "no-store"})).json(); drawStatus(); }
+  catch(e){}
+  if (el("log-name").value){
+    try { const r = await (await fetch("/host/log?name=" + encodeURIComponent(el("log-name").value), {cache: "no-store"})).json();
+          const pre = el("log"), atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 8;
+          pre.textContent = r.text || "(empty)"; if (atEnd) pre.scrollTop = pre.scrollHeight; } catch(e){}
+  }
+}
+el("log-name").onchange = () => { const on = !!el("log-name").value; el("log").hidden = !on; el("events").hidden = on; poll(); };
+el("parts").addEventListener("click", async e => {
+  const b = e.target.closest("[data-part]"); if (!b) return;
+  b.disabled = true;
+  try { status = {...status, ...(await post("/host/part", {part: b.dataset.part, action: b.dataset.act, mode: status.mode}))}; }
+  catch(err){ alert(err.message); }
+  setTimeout(poll, 400);
+});
+async function check(mode){
+  const pre = el("check-out"); pre.hidden = false; pre.textContent = "checking…";
+  const r = await post("/host/preflight", {mode});
+  pre.textContent = r.text;
+  return r;
+}
+el("check").onclick = () => check(status && status.mode === "show" ? "show" : "test");
+el("go-test").onclick = async () => {
+  try { await post("/host/start", {mode: "test"}); } catch(e){ alert(e.message); }
+  poll();
+};
+el("go-show").onclick = async () => {
+  const r = await check("show");
+  if (r.problems && !confirm(`${r.problems} problem(s) — see the check below. Start the show anyway?`)) return;
+  if (!r.problems && !confirm("Checklist done? Start the show: Blender and the screen feed go off, the Mac stays awake.")) return;
+  try { await post("/host/start", {mode: "show"}); } catch(e){ alert(e.message); }
+  poll();
+};
+el("stop").onclick = async () => {
+  if (status && status.mode === "show" && !confirm("Stop the show? The player stops following Live; Resolume holds the last state.")) return;
+  try { await post("/host/stop"); } catch(e){ alert(e.message); }
+  poll();
+};
+el("panic").onclick = () => post("/host/panic").then(poll).catch(e => alert(e.message));
+el("resume").onclick = () => post("/host/resume").then(poll).catch(e => alert(e.message));
+
+loadProjects().catch(e => tell("can't read the projects: " + e.message, true));
+poll();
+setInterval(poll, 1500);
+setInterval(() => { if (!asking && !el("settings").contains(document.activeElement)) loadProjects().catch(() => {}); }, 5000);
+</script>
+<script src="/lib/status.js"></script>
+</body>
+</html>

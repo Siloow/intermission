@@ -1,0 +1,477 @@
+"""The show host: projects, and starting the software, from the browser.
+
+Projects
+    A project is a folder in projects/ holding the show's plan files, the same
+    files every tool reads here (show.json, cues.json, rig.json, looks.json,
+    osc_map.json, library.json), and project.json: its name, and which Live set,
+    Resolume composition and Advanced Output preset go with it.
+
+    The tools keep working on the files in this folder, as they always have.
+    Save copies them into the project; load copies a project's in, after
+    putting what was here into projects/.autosave/ first, so nothing is ever
+    lost by loading. The player and Blender follow the files as they change.
+
+Software
+    Each part the show needs, started and stopped from here: Resolume Arena and
+    Live are opened with the project's composition and set (never quit from
+    here: they hold the show), Blender with the previz, the Syphon bridge, and
+    the player, which the host keeps running (a crash restarts it, like
+    Live.command does). Test runs everything; the show runs only what it needs,
+    keeps the Mac awake, and leaves Blender and the bridge off the GPU.
+
+Standard library only. plan_server.py serves it; only this Mac may start things.
+"""
+import glob, json, os, re, shutil, signal, socket, subprocess, sys, threading, time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+PROJECTS = os.path.join(HERE, "projects")
+CURRENT = os.path.join(PROJECTS, ".current")
+AUTOSAVE = os.path.join(PROJECTS, ".autosave")
+PROJECT_FILES = ("show.json", "cues.json", "rig.json", "looks.json", "osc_map.json", "library.json")
+KEEP_AUTOSAVES = 30
+LIVE_DIR = os.path.join(HERE, ".live")
+PLAYER_PORT = 11001                     # the player listens here (Live's replies, the timeline, us)
+
+ARENA_APPS = ("/Applications/Resolume Arena/Arena.app",)      # 7.19, the licence; not 7.27
+
+
+def live_app():
+    """The Live to open the set in: the one AbletonOSC is set up in. That's a
+    release, not a beta (the beta keeps its own preferences, without it): the
+    newest non-beta Live, unless $LIVE_APP says otherwise."""
+    if os.environ.get("LIVE_APP") and os.path.isdir(os.environ["LIVE_APP"]):
+        return os.environ["LIVE_APP"]
+    apps = sorted(glob.glob("/Applications/Ableton Live*.app") + glob.glob(os.path.expanduser("~/Applications/Ableton Live*.app")))
+    release = [a for a in apps if "beta" not in a.lower()]
+    return (release or apps or [None])[-1]
+COMPOSITIONS = os.path.expanduser("~/Documents/Resolume Arena/Compositions")
+
+
+# ------------------------------------------------------------------ projects --
+def slug(name):
+    s = re.sub(r"[^\w\- ]+", "", str(name)).strip()
+    if not s:
+        raise ValueError("give the project a name")
+    return s[:60]
+
+
+def current():
+    try:
+        return open(CURRENT).read().strip() or None
+    except OSError:
+        return None
+
+
+def _set_current(name):
+    os.makedirs(PROJECTS, exist_ok=True)
+    open(CURRENT, "w").write(name)
+
+
+def _meta(name):
+    try:
+        return json.load(open(os.path.join(PROJECTS, name, "project.json")))
+    except (OSError, ValueError):
+        return {"name": name}
+
+
+def _write_meta(name, meta):
+    path = os.path.join(PROJECTS, name, "project.json")
+    tmp = path + ".tmp"
+    json.dump(meta, open(tmp, "w"), indent=2)
+    os.replace(tmp, path)
+
+
+def _same(a, b):
+    try:
+        return open(a, "rb").read() == open(b, "rb").read()
+    except OSError:
+        return not os.path.exists(a) and not os.path.exists(b)
+
+
+def changed(name):
+    """The plan files that differ from what the project has saved."""
+    if not name or not os.path.isdir(os.path.join(PROJECTS, name)):
+        return list(PROJECT_FILES)
+    return [f for f in PROJECT_FILES
+            if not _same(os.path.join(HERE, f), os.path.join(PROJECTS, name, f))]
+
+
+def _live_set_of_show():
+    try:
+        return json.load(open(os.path.join(HERE, "show.json"))).get("source")
+    except (OSError, ValueError):
+        return None
+
+
+def listing():
+    os.makedirs(PROJECTS, exist_ok=True)
+    cur = current()
+    out = []
+    for d in sorted(os.listdir(PROJECTS)):
+        if d.startswith(".") or not os.path.isdir(os.path.join(PROJECTS, d)):
+            continue
+        m = _meta(d)
+        try:
+            cues = json.load(open(os.path.join(PROJECTS, d, "cues.json")))
+            n = len([c for c in cues.get("cues", []) if c.get("lane") != "note"])
+        except (OSError, ValueError):
+            n = 0
+        out.append({"name": d, "saved": m.get("saved"), "created": m.get("created"),
+                    "live_set": m.get("live_set"), "composition": m.get("composition"),
+                    "output_preset": m.get("output_preset"), "notes": m.get("notes", ""),
+                    "cues": n, "current": d == cur})
+    return {"current": cur, "changed": changed(cur) if cur else None, "projects": out,
+            "compositions": compositions(), "live_set_now": _live_set_of_show()}
+
+
+def _copy_in(src_dir, files=PROJECT_FILES):
+    """Put a set of plan files in place here, one atomic replace each."""
+    for f in files:
+        src = os.path.join(src_dir, f)
+        if not os.path.exists(src):
+            continue
+        tmp = os.path.join(HERE, f + ".loading")
+        shutil.copyfile(src, tmp)
+        os.replace(tmp, os.path.join(HERE, f))
+
+
+def _autosave(label):
+    stamp = time.strftime("%Y-%m-%d %H.%M.%S")
+    dest = os.path.join(AUTOSAVE, f"{stamp} {label}")
+    os.makedirs(dest, exist_ok=True)
+    for f in PROJECT_FILES:
+        if os.path.exists(os.path.join(HERE, f)):
+            shutil.copyfile(os.path.join(HERE, f), os.path.join(dest, f))
+    olds = sorted(glob.glob(os.path.join(AUTOSAVE, "*")))
+    for old in olds[:-KEEP_AUTOSAVES]:
+        shutil.rmtree(old, ignore_errors=True)
+    return dest
+
+
+def save(name=None):
+    """Save what is here into the current project, or into `name` (save as)."""
+    name = slug(name) if name else current()
+    if not name:
+        raise ValueError("no project yet: save as a new one, with a name")
+    d = os.path.join(PROJECTS, name)
+    os.makedirs(d, exist_ok=True)
+    for f in PROJECT_FILES:
+        if os.path.exists(os.path.join(HERE, f)):
+            shutil.copyfile(os.path.join(HERE, f), os.path.join(d, f))
+    meta = _meta(name)
+    now = time.strftime("%Y-%m-%d %H:%M")
+    meta.setdefault("created", now)
+    meta.setdefault("live_set", _live_set_of_show())
+    meta.update(name=name, saved=now)
+    _write_meta(name, meta)
+    _set_current(name)
+    return name
+
+
+def load(name):
+    name = slug(name)
+    d = os.path.join(PROJECTS, name)
+    if not os.path.isdir(d):
+        raise ValueError(f"no project called {name!r}")
+    backup = _autosave(f"before loading {name}")
+    _copy_in(d)
+    _set_current(name)
+    return {"name": name, "backup": os.path.relpath(backup, HERE)}
+
+
+def new(name, keep=True):
+    """A new project from what is here: the rig, the lanes, the looks and the
+    Library carry over; the timeline starts empty (keep=False: the song
+    structure too, until Live's set is synced in)."""
+    name = slug(name)
+    if os.path.isdir(os.path.join(PROJECTS, name)):
+        raise ValueError(f"there is already a project called {name!r}")
+    _autosave(f"before new {name}")
+    cues_path = os.path.join(HERE, "cues.json")
+    try:
+        cues = json.load(open(cues_path))
+    except (OSError, ValueError):
+        cues = {}
+    blank = {k: v for k, v in cues.items() if k not in ("cues", "automation")}
+    blank.update(cues=[], automation=[])
+    tmp = cues_path + ".tmp"
+    json.dump(blank, open(tmp, "w"), indent=1)
+    os.replace(tmp, cues_path)
+    save(name)
+    meta = _meta(name)
+    meta["created"] = meta["saved"]
+    _write_meta(name, meta)
+    return name
+
+
+def settings(name, **fields):
+    name = slug(name)
+    if not os.path.isdir(os.path.join(PROJECTS, name)):
+        raise ValueError(f"no project called {name!r}")
+    meta = _meta(name)
+    for k in ("live_set", "composition", "output_preset", "notes"):
+        if k in fields:
+            meta[k] = fields[k] or None if k != "notes" else fields[k] or ""
+    _write_meta(name, meta)
+    return meta
+
+
+def compositions():
+    return sorted(glob.glob(os.path.join(COMPOSITIONS, "**", "*.avc"), recursive=True))
+
+
+# ------------------------------------------------------------------ software --
+def _pgrep(pattern):
+    try:
+        out = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True).stdout.split()
+    except OSError:
+        return []
+    return [int(p) for p in out if int(p) != os.getpid()]
+
+
+def _port_answers(port, path="/api/v1/product"):
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.3) as s:
+            s.sendall(f"GET {path} HTTP/1.0\r\nHost: localhost\r\n\r\n".encode())
+            return s.recv(12).startswith(b"HTTP/1.")
+    except OSError:
+        return False
+
+
+def find_blender():
+    for c in (os.environ.get("BLENDER"), "/Applications/Blender.app/Contents/MacOS/Blender",
+              os.path.expanduser("~/Applications/Blender.app/Contents/MacOS/Blender")):
+        if c and os.access(c, os.X_OK):
+            return c
+    return shutil.which("blender")
+
+
+def find_uv():
+    for c in (os.path.join(HERE, "tools", "uv"), os.path.expanduser("~/.local/bin/uv"),
+              "/opt/homebrew/bin/uv", "/usr/local/bin/uv"):
+        if os.access(c, os.X_OK):
+            return c
+    return shutil.which("uv")
+
+
+class Host:
+    """What this server started, and a view of what runs however it started."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.procs = {}                    # part -> Popen we started
+        self.mode = None                   # "test" or "show", once started from here
+        self.player_mode = None
+        self.player_stop = threading.Event()
+        self.player_thread = None
+        self.restarts = 0
+        self.awake = None                  # caffeinate, in show mode
+        self.events = []                   # what happened, for the page
+
+    def note(self, text):
+        self.events.append({"t": time.strftime("%H:%M:%S"), "text": text})
+        del self.events[:-40]
+
+    # ---- status
+    def status(self):
+        def ours(k):
+            p = self.procs.get(k)
+            return p is not None and p.poll() is None
+        arena_pids = _pgrep("Resolume Arena/Arena.app/Contents/MacOS/Arena")         # 7.19
+        other_arena = [p for p in _pgrep("Resolume Arena [0-9.]+/Arena.app/Contents/MacOS/Arena")]
+        live_pids = _pgrep(r"Ableton Live.*\.app/Contents/MacOS/Live")
+        live_which = ""
+        if live_pids:
+            try:
+                cmd = subprocess.run(["ps", "-o", "command=", "-p", str(live_pids[0])], capture_output=True, text=True).stdout
+                live_which = re.search(r"(Ableton Live[^/]*)\.app", cmd).group(1)
+            except (OSError, AttributeError):
+                pass
+        parts = {
+            "arena": {"running": bool(arena_pids) or bool(other_arena), "answering": _port_answers(8080),
+                      "other_version": bool(other_arena) and not arena_pids},
+            "live": {"running": bool(live_pids), "app": live_which,
+                     "wrong_app": bool(live_which) and live_app() is not None
+                                  and not live_app().endswith(live_which + ".app")},
+            "blender": {"running": bool(_pgrep("Blender -y venue.blend")), "ours": ours("blender")},
+            "bridge": {"running": bool(_pgrep("syphon_bridge.py")), "ours": ours("bridge")},
+            "player": {"running": bool(_pgrep("cue_player.py --follow")),
+                       "ours": self.player_thread is not None and self.player_thread.is_alive(),
+                       "mode": self.player_mode, "restarts": self.restarts},
+        }
+        return {"mode": self.mode, "awake": self.awake is not None and self.awake.poll() is None,
+                "parts": parts, "events": self.events[-12:]}
+
+    # ---- the apps that hold the show: opened, never quit from here
+    def open_arena(self, composition=None):
+        app = next((a for a in ARENA_APPS if os.path.isdir(a)), None)
+        if not app:
+            raise RuntimeError("Resolume Arena isn't in /Applications/Resolume Arena")
+        args = ["open", "-a", app] + ([composition] if composition and os.path.exists(composition) else [])
+        subprocess.run(args, check=False)
+        self.note("opened Resolume Arena" + (f" with {os.path.basename(composition)}" if composition else ""))
+
+    def open_live(self, live_set=None):
+        app = live_app()
+        if not app:
+            raise RuntimeError("no Ableton Live in /Applications")
+        name = os.path.basename(app).replace(".app", "")
+        if live_set and os.path.exists(live_set):
+            subprocess.run(["open", "-a", app, live_set], check=False)
+            self.note(f"opened {os.path.basename(live_set)} in {name}")
+        else:
+            subprocess.run(["open", "-a", app], check=False)
+            self.note(f"opened {name} (no set chosen for this project)")
+
+    # ---- what we run
+    def _spawn(self, key, args, log):
+        os.makedirs(LIVE_DIR, exist_ok=True)
+        lf = open(os.path.join(LIVE_DIR, log), "a")
+        p = subprocess.Popen(args, cwd=HERE, stdout=lf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                             start_new_session=True)
+        self.procs[key] = p
+        return p
+
+    def start_blender(self):
+        if _pgrep("Blender -y venue.blend"):
+            return
+        bl = find_blender()
+        if not bl:
+            raise RuntimeError("Blender isn't installed (blender.org), or set BLENDER=/path/to/Blender")
+        self._spawn("blender", [bl, "-y", "venue.blend", "--python-expr",
+                                "import bpy; bpy.app.timers.register(lambda: (bpy.ops.venue.live(), None)[1], first_interval=2.0)"],
+                    "blender.log")
+        self.note("started the Blender previz")
+
+    def start_bridge(self):
+        if _pgrep("syphon_bridge.py"):
+            return
+        uv = find_uv()
+        if not uv:
+            raise RuntimeError("no screen feed: 'uv' isn't installed (curl -LsSf https://astral.sh/uv/install.sh | sh)")
+        self._spawn("bridge", [uv, "run", "-q", "syphon_bridge.py"], "bridge.log")
+        self.note("started the screen feed (Syphon → Blender)")
+
+    def _stop_pattern(self, key, pattern, sig=signal.SIGTERM):
+        p = self.procs.pop(key, None)
+        if p and p.poll() is None:
+            p.send_signal(sig)
+        for pid in _pgrep(pattern):
+            try:
+                os.kill(pid, sig)
+            except OSError:
+                pass
+
+    def stop_blender(self):
+        self._stop_pattern("blender", "Blender -y venue.blend")
+        self.note("stopped the Blender previz")
+
+    def stop_bridge(self):
+        self._stop_pattern("bridge", "syphon_bridge.py")
+        self.note("stopped the screen feed")
+
+    def start_player(self, mode):
+        """Run the player, and keep it running: exit 0 is a stop, anything else a
+        crash, restarted in a second (a panic survives it)."""
+        if self.player_thread and self.player_thread.is_alive():
+            if self.player_mode == mode:
+                return
+            self.stop_player()
+        if _pgrep("cue_player.py --follow"):     # one from Test.command or Live.command
+            self._stop_pattern("player", "cue_player.py --follow", signal.SIGINT)
+            for _ in range(30):
+                if not _pgrep("cue_player.py --follow"):
+                    break
+                time.sleep(0.1)
+        self.player_stop.clear()
+        self.player_mode = mode
+        self.restarts = 0
+        flags = ["--preview"] if mode == "test" else ["--live-only"]
+
+        def run():
+            while not self.player_stop.is_set():
+                p = self._spawn("player", [sys.executable, "-u", "cue_player.py", "--follow", *flags], "player.log")
+                code = p.wait()
+                if self.player_stop.is_set() or code == 0:
+                    break
+                self.restarts += 1
+                self.note(f"the player stopped (exit {code}): restarted")
+                time.sleep(1.0)
+        self.player_thread = threading.Thread(target=run, daemon=True)
+        self.player_thread.start()
+        self.note(f"started the player ({'follows Live and the timeline' if mode == 'test' else 'follows Live only'})")
+
+    def stop_player(self):
+        self.player_stop.set()
+        self._stop_pattern("player", "cue_player.py --follow", signal.SIGINT)
+        self.player_mode = None
+        self.note("stopped the player")
+
+    def player_osc(self, address):
+        pad = lambda b: b + b"\0" * (4 - len(b) % 4)
+        msg = pad(address.encode()) + pad(b",i") + (1).to_bytes(4, "big")
+        socket.socket(socket.AF_INET, socket.SOCK_DGRAM).sendto(msg, ("127.0.0.1", PLAYER_PORT))
+        self.note("PANIC: safe look, cues held" if address.endswith("panic") else "resumed the plan")
+
+    # ---- the two ways to run it
+    def start(self, mode, project):
+        meta = _meta(project) if project else {}
+        with self.lock:
+            self.mode = mode
+            st = self.status()["parts"]
+            if not st["arena"]["running"]:
+                self.open_arena(meta.get("composition"))
+            if not st["live"]["running"]:
+                self.open_live(meta.get("live_set") or _live_set_of_show())
+            if mode == "test":
+                self.start_blender()
+                self.start_bridge()
+                if self.awake is not None:
+                    self.awake.terminate()
+                    self.awake = None
+            else:
+                # the show: nothing extra on the GPU, and no sleeping
+                if st["blender"]["running"]:
+                    self.stop_blender()
+                if st["bridge"]["running"]:
+                    self.stop_bridge()
+                if self.awake is None or self.awake.poll() is not None:
+                    self.awake = subprocess.Popen(["caffeinate", "-dims", "-w", str(os.getpid())])
+                    self.note("keeping the Mac awake")
+            self.start_player(mode)
+
+    def stop(self):
+        with self.lock:
+            self.stop_player()
+            if _pgrep("syphon_bridge.py"):
+                self.stop_bridge()
+            if _pgrep("Blender -y venue.blend"):
+                self.stop_blender()
+            if self.awake is not None:
+                self.awake.terminate()
+                self.awake = None
+            self.mode = None
+            self.note("stopped: Resolume and Live keep running and hold the last state")
+
+
+def preflight(mode):
+    """The same check the launchers run, as text for the page."""
+    try:
+        r = subprocess.run([sys.executable, "preflight.py", "live" if mode == "show" else "test"],
+                           cwd=HERE, capture_output=True, text=True, timeout=40)
+    except (OSError, subprocess.SubprocessError) as e:
+        return {"problems": 1, "text": str(e)}
+    text = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", r.stdout + r.stderr)
+    return {"problems": r.returncode, "text": text.strip()}
+
+
+def tail(log, n=60):
+    try:
+        lines = open(os.path.join(LIVE_DIR, os.path.basename(log)), errors="replace").read().splitlines()
+    except OSError:
+        return ""
+    clean = [re.sub(r"\x1b\[[0-9;]*[A-Za-z]|\r", "", l).strip() for l in lines[-400:]]
+    return "\n".join([l for l in clean if l][-n:])
+
+
+HOST = Host()
