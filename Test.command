@@ -27,9 +27,10 @@ case "$PWD" in
     xattr -w com.apple.fileprovider.ignore#P 1 .live 2>/dev/null ;;
 esac
 
-REBUILD=0; BRIDGE=1; PLAN_ONLY=0
+REBUILD=0; BRIDGE=1; PLAN_ONLY=0; LAN_ASK=1; LAN=""
 for a in "$@"; do
   case "$a" in
+    --lan)       LAN="--lan"; LAN_ASK=0 ;;
     --no-bridge) BRIDGE=0 ;;
     --rebuild)   REBUILD=1 ;;
     --plan)      PLAN_ONLY=1 ;;
@@ -109,11 +110,13 @@ if [[ $BRIDGE -eq 1 ]]; then
 fi
 
 # working together: let another laptop on this network open the editors too
-LAN=""
-if read -q "?Share the editors on this network, for a second laptop? [y/N] "; then
-  LAN="--lan"
+# (no answer in 5 s is a no, so a restart never waits here; --lan says yes up front)
+if [[ $LAN_ASK -eq 1 ]]; then
+  if read -t 5 -q "?Share the editors on this network, for a second laptop? [y/N, 5 s] "; then
+    LAN="--lan"
+  fi
+  echo
 fi
-echo
 python3 plan_server.py --no-open $LAN > .live/server.log 2>&1 &
 PIDS+=$!
 
