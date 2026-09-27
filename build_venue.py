@@ -19,7 +19,7 @@ those properties from incoming Art-Net, so Blender shows what Resolume sends.
 """
 import bpy, json, math, os
 import numpy as np
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "venue.blend")
@@ -172,13 +172,35 @@ def load_rig():
     return rig
 
 
+# rig.json is the floor plan, seen from above with the screen at the top: +x is
+# the audience's right. This room has the screen at -y with z up, where the
+# audience's right is -x, so a fixture's x and its angles are mirrored here
+# (venue_live.py does the same when it follows the plan live).
+def plan_x(x):
+    return -float(x)
+
+
 def aim_euler(x, y, aim_deg, tilt_deg):
-    """Rotation for a fixture leaning toward aim_deg at tilt_deg above horizontal."""
-    a, t = math.radians(aim_deg), math.radians(tilt_deg)
+    """Rotation for a fixture leaning toward aim_deg (in the plan) at tilt_deg above horizontal."""
+    a, t = math.radians(-aim_deg), math.radians(tilt_deg)
     d = Vector((math.sin(a) * math.cos(t), math.cos(a) * math.cos(t), math.sin(t)))
     if d.length < 1e-6:
         d = Vector((0, 0, 1))
     return d.normalized().to_track_quat("Z", "Y").to_euler()
+
+
+def bar_euler(aim_deg, tilt_deg, rot_deg):
+    """A bar's frame: beam (local Z) along its aim, pixels (local X) along the way
+    the floor plan turns it (venue_live.py's _bar_euler; the same rule)."""
+    a, t = math.radians(-aim_deg), math.radians(tilt_deg)
+    z = Vector((math.sin(a) * math.cos(t), math.cos(a) * math.cos(t), math.sin(t))).normalized()
+    r = math.radians(rot_deg)
+    h = Vector((plan_x(math.cos(r)), math.sin(r), 0.0))
+    x = h - z * h.dot(z)
+    if x.length < 1e-4:
+        return aim_euler(0, 0, aim_deg, tilt_deg)
+    x.normalize()
+    return Matrix((x, z.cross(x), z)).transposed().to_euler()
 
 
 # ------------------------------------------------------------- helpers ------
@@ -230,7 +252,9 @@ def plane_xz(name, coll, cx, y, cz, w, h, mat, facing=+1):
                    [(0, 1, 2, 3) if facing > 0 else (3, 2, 1, 0)])
     me.uv_layers.new(name="UVMap")
     uv = me.uv_layers[0].data
-    for i, co in enumerate([(0, 0), (1, 0), (1, 1), (0, 1)] if facing > 0 else [(0, 1), (1, 1), (1, 0), (0, 0)]):
+    # The image's left edge at the audience's left: facing the screen (-y, z up)
+    # that is +x, so u runs from x1 back to x0.
+    for i, co in enumerate([(1, 0), (0, 0), (0, 1), (1, 1)] if facing > 0 else [(1, 1), (0, 1), (0, 0), (1, 0)]):
         uv[i].uv = co
     me.materials.append(mat)
     return link(bpy.data.objects.new(name, me), coll)
@@ -439,7 +463,7 @@ def build_par(coll, name, f, rig_data, profile, body_mat):
     rig = link(bpy.data.objects.new(name, None), coll)
     rig.empty_display_type = "SINGLE_ARROW"
     rig.empty_display_size = 0.35
-    rig.location = (f["x"], f["y"], f.get("z", 0.18)) if f else (0, 0, 0.18)
+    rig.location = (plan_x(f["x"]), f["y"], f.get("z", 0.18)) if f else (0, 0, 0.18)
     rig.rotation_euler = aim_euler(rig.location.x, rig.location.y,
                                    f["aim_deg"] if f else 0.0,
                                    f["tilt_deg"] if f else PAR_TILT)
@@ -502,10 +526,9 @@ def build_bar(coll, name, f, rig_data, profile, body_mat):
     rig = link(bpy.data.objects.new(name, None), coll)
     rig.empty_display_type = "SINGLE_ARROW"
     rig.empty_display_size = 0.35
-    rig.location = (f["x"], f["y"], f.get("z", 0.07)) if f else (0, 0, 0.07)
-    rig.rotation_euler = aim_euler(rig.location.x, rig.location.y,
-                                   f["aim_deg"] if f else 180.0,
-                                   f["tilt_deg"] if f else BAR_TILT)
+    rig.location = (plan_x(f["x"]), f["y"], f.get("z", 0.07)) if f else (0, 0, 0.07)
+    rig.rotation_euler = bar_euler(f["aim_deg"] if f else 180.0, f["tilt_deg"] if f else BAR_TILT,
+                                   float(f.get("rot_deg", 0)) if f else 0.0)
     dmx_props(rig, f["address"] if f else 1, rig_data.get("universe", DMX_UNIVERSE),
               ",".join(DMX_LAYOUT), bool(f),
               f.get("profile") if f else None, mode)
@@ -515,7 +538,7 @@ def build_bar(coll, name, f, rig_data, profile, body_mat):
     rig["rot_deg"] = float(f.get("rot_deg", 0)) if f else 0.0
     parts = [rig]
 
-    spin = math.radians(rig["rot_deg"])          # the bar's long axis, around its own aim
+    spin = 0.0                                   # bar_euler already runs the frame along the pixels
     housing = box(f"{name}_body", coll,
                   (-bod["length"] / 2, -bod["width"] / 2, -bod["height"] / 2),
                   (bod["length"] / 2, bod["width"] / 2, bod["height"] / 2), body_mat)

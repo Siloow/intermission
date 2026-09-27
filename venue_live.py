@@ -27,7 +27,7 @@ Screen: syphon_bridge.py writes frames into .live/screen.rgba next to the
 the SCREEN_LIVE image and point the screen material at it.
 """
 import bpy, blf, gpu, json, math, mmap, os, socket, struct, time
-from mathutils import Vector
+from mathutils import Matrix, Vector
 from gpu_extras.batch import batch_for_shader
 import numpy as np
 
@@ -341,6 +341,34 @@ def _refresh_fixtures():
 
 
 # ---------------------------------------------------------------- rig file --
+# rig.json is the floor plan: a map seen from above with the screen at the top,
+# so +x is the audience's right (the browser's 3D view agrees). This room has the
+# screen at -y with z up, where the audience's right is -x. So x is mirrored on
+# the way in (and out, in the status), and so are the angles that follow from it.
+def plan_x(x):
+    return -float(x)
+
+
+def plan_aim(aim_deg):
+    return -float(aim_deg)
+
+
+def _bar_euler(aim_deg, tilt_deg, rot_deg):
+    """A bar's frame: its beam (local Z) along its aim, its pixels (local X) along
+    the direction the floor plan turns it to, lifted square to the beam. That is
+    how the plan, the browser's 3D view and the light presets lay a bar out."""
+    a, t = math.radians(plan_aim(aim_deg)), math.radians(float(tilt_deg))
+    z = Vector((math.sin(a) * math.cos(t), math.cos(a) * math.cos(t), math.sin(t))).normalized()
+    r = math.radians(float(rot_deg))
+    h = Vector((plan_x(math.cos(r)), math.sin(r), 0.0))     # pixel 1 → 18, on the floor
+    x = h - z * h.dot(z)
+    if x.length < 1e-4:                                      # aimed along itself: any square frame
+        return _aim_euler(plan_aim(aim_deg), tilt_deg)
+    x.normalize()
+    y = z.cross(x)
+    return Matrix((x, y, z)).transposed().to_euler()
+
+
 def _aim_euler(aim_deg, tilt_deg):
     a, t = math.radians(aim_deg), math.radians(tilt_deg)
     d = Vector((math.sin(a) * math.cos(t), math.cos(a) * math.cos(t), math.sin(t)))
@@ -351,8 +379,8 @@ def _aim_euler(aim_deg, tilt_deg):
 
 def _lay_out_bar(bar, f):
     """A bar can be turned on the floor and re-addressed; its pixels follow."""
-    spin = math.radians(float(f.get("rot_deg", bar.get("rot_deg", 0))))
-    bar["rot_deg"] = math.degrees(spin)
+    bar["rot_deg"] = float(f.get("rot_deg", bar.get("rot_deg", 0)))      # as the plan has it
+    spin = 0.0                     # the bar's frame (_bar_euler) already runs along its pixels
     length = float(bar.get("length", 1.04))
     pixels = int(bar.get("pixels", 18))
     step = length / pixels
@@ -411,9 +439,12 @@ def _read_rig(force=False):
             continue
         n += 1
         default_z = 0.07 if ob.get("kind") == "bar" else 0.18
-        ob.location = (float(f.get("x", 0)), float(f.get("y", 0)),
+        ob.location = (plan_x(f.get("x", 0)), float(f.get("y", 0)),
                        float(f.get("z", default_z)))
-        ob.rotation_euler = _aim_euler(float(f.get("aim_deg", 0)), float(f.get("tilt_deg", 70)))
+        if ob.get("kind") == "bar":
+            ob.rotation_euler = _bar_euler(f.get("aim_deg", 0), f.get("tilt_deg", 70), f.get("rot_deg", 0))
+        else:
+            ob.rotation_euler = _aim_euler(plan_aim(f.get("aim_deg", 0)), float(f.get("tilt_deg", 70)))
         if ob.get("kind") == "bar":
             _lay_out_bar(ob, f)
         ob["dmx_address"] = int(f.get("address", 1))
@@ -571,7 +602,7 @@ def _fixture_state(ob):
     For a bar that means all 18 pixels, so a chase shows up in the preview."""
     out = {k: ob.get(k) for k in ("dmx_address", "r", "g", "b", "w", "dim")}
     out.update(kind=ob.get("kind", "par"),
-               x=round(ob.location.x, 3), y=round(ob.location.y, 3))
+               x=round(plan_x(ob.location.x), 3), y=round(ob.location.y, 3))    # in plan terms
     if ob.get("kind") == "bar":
         px = sorted(_pixels_of(ob.name), key=lambda o: int(o.get("pixel", 0)))
         out["pixels"] = [[int(p.get(c, 0)) for c in ("r", "g", "b", "w")] for p in px]
