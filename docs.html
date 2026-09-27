@@ -308,7 +308,7 @@ keep it. <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> preview as you
 layer. The browser's header says how many are (<i>12 of 38 in Layer 3</i>):</p>
 <ul>
   <li><b>Install in Resolume</b> loads every preset that isn't there yet,
-    BPM-synced and snapping to the bar. When the layer runs out of slots, columns
+    BPM-synced, with no beat snap. When the layer runs out of slots, columns
     are added at the end of the composition, so your scenes don't move.</li>
   <li><b>＋</b> on a card installs just that one; <b>✓</b> means it's there.</li>
   <li>Once all are in, the button becomes <b>Update in Resolume</b>: it reloads every
@@ -435,10 +435,10 @@ cue, which is the quickest way to see a cue is wired up.</p>
 <p>Two different things, worth keeping apart:</p>
 <ul>
   <li><b>When a clip starts</b> — the cue fires at its bar, because the player
-    follows Live's playhead. Arena's clip trigger quantisation can hold that to
-    the next beat or bar, which is tighter but lands slightly after the cue.</li>
-  <li><b>How it runs</b> — loaded clips are set to <b>BPM Sync</b>, snapping to
-    1 bar, so playback follows Arena's tempo. Turn on <b>Ableton Link</b> in
+    follows Live's playhead. Installed clips have <b>no beat snap</b>: a snap
+    would hold each one until Arena's own next bar, and a cue fired on Live's
+    downbeat landed 1.4 s late with one.</li>
+  <li><b>How it runs</b> — loaded clips are set to <b>BPM Sync</b>, so playback follows Arena's tempo. Turn on <b>Ableton Link</b> in
     Arena and that tempo follows Live, so a 2-bar chase stays in time even when
     the tempo changes. <code>--no-sync</code> leaves the transport alone.</li>
 </ul>

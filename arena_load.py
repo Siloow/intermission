@@ -20,7 +20,7 @@ import argparse, json, os, sys, time, urllib.parse, urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 MAP = os.path.join(HERE, "osc_map.json")
 MEDIA = (".mov", ".mp4", ".m4v", ".avi", ".mkv", ".dxv", ".png", ".jpg", ".jpeg", ".gif")
-BPM_SYNC, ONE_BAR = 1, 5          # indices in the clip's transporttype / beatsnap lists
+BPM_SYNC, NO_SNAP = 1, 1          # indices in the clip's transporttype / beatsnap lists
 
 
 def lanes():
@@ -98,10 +98,12 @@ def set_clip(base, clip_id, name=None, sync=False):
     if name:
         wants.append(("name", name, [{"name": {"value": name}}]))
     if sync:
-        # lock playback to the tempo, and start on a bar. With Ableton Link on in
-        # Arena, that tempo follows Live, so a 2-bar loop stays in time.
+        # lock playback to the tempo. With Ableton Link on in Arena, that tempo
+        # follows Live, so a 2-bar loop stays in time. No beat snap: the player
+        # already fires on Live's beat, and a snap would hold the clip until
+        # Arena's own next bar (measured: 1.4 s late at 120 BPM).
         wants.append(("transporttype", "BPM Sync", [{"transporttype": {"value": "BPM Sync"}}, {"transporttype": BPM_SYNC}]))
-        wants.append(("beatsnap", "1 Bar", [{"beatsnap": {"value": "1 Bar"}}, {"beatsnap": ONE_BAR}]))
+        wants.append(("beatsnap", "None", [{"beatsnap": {"value": "None"}}, {"beatsnap": NO_SNAP}]))
     for field, value, bodies in wants:
         for attempt in range(6):
             api(base, path, "PUT", json.dumps(bodies[attempt % len(bodies)]))
@@ -359,7 +361,7 @@ def install_items(base, layer_ref, items, lane=None, refresh=False, sync=False):
     runs out, columns are added at the end of the composition so existing
     scenes don't move. Each clip is named after its item, so the timeline can
     fire it by that name (a live source would otherwise be called after the
-    source). sync=True sets BPM Sync with 1-bar snap, for tempo loops."""
+    source). sync=True sets BPM Sync with no beat snap, for tempo loops."""
     index, layer = find_layer(composition(base), layer_ref)
     have = {name_of(c): j for j, c in enumerate(layer.get("clips", []), 1) if name_of(c)}
     new = [it for it in items if it["name"] not in have]

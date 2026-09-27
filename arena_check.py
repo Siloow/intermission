@@ -91,8 +91,8 @@ def main():
             arena_load.set_clip(BASE, cid, name="arena check", sync=True)
             c = call(f"/composition/clips/by-id/{cid}")[1]
             got = (arena_load.name_of(c), arena_load.choice(c.get("transporttype")), arena_load.choice(c.get("beatsnap")))
-            return got == ("arena check", "BPM Sync", "1 Bar"), f"{got}"
-        check("rename a clip, BPM Sync, snap", "clip names the timeline fires; presets in tempo", settings)
+            return got == ("arena check", "BPM Sync", "None"), f"{got}"
+        check("rename a clip, BPM Sync, no snap", "clip names the timeline fires; presets in tempo", settings)
 
         def open_source():
             st, srcs = call("/sources")
