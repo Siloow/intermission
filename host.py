@@ -417,6 +417,13 @@ class Host:
     def start(self, mode, project):
         meta = _meta(project) if project else {}
         with self.lock:
+            if self.mode is None and not _pgrep("cue_player.py --follow"):
+                # a new session follows the plan, as the launchers do: a panic from
+                # before is let go (one held while a player runs is left alone)
+                try:
+                    os.remove(os.path.join(LIVE_DIR, "panic"))
+                except OSError:
+                    pass
             self.mode = mode
             st = self.status()["parts"]
             if not st["arena"]["running"]:
