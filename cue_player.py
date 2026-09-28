@@ -1090,7 +1090,11 @@ class PlanWatch:
 def follow(show, player, port, live_host, live_port, timeline=True):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("0.0.0.0", port))
+    try:
+        sock.bind(("0.0.0.0", port))
+    except OSError as e:
+        raise SystemExit(f"  can't listen on port {port}: {e.strerror}. Another player is running "
+                         f"(pgrep -lf cue_player), or something else has the port.")
     sock.settimeout(0.5)
     bpb = show.get("beats_per_bar", 4)
 

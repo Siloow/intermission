@@ -327,8 +327,11 @@ class Host:
     def _spawn(self, key, args, log):
         os.makedirs(LIVE_DIR, exist_ok=True)
         lf = open(os.path.join(LIVE_DIR, log), "a")
+        # A server started in the background (nohup … &) has SIGINT ignored, and a
+        # child inherits that: the player would never hear a stop. Give it back.
         p = subprocess.Popen(args, cwd=HERE, stdout=lf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
-                             start_new_session=True)
+                             start_new_session=True,
+                             preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
         self.procs[key] = p
         return p
 
@@ -352,7 +355,9 @@ class Host:
         self._spawn("bridge", [uv, "run", "-q", "syphon_bridge.py"], "bridge.log")
         self.note("started the screen feed (Syphon → Blender)")
 
-    def _stop_pattern(self, key, pattern, sig=signal.SIGTERM):
+    def _stop_pattern(self, key, pattern, sig=signal.SIGTERM, wait=3.0):
+        """Ask politely (sig), then insist: one that ignores the ask is terminated,
+        then killed, so nothing is left holding a port."""
         p = self.procs.pop(key, None)
         if p and p.poll() is None:
             p.send_signal(sig)
@@ -361,6 +366,18 @@ class Host:
                 os.kill(pid, sig)
             except OSError:
                 pass
+        for then in (signal.SIGTERM, signal.SIGKILL):
+            end = time.time() + wait
+            while time.time() < end and _pgrep(pattern):
+                time.sleep(0.1)
+            left = _pgrep(pattern)
+            if not left:
+                return
+            for pid in left:
+                try:
+                    os.kill(pid, then)
+                except OSError:
+                    pass
 
     def stop_blender(self):
         self._stop_pattern("blender", "Blender -y venue.blend")
@@ -377,26 +394,30 @@ class Host:
             if self.player_mode == mode:
                 return
             self.stop_player()
-        if _pgrep("cue_player.py --follow"):     # one from Test.command or Live.command
+        if _pgrep("cue_player.py --follow"):     # one from Test.command, Live.command, an earlier host
             self._stop_pattern("player", "cue_player.py --follow", signal.SIGINT)
-            for _ in range(30):
-                if not _pgrep("cue_player.py --follow"):
-                    break
-                time.sleep(0.1)
         self.player_stop.clear()
         self.player_mode = mode
         self.restarts = 0
         flags = ["--preview"] if mode == "test" else ["--live-only"]
 
         def run():
+            quick = 0                              # crashes within seconds of starting, in a row
             while not self.player_stop.is_set():
+                t0 = time.time()
                 p = self._spawn("player", [sys.executable, "-u", "cue_player.py", "--follow", *flags], "player.log")
                 code = p.wait()
                 if self.player_stop.is_set() or code == 0:
                     break
                 self.restarts += 1
+                quick = quick + 1 if time.time() - t0 < 5 else 0
+                if quick >= 5:
+                    # it can't start at all (a port taken, a broken file): stop trying,
+                    # and say where to look, rather than restart every second forever
+                    self.note(f"the player can't start (exit {code}, 5 times in a row): see player.log")
+                    break
                 self.note(f"the player stopped (exit {code}): restarted")
-                time.sleep(1.0)
+                time.sleep(1.0 + quick)
         self.player_thread = threading.Thread(target=run, daemon=True)
         self.player_thread.start()
         self.note(f"started the player ({'follows Live and the timeline' if mode == 'test' else 'follows Live only'})")
