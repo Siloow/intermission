@@ -62,6 +62,8 @@ def changelog_html():
         lines = open(CHANGELOG).read().splitlines()
     except OSError:
         return "<p>There is no CHANGELOG.md next to the tools.</p>"
+    first = next((i for i, l in enumerate(lines) if l.startswith("## ")), 0)
+    lines = lines[first:]                              # the file's own preamble is for the repo, not the page
     out, para, items = [], [], []
     def flush():
         if para:
