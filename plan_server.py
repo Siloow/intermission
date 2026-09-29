@@ -10,7 +10,7 @@ sync_show.py extracts from the Ableton set).
 
 It listens on localhost only: nothing here is reachable from the network.
 """
-import argparse, http.server, json, os, shutil, socketserver, subprocess, tempfile, threading, time
+import argparse, html, http.server, json, os, re, shutil, socketserver, subprocess, tempfile, threading, time
 import urllib.parse, urllib.request
 import showfolder                    # where the show folder is on this Mac
 import version                       # Intermission's version, from VERSION
@@ -43,9 +43,52 @@ READONLY = {"/show.json": os.path.join(SHOW, "show.json"),
 PAGE = os.path.join(HERE, "plan_editor.html")
 SHOW_PAGE = os.path.join(HERE, "show_editor.html")
 DOCS_PAGE = os.path.join(HERE, "docs.html")
+CHANGELOG = os.path.join(HERE, "CHANGELOG.md")
 LIBRARY_PAGE = os.path.join(HERE, "library.html")
 HOST_PAGE = os.path.join(HERE, "host.html")
 _scan = {"t": 0.0, "v": None}
+
+
+def changelog_html():
+    """CHANGELOG.md as HTML, for the docs page. Only the little Markdown the file
+    uses: ## headings, paragraphs, - lists (an item may wrap onto indented lines),
+    **bold**, `code` and [links](url)."""
+    def inline(t):
+        t = html.escape(t)
+        t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
+        t = re.sub(r"`([^`]+)`", r"<code>\1</code>", t)
+        return re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', t)
+    try:
+        lines = open(CHANGELOG).read().splitlines()
+    except OSError:
+        return "<p>There is no CHANGELOG.md next to the tools.</p>"
+    out, para, items = [], [], []
+    def flush():
+        if para:
+            out.append("<p>" + inline(" ".join(para)) + "</p>"); para.clear()
+        if items:
+            out.append("<ul>" + "".join(f"<li>{inline(i)}</li>" for i in items) + "</ul>"); items.clear()
+    for line in lines:
+        if line.startswith("# "):                       # the page has its own heading
+            continue
+        if line.startswith("## "):
+            flush()
+            ver = line[3:].strip()
+            out.append(f'<h3 id="v{re.sub(r"[^0-9.]", "", ver.split()[0])}">{inline(ver)}</h3>')
+        elif line.startswith("- "):
+            if para:
+                flush()
+            items.append(line[2:].strip())
+        elif line.startswith("  ") and items and line.strip():
+            items[-1] += " " + line.strip()
+        elif not line.strip():
+            flush()
+        else:
+            if items:
+                flush()
+            para.append(line.strip())
+    flush()
+    return "\n".join(out)
 
 
 def library_scan(force=False):
@@ -238,6 +281,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 body = open(DOCS_PAGE, "rb").read()
             except OSError:
                 return self._send(404, b"docs.html is missing", "text/plain")
+            body = body.replace(b"<!--CHANGELOG-->", changelog_html().encode())   # What changed, from CHANGELOG.md
             return self._send(200, body, "text/html; charset=utf-8")
         if path in ("/host", "/host.html"):
             try:

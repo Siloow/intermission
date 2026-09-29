@@ -2,8 +2,8 @@
 
 What changed in Intermission, newest first. `python3 release.py x.y.z` adds a
 section from the commits since the last release; edit it into sentences when a
-release deserves them. The version shows next to the name in the top bar and on
-the Host.
+release deserves them. The version shows next to the name in the top bar — click
+it for this list, in the docs — and on the Host.
 
 ## 0.1.0 — 2026-09-29
 
