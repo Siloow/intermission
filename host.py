@@ -302,7 +302,7 @@ def versions():
     their bundles (so it works with them closed), the tools from git."""
     global _versions
     if _versions is not None:
-        return _versions
+        return {**_versions, "intermission": version.read()}     # VERSION may change under a running server
     arena = next((a for a in ARENA_APPS if os.path.isdir(a)), None)
     other = sorted(glob.glob("/Applications/Resolume Arena [0-9.]*/Arena.app"))
     live = live_app()
