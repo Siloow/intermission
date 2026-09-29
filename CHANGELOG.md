@@ -5,6 +5,16 @@ section from the commits since the last release; edit it into sentences when a
 release deserves them. The version shows next to the name in the top bar — click
 it for this list, in the docs — and on the Host.
 
+## 0.1.1 — 2026-09-29
+
+- **What changed, in the docs** — the changelog is rendered at the end of *How
+  Intermission works*; the version next to the name in the top bar links there.
+- **The tools moved** to `~/Work/swaile/intermission` (they were the `venue`
+  folder inside `blender-visualisation`). Nothing depends on the location: the
+  show folder and the Library's source folders are per Mac and absolute.
+- The Library scan skips the tools folder by path, not by its old name.
+- The Host shows a new version without a restart.
+
 ## 0.1.0 — 2026-09-29
 
 The first numbered version: everything built so far, as one system.
