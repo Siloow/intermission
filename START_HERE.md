@@ -28,6 +28,10 @@ set up, then it's one double-click.
    the **Intermission Show** folder from Finder into that window and press Enter.
    Your browser opens on the Host page; click **Show timeline** at the top.
 
+6. **Your renders** — in the browser, open **Library**. Under **Sources** on the
+   right, **Add folder…** and pick where your renders are. That list is yours
+   alone; only what you **Add to the show** is copied into the shared folder.
+
 ## Every time
 
 - Double-click **Intermission.command**. In the browser, go to **Show timeline**.

@@ -266,7 +266,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             for x in cfg["clips"]:          # where each clip came from, for its hover preview
                 x["source_id"] = hashlib.sha1(x.get("source", "").encode()).hexdigest()[:12]
             return self._send(200, json.dumps({"candidates": cands, "clips": cfg["clips"],
-                                               "live": cfg["live"], "sources": cfg["sources"]}).encode())
+                                               "live": cfg["live"], "sources": library.sources_info(cands)}).encode())
         if path.startswith("/library/thumb/") or path.startswith("/library/preview/"):
             c = library_candidate(os.path.basename(path))
             if not c:
@@ -692,9 +692,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
             elif path == "/library/install":
                 out = library.install(ARENA, req["names"], req.get("lane", "screen"))
                 _comp["t"] = 0
+            elif path == "/library/sources/add":
+                # this Mac's folders to look in. pick: the Mac's own folder dialog (only
+                # from this Mac: the dialog opens on its screen); otherwise a typed path
+                if req.get("pick"):
+                    if not self.is_local():
+                        raise RuntimeError("the folder dialog opens on the show Mac only; paste the path instead")
+                    r = subprocess.run(["osascript", "-e", 'POSIX path of (choose folder with prompt '
+                                        '"A folder the Library should look in for visuals")'],
+                                       capture_output=True, text=True, timeout=600)
+                    if r.returncode or not r.stdout.strip():
+                        out = {"cancelled": True}
+                    else:
+                        out = {"added": library.add_source(r.stdout.strip())}; _scan["t"] = 0
+                else:
+                    out = {"added": library.add_source(req.get("path", ""))}; _scan["t"] = 0
+            elif path == "/library/sources/remove":
+                library.remove_source(req["path"]); out = {"removed": req["path"]}; _scan["t"] = 0
             else:
                 return self._send(404, b'{"error":"not found"}')
-        except (KeyError, ValueError, TypeError, OSError, RuntimeError, SystemExit) as e:
+        except (KeyError, ValueError, TypeError, OSError, RuntimeError, SystemExit, subprocess.TimeoutExpired) as e:
             return self._send(400, json.dumps({"error": str(e)}).encode())
         return self._send(200, json.dumps(out).encode())
 

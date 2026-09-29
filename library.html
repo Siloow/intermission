@@ -59,7 +59,12 @@
   .job .bar{height:5px;border-radius:3px;background:var(--surface-3);overflow:hidden;margin-top:4px}
   .job .bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
   .job.failed b{color:var(--err)}
-  .srcs{font-family:var(--mono);font-size:11.5px;color:var(--text-2);word-break:break-all}
+  .srcs{font-family:var(--mono);font-size:11.5px;color:var(--text-2)}
+  .src{display:flex;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--border)}
+  .src span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
+  .src.gone span:first-child{color:var(--err)}
+  .src button{height:20px;padding:0 6px;font-size:11px}
+  #src-path{flex:1;min-width:0;font-family:var(--mono);font-size:11.5px}
   .pickrow{display:flex;gap:6px;flex-wrap:wrap}
   .pickrow button{flex:1}
 </style>
@@ -119,6 +124,20 @@ try { view = localStorage.getItem("lib-view") || "sources"; el("who").value = lo
       layout = localStorage.getItem("lib-layout") || "grid"; } catch(e){}
 el("who").addEventListener("change", () => { try { localStorage.setItem("who", el("who").value.trim()); } catch(e){} });
 
+// this Mac's source folders (sources.json next to the tools)
+const homely = p => p.replace(/^\/Users\/[^/]+/, "~");
+async function libPost(url, body){
+  const r = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+async function addSource(req){
+  const btn = el("pick-src"); if (btn){ btn.disabled = true; btn.textContent = req.pick ? "Choosing…" : "Adding…"; }
+  try { const r = await libPost("library/sources/add", req); if (!r.cancelled) await load(true); }
+  catch(e){ alert(e.message); }
+  finally { if (btn && btn.isConnected){ btn.disabled = false; btn.textContent = "Add folder…"; } }
+}
 async function load(force){
   data = await (await fetch("library/scan" + (force ? "?force=1" : ""), {cache: "no-store"})).json();
   try { const show = await (await fetch("show.json", {cache: "no-store"})).json(); songs = show.songs.map(g => g.name); } catch(e){}
@@ -241,7 +260,8 @@ function draw(){
   let html = "", grp = null;
   if (view === "live" && liveSources === null) html = `<div class="empty">Asking Resolume…</div>`;
   else if (view === "live" && !liveSources.length) html = `<div class="empty">Resolume sees no Syphon or NDI sources. Start TouchDesigner with a Syphon Spout Out TOP, then Rescan. ${status && status.live === false ? "(Resolume isn't answering.)" : ""}</div>`;
-  else if (!list.length) html = `<div class="empty" style="padding:14px">${view === "show" ? "Nothing in the show yet — pick from Sources and Add." : "Nothing matches."}</div>`;
+  else if (!list.length) html = `<div class="empty" style="padding:14px">${view === "show" ? "Nothing in the show yet — pick from Sources and Add."
+    : view === "sources" && !(data.sources || []).length ? "No folders to look in yet — <b>Add folder…</b> on the right, and point it at your renders." : "Nothing matches."}</div>`;
   else if (layout === "list") html = table(list);
   else {
     list.forEach(x => {
@@ -284,11 +304,20 @@ function side(){
   if (view === "sources"){
     const chosen = data.candidates.filter(c => sel.has(c.id));
     if (!chosen.length){
-      S.innerHTML = jobsHtml + `<div class="section"><div class="section-title">Sources</div>
-        <p class="hint">Everything in these folders: videos, image sequences and stills. Drafts, previews and render passes are hidden — tick <b>drafts</b> to see them.</p>
-        <div class="srcs">${data.sources.map(esc).join("<br>")}</div>
-        <p class="hint dim" style="margin-top:8px">Add more folders under <code>sources</code> in library.json.</p></div>
+      const srcs = data.sources || [];
+      S.innerHTML = jobsHtml + `<div class="section"><div class="section-title">Sources <span class="spacer"></span><span class="badge">${srcs.length}</span></div>
+        <p class="hint">The folders on <b>this Mac</b> the Library looks in: videos, image sequences and stills. Drafts, previews and render passes are hidden — tick <b>drafts</b> to see them. Only what you <b>Add to the show</b> is copied to the shared folder; the other Mac has its own list here.</p>
+        <div class="srcs">${srcs.length ? srcs.map(x => `<div class="src${x.exists ? "" : " gone"}" title="${esc(x.path)}"><span>${esc(homely(x.path))}</span>` +
+          `<span class="dim">${x.exists ? x.count : "not found"}</span><button class="ghost" data-rmsrc="${esc(x.path)}" title="stop looking here (nothing is deleted)">✕</button></div>`).join("")
+          : `<div class="dim">No folders yet.</div>`}</div>
+        <div style="display:flex;gap:6px;margin-top:8px"><button id="pick-src" title="choose a folder with the Mac's own dialog (on the show Mac)">Add folder…</button>
+          <input id="src-path" placeholder="or paste a path (~ works)"><button id="add-src" class="ghost">Add</button></div></div>
         <div class="section"><p class="hint">Click one to add it to the show; <span class="kbd">shift</span>-click for several. Hover plays it.</p></div>`;
+      el("pick-src").onclick = () => addSource({pick: true});
+      el("add-src").onclick = () => addSource({path: el("src-path").value});
+      el("src-path").addEventListener("keydown", e => { if (e.key === "Enter") addSource({path: el("src-path").value}); });
+      S.querySelectorAll("[data-rmsrc]").forEach(b => b.onclick = async () => {
+        try { await libPost("library/sources/remove", {path: b.dataset.rmsrc}); await load(true); } catch(e){ alert(e.message); } });
       return;
     }
     const one = chosen.length === 1 ? chosen[0] : null;

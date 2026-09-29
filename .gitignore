@@ -6,8 +6,9 @@ __pycache__/
 .DS_Store
 # this Mac's Blender input settings, saved before setup_input.py changed them
 .input_backup.json
-# where the show folder is on this Mac (see showfolder.py): the path differs per Mac
+# per Mac: where the show folder is (showfolder.py) and which folders the Library scans (library.py)
 .show
+sources.json
 # the show itself lives in the show folder, not here: plan files, media, bounces, projects.
 # These names only catch leftovers from before the split.
 audio/

@@ -7,8 +7,9 @@ The visuals live all over: Blender renders in each project's render folder,
 image sequences, TouchDesigner renders, and TouchDesigner running live. This
 gathers them:
 
-  sources   folders to look in (library.json "sources"); scanned for videos,
-            image sequences and stills, drafts flagged by their names
+  sources   this Mac's folders to look in (sources.json next to the tools, set on
+            the Library page: my render folders are not my brother's); scanned for
+            videos, image sequences and stills, drafts flagged by their names
   add       copies a chosen one into the show folder's library/, converted to one show
             format: 1920x1080, the frame rate it was made at, and a codec
             Resolume plays on the GPU: DXV, stills too. ffmpeg's DXV has no
@@ -35,6 +36,7 @@ LIB_FILE = os.path.join(SHOW, "library.json")
 LIB_DIR = os.path.join(SHOW, "library")
 THUMBS = os.path.join(LIB_DIR, ".thumbs")           # shared with the clips
 CACHE = os.path.join(HERE, ".live", "library")      # this machine's scan, thumbs, previews
+SOURCES_FILE = os.path.join(HERE, "sources.json")   # this machine's folders to look in: not shared, not in git
 VIDEO = (".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi")
 IMAGE = (".png", ".jpg", ".jpeg", ".exr", ".tif", ".tiff")
 SKIP = {".git", "__pycache__", "node_modules", ".live", ".Trash", "venue", "tools"}
@@ -52,9 +54,8 @@ def config():
         cfg = json.load(open(LIB_FILE))
     except (OSError, ValueError):
         cfg = {}
-    cfg.setdefault("//", "Sources are folders to look in: relative to the tools, or absolute (~ allowed). "
-                         "clips and live are the show's visuals; the media sit in library/ next to this file.")
-    cfg.setdefault("sources", ["..", "../../TouchDesigner"])
+    cfg.setdefault("//", "clips and live are the show's visuals; the media sit in library/ next to this file. "
+                         "Which folders a Mac scans for new ones is its own business: sources.json next to the tools.")
     cfg.setdefault("sequence_fps", 30)
     cfg.setdefault("clips", [])
     cfg.setdefault("live", [])
@@ -66,6 +67,64 @@ def save(cfg):
         tmp = LIB_FILE + ".tmp"
         json.dump(cfg, open(tmp, "w"), indent=2)
         os.replace(tmp, LIB_FILE)
+
+
+# ----------------------------------------------------------------- sources --
+# Where to look for candidates is this Mac's business: my render folders are not
+# my brother's. sources.json sits next to the code, out of git; the Library page
+# edits it. A library.json from before carried a "sources" list: that seeds it once.
+def source_root(s):
+    return os.path.normpath(os.path.join(HERE, os.path.expanduser(s)))
+
+
+def _write_sources(src):
+    tmp = SOURCES_FILE + ".tmp"
+    json.dump({"//": "This Mac's folders the Library scans for visuals. Edit on the Library page "
+                     "(Sources: Add folder…). Not shared: the other Mac has its own.",
+               "sources": src}, open(tmp, "w"), indent=2)
+    os.replace(tmp, SOURCES_FILE)
+
+
+def local_sources():
+    try:
+        return list(json.load(open(SOURCES_FILE)).get("sources", []))
+    except (OSError, ValueError):
+        pass
+    cfg = config()
+    old = cfg.pop("sources", None)
+    src = [source_root(x) for x in (old or []) if os.path.isdir(source_root(x))]
+    _write_sources(src)
+    if old is not None:
+        save(cfg)                                   # the shared list no longer carries them
+    return src
+
+
+def add_source(path):
+    path = (path or "").strip().replace("\\ ", " ")     # a path dragged into Terminal escapes its spaces
+    root = source_root(path)
+    if not path or not os.path.isdir(root):
+        raise ValueError(f"no folder at {root or path!r}")
+    if os.path.abspath(root).startswith(os.path.abspath(LIB_DIR)):
+        raise ValueError("that is the show's own library; pick the folder the originals are in")
+    src = local_sources()
+    if root not in src:
+        src.append(root)
+        _write_sources(src)
+    return root
+
+
+def remove_source(path):
+    _write_sources([x for x in local_sources() if x != path])
+
+
+def sources_info(candidates=()):
+    """For the page: each folder, whether it is there, how many candidates it holds."""
+    out = []
+    for x in local_sources():
+        root = source_root(x)
+        n = sum(1 for c in candidates if str(c.get("path", "")).startswith(root + os.sep))
+        out.append({"path": x, "exists": os.path.isdir(root), "count": n})
+    return out
 
 
 def safe_name(name):
@@ -123,8 +182,8 @@ def scan():
         cache = {}
     in_show = {c.get("source") for c in cfg["clips"]}
     out, seen = [], set()
-    for rel in cfg["sources"]:
-        root = os.path.normpath(os.path.join(HERE, os.path.expanduser(rel)))
+    for rel in local_sources():
+        root = source_root(rel)
         if not os.path.isdir(root):
             continue
         for d, dirs, files in os.walk(root):
