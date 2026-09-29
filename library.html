@@ -147,8 +147,12 @@ async function load(force){
   el("project").innerHTML = `<option value="">all projects</option>` + projects.map(p => `<option ${p === keep ? "selected" : ""}>${esc(p)}</option>`).join("");
   draw();
 }
+let lastStatus = null;
 async function loadStatus(){
   try { status = await (await fetch("library/status", {cache: "no-store"})).json(); } catch(e){ status = null; }
+  const now = JSON.stringify(status);
+  if (now === lastStatus) return;                // the 5-second poll: nothing new, nothing to redraw
+  lastStatus = now;
   draw();
 }
 const inLayer = (name, lane) => !!(status && status.lanes[lane] && status.lanes[lane].clips.includes(name));
@@ -256,6 +260,15 @@ function draw(){
   el("project").style.display = el("kind").style.display = view === "live" ? "none" : "";
   el("kind").style.display = view === "sources" ? "" : "none";
   el("drafts").closest("label").style.display = view === "sources" ? "" : "none";
+  const html = gridHtml();
+  if (html !== lastGrid){                        // only touch the DOM when something changed:
+    el("grid").innerHTML = html;                 // a rebuild recreates every thumbnail, which flashes
+    lastGrid = html;
+  }
+  side();
+}
+let lastGrid = null;
+function gridHtml(){
   const list = items();
   let html = "", grp = null;
   if (view === "live" && liveSources === null) html = `<div class="empty">Asking Resolume…</div>`;
@@ -270,8 +283,7 @@ function draw(){
       html += card(x);
     });
   }
-  el("grid").innerHTML = html;
-  side();
+  return html;
 }
 
 // hover: play a small preview in the card
@@ -290,7 +302,11 @@ el("grid").addEventListener("click", e => {
   const key = c.dataset.id || c.dataset.name || c.dataset.src;
   if (e.shiftKey || e.metaKey) sel.has(key) ? sel.delete(key) : sel.add(key);
   else sel = new Set([key]);
-  draw();
+  // mark the selection in place: a rebuild would flash every thumbnail
+  document.querySelectorAll("#grid .card, #grid tbody tr").forEach(n =>
+    n.classList.toggle("is-on", sel.has(n.dataset.id || n.dataset.name || n.dataset.src)));
+  lastGrid = gridHtml();
+  side();
 });
 
 // ------------------------------------------------------------- inspector ---
