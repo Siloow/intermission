@@ -189,8 +189,8 @@ def scan():
         for d, dirs, files in os.walk(root):
             depth = os.path.relpath(d, root).count(os.sep)
             dirs[:] = [x for x in dirs if x not in SKIP and not x.startswith(".") and depth < 6]
-            if os.path.abspath(d).startswith(os.path.abspath(LIB_DIR)):
-                continue
+            if os.path.abspath(d).startswith((os.path.abspath(LIB_DIR), HERE)):
+                continue                           # never the show's own library, nor the tools themselves
             project = os.path.relpath(d, root).split(os.sep)[0]
             project = os.path.basename(root) if project == "." else project
             seqs = {}
