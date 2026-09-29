@@ -64,8 +64,9 @@ def main(argv):
     new = argv[0].lstrip("v")
     if not parts(new):
         sys.exit(f"[release] {new!r} is not major.minor.patch")
-    if parts(new) <= parts(cur):
-        sys.exit(f"[release] {new} is not after {cur}")
+    tagged = bool(git("tag", "--list", f"v{cur}", check=False))     # VERSION may be ahead of the tags: pending
+    if parts(new) < parts(cur) or (parts(new) == parts(cur) and tagged):
+        sys.exit(f"[release] {new} is not after {cur}" + (f" (tagged v{cur})" if tagged else ""))
     if git("status", "--porcelain", "--", ".", ":!VERSION", ":!CHANGELOG.md"):   # its own two files may wait
         sys.exit("[release] the working tree isn't clean: commit or stash first, so the release is what's committed")
     branch = git("rev-parse", "--abbrev-ref", "HEAD")
