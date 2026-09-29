@@ -758,7 +758,9 @@ function draw(sidebar){
     d.className = "song";
     d.style.left = barToX(start) + "px";
     d.style.width = g.bars * pxPerBar + "px";
-    d.textContent = `${g.name} · ${g.bars.toFixed(0)} bars · ${(g.seconds/60).toFixed(1)} min`;
+    const own = g.info ? [g.info.bpm && `${g.info.bpm} bpm`, g.info.signature].filter(Boolean) : [];
+    d.textContent = [g.name, ...own, `${g.bars.toFixed(0)} bars`, `${(g.seconds/60).toFixed(1)} min`].join(" · ");
+    if (g.info || g.backing) d.title = [g.info && g.info.label, ...(g.backing || [])].filter(Boolean).join("\n");
     songs.appendChild(d);
     g.sections.forEach((s, i) => {
       const e = document.createElement("div");

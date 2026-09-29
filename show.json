@@ -1,80 +1,364 @@
 {
-  "source": "/Users/sil/Music/Ableton/VisTest/VisTest Project/VisTest.als",
-  "extracted": "2026-09-21T01:07:37",
-  "tempo": 120.0,
+  "source": "/Users/sil/Dropbox/swaile/Liveset 2026/Intermission Live Project/Intermission Live.als",
+  "extracted": "2026-09-29T15:32:18",
+  "tempo": 140.0,
   "signature": [
     4,
     4
   ],
   "beats_per_bar": 4.0,
-  "total_bars": 64.0,
-  "total_seconds": 128.0,
+  "total_bars": 2063.0,
+  "total_seconds": 3536.6,
   "songs": [
     {
-      "name": "Test One",
-      "start_beat": 0.0,
+      "name": "FNS Intro",
+      "start_beat": 4.0,
       "sections": [
         {
           "name": "Start",
-          "start_beat": 0.0,
-          "end_beat": 64.0,
-          "bars": 16.0,
-          "bar": 1.0,
-          "seconds": 32.0
-        },
-        {
-          "name": "Build 1",
-          "start_beat": 64.0,
-          "end_beat": 128.0,
-          "bars": 16.0,
-          "bar": 17.0,
-          "seconds": 32.0
-        },
-        {
-          "name": "Drop 1",
-          "start_beat": 128.0,
-          "end_beat": 192.0,
-          "bars": 16.0,
-          "bar": 33.0,
-          "seconds": 32.0
-        },
-        {
-          "name": "Breakdown",
-          "start_beat": 192.0,
-          "end_beat": 208.0,
-          "bars": 4.0,
-          "bar": 49.0,
-          "seconds": 8.0
+          "start_beat": 4.0,
+          "end_beat": 576.0,
+          "bars": 143.0,
+          "bar": 2.0,
+          "seconds": 245.1
         }
       ],
-      "end_beat": 208.0,
-      "bars": 52.0,
-      "seconds": 104.0
+      "end_beat": 576.0,
+      "bars": 143.0,
+      "seconds": 245.1,
+      "info": {
+        "label": "FNS Intro | 120 bpm | 72 bars | 4/4",
+        "bpm": "120",
+        "bars": "72",
+        "signature": "4/4"
+      },
+      "backing": [
+        "Above   Beyond - Stepping In.mp3"
+      ]
     },
     {
-      "name": "Test Two",
-      "start_beat": 208.0,
+      "name": "Insight XLII",
+      "start_beat": 576.0,
       "sections": [
         {
           "name": "Start",
-          "start_beat": 208.0,
-          "end_beat": 224.0,
-          "bars": 4.0,
-          "bar": 53.0,
-          "seconds": 8.0
-        },
-        {
-          "name": "Drop",
-          "start_beat": 224.0,
-          "end_beat": 256.0,
-          "bars": 8.0,
-          "bar": 57.0,
-          "seconds": 16.0
+          "start_beat": 576.0,
+          "end_beat": 1248.0,
+          "bars": 168.0,
+          "bar": 145.0,
+          "seconds": 288.0
         }
       ],
-      "end_beat": 256.0,
-      "bars": 12.0,
-      "seconds": 24.0
+      "end_beat": 1248.0,
+      "bars": 168.0,
+      "seconds": 288.0,
+      "info": {
+        "label": "Insight XLII | ~62 bpm | 104 bars | 4/4",
+        "bpm": "~62",
+        "bars": "104",
+        "signature": "4/4"
+      },
+      "backing": [
+        "Julien Marchal - Insight XLII.mp3"
+      ]
+    },
+    {
+      "name": "Define Dancing",
+      "start_beat": 1248.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 1248.0,
+          "end_beat": 1584.0,
+          "bars": 84.0,
+          "bar": 313.0,
+          "seconds": 144.0
+        }
+      ],
+      "end_beat": 1584.0,
+      "bars": 84.0,
+      "seconds": 144.0,
+      "info": {
+        "label": "Define Dancing | ~100 bpm | 60 bars | 4/4",
+        "bpm": "~100",
+        "bars": "60",
+        "signature": "4/4"
+      },
+      "backing": [
+        "Thomas Newman - Define Dancing.mp3"
+      ]
+    },
+    {
+      "name": "Fire on the Water",
+      "start_beat": 1584.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 1584.0,
+          "end_beat": 2016.0,
+          "bars": 108.0,
+          "bar": 397.0,
+          "seconds": 185.1
+        }
+      ],
+      "end_beat": 2016.0,
+      "bars": 108.0,
+      "seconds": 185.1,
+      "info": {
+        "label": "Fire on the Water | ~100 bpm | 80 bars | 4/4",
+        "bpm": "~100",
+        "bars": "80",
+        "signature": "4/4"
+      },
+      "backing": [
+        "Bonobo - Fire on the Water.mp3"
+      ]
+    },
+    {
+      "name": "SetPotential",
+      "start_beat": 2016.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 2016.0,
+          "end_beat": 2752.0,
+          "bars": 184.0,
+          "bar": 505.0,
+          "seconds": 315.4
+        }
+      ],
+      "end_beat": 2752.0,
+      "bars": 184.0,
+      "seconds": 315.4,
+      "info": {
+        "label": "SetPotential | 111 bpm | 148 bars | 4/4",
+        "bpm": "111",
+        "bars": "148",
+        "signature": "4/4"
+      },
+      "backing": [
+        "SetPotential111HousyPiano.mp3"
+      ]
+    },
+    {
+      "name": "FNS Idea 2",
+      "start_beat": 2752.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 2752.0,
+          "end_beat": 3104.0,
+          "bars": 88.0,
+          "bar": 689.0,
+          "seconds": 150.9
+        }
+      ],
+      "end_beat": 3104.0,
+      "bars": 88.0,
+      "seconds": 150.9,
+      "info": {
+        "label": "FNS Idea 2 | 120 bpm | 152 bars | 4/4",
+        "bpm": "120",
+        "bars": "152",
+        "signature": "4/4"
+      },
+      "backing": [
+        "23042025_FNS_2025_song2.mp3"
+      ]
+    },
+    {
+      "name": "One",
+      "start_beat": 3104.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 3104.0,
+          "end_beat": 4256.0,
+          "bars": 288.0,
+          "bar": 777.0,
+          "seconds": 493.7
+        }
+      ],
+      "end_beat": 4256.0,
+      "bars": 288.0,
+      "seconds": 493.7,
+      "info": {
+        "label": "One | 120 bpm | 288 bars | 4/4",
+        "bpm": "120",
+        "bars": "288",
+        "signature": "4/4"
+      },
+      "backing": [
+        "int_idea_1.mp3"
+      ]
+    },
+    {
+      "name": "Song2",
+      "start_beat": 4256.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 4256.0,
+          "end_beat": 5136.0,
+          "bars": 220.0,
+          "bar": 1065.0,
+          "seconds": 377.1
+        }
+      ],
+      "end_beat": 5136.0,
+      "bars": 220.0,
+      "seconds": 377.1,
+      "info": {
+        "label": "Song2 | 130 bpm | 220 bars | 4/4",
+        "bpm": "130",
+        "bars": "220",
+        "signature": "4/4"
+      },
+      "backing": [
+        "18102026_Song2_130bpm_2026.mp3"
+      ]
+    },
+    {
+      "name": "Song3",
+      "start_beat": 5136.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 5136.0,
+          "end_beat": 5708.0,
+          "bars": 143.0,
+          "bar": 1285.0,
+          "seconds": 245.1
+        }
+      ],
+      "end_beat": 5708.0,
+      "bars": 143.0,
+      "seconds": 245.1,
+      "info": {
+        "label": "Song3 | 130 bpm | 142 bars | 4/4",
+        "bpm": "130",
+        "bars": "142",
+        "signature": "4/4"
+      },
+      "backing": [
+        "Song3_130bpm_v2.mp3"
+      ]
+    },
+    {
+      "name": "ID700",
+      "start_beat": 5708.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 5708.0,
+          "end_beat": 6204.0,
+          "bars": 124.0,
+          "bar": 1428.0,
+          "seconds": 212.6
+        }
+      ],
+      "end_beat": 6204.0,
+      "bars": 124.0,
+      "seconds": 212.6,
+      "info": {
+        "label": "ID700 | 140 bpm | 124 bars | 4/4",
+        "bpm": "140",
+        "bars": "124",
+        "signature": "4/4"
+      },
+      "backing": [
+        "140SortaBanger_2026_v3.mp3"
+      ]
+    },
+    {
+      "name": "Vessel",
+      "start_beat": 6204.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 6204.0,
+          "end_beat": 6872.0,
+          "bars": 167.0,
+          "bar": 1552.0,
+          "seconds": 286.3
+        }
+      ],
+      "end_beat": 6872.0,
+      "bars": 167.0,
+      "seconds": 286.3,
+      "info": {
+        "label": "Vessel | 140 bpm | 168 bars | 4/4",
+        "bpm": "140",
+        "bars": "168",
+        "signature": "4/4"
+      },
+      "backing": [
+        "int_song_3_vessel.mp3"
+      ]
+    },
+    {
+      "name": "Foley",
+      "start_beat": 6872.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 6872.0,
+          "end_beat": 7772.0,
+          "bars": 225.0,
+          "bar": 1719.0,
+          "seconds": 385.7
+        }
+      ],
+      "end_beat": 7772.0,
+      "bars": 225.0,
+      "seconds": 385.7,
+      "info": {
+        "label": "Foley | 63 bpm | 288 bars | 6/8",
+        "bpm": "63",
+        "bars": "288",
+        "signature": "6/8"
+      },
+      "backing": [
+        "Serene_Foley_Stuk.aif"
+      ]
+    },
+    {
+      "name": "Song7",
+      "start_beat": 7772.0,
+      "sections": [
+        {
+          "name": "Start",
+          "start_beat": 7772.0,
+          "end_beat": 8252.0,
+          "bars": 120.0,
+          "bar": 1944.0,
+          "seconds": 205.7
+        }
+      ],
+      "end_beat": 8252.0,
+      "bars": 120.0,
+      "seconds": 205.7,
+      "info": {
+        "label": "Song7 | 135 bpm | 120 bars | 4/4",
+        "bpm": "135",
+        "bars": "120",
+        "signature": "4/4"
+      },
+      "backing": [
+        "Song7_135bpm_2026.mp3"
+      ]
+    }
+  ],
+  "chapters": [
+    {
+      "name": "1 \u00b7 before",
+      "beat": 0.0,
+      "bar": 1.0
+    },
+    {
+      "name": "3 \u00b7 the rush",
+      "beat": 4252.0,
+      "bar": 1064.0
     }
   ]
 }
