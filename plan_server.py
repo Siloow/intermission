@@ -12,6 +12,7 @@ It listens on localhost only: nothing here is reachable from the network.
 """
 import argparse, http.server, json, os, shutil, socketserver, subprocess, tempfile, threading, time
 import urllib.parse, urllib.request
+import showfolder                    # where the show folder is on this Mac
 import arena_load                    # talks to Resolume's REST API
 import band                          # the control band: looks rendered as clips
 import library                       # the show's visuals, gathered from everywhere
@@ -23,16 +24,19 @@ PLAYER_PORT = 11001                  # where cue_player listens (AbletonOSC repl
 _udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-RIG = os.path.join(HERE, "rig.json")
+SHOW = showfolder.root()             # the plan, media and bounces: shared, not next to the code
+RIG = os.path.join(SHOW, "rig.json")
+MAP = os.path.join(SHOW, "osc_map.json")
+LOOKS = os.path.join(SHOW, "looks.json")
 # files the editors may read and write, by name
 DATA = {"/rig.json": RIG,
-        "/cues.json": os.path.join(HERE, "cues.json"),
-        "/looks.json": os.path.join(HERE, "looks.json"),
+        "/cues.json": os.path.join(SHOW, "cues.json"),
+        "/looks.json": LOOKS,
         # what the previz should show right now while a look is being designed
         "/preview.json": os.path.join(HERE, ".live", "preview.json")}
-READONLY = {"/show.json": os.path.join(HERE, "show.json"),
+READONLY = {"/show.json": os.path.join(SHOW, "show.json"),
             "/fixtures.json": os.path.join(HERE, "fixtures.json"),
-            "/osc_map.json": os.path.join(HERE, "osc_map.json"),
+            "/osc_map.json": MAP,
             # what cue_player is doing right now, for the timeline to mirror
             "/player.json": os.path.join(HERE, ".live", "player.json")}
 PAGE = os.path.join(HERE, "plan_editor.html")
@@ -54,9 +58,9 @@ def library_candidate(cid):
     return next((c for c in library_scan() if c["id"] == cid), None)
 # folders the Band view may play from, by the name in the URL
 CONTENT = {"light-loops": os.path.join(HERE, "content", "light-loops"),
-           "light-looks": os.path.join(HERE, "content", "light-looks")}
+           "light-looks": os.path.join(SHOW, "light-looks")}
 LIB = os.path.join(HERE, "lib")
-AUDIO = os.path.join(HERE, "audio")
+AUDIO = os.path.join(SHOW, "audio")
 STATUS = os.path.join(HERE, ".live", "status.json")
 BACKUP_EVERY = 300          # seconds between keeping a spare copy of the rig
 PLAYER = READONLY["/player.json"]
@@ -109,7 +113,7 @@ def arena_state():
                                  f"{len(comp.get('layers', []))} layers"}
         osc = arena_load.osc_input()
         try:
-            want = json.load(open(os.path.join(HERE, "osc_map.json"))).get("resolume", {}).get("port", 7000)
+            want = json.load(open(MAP)).get("resolume", {}).get("port", 7000)
         except (OSError, ValueError):
             want = 7000
         if osc is not None and not osc[0]:
@@ -333,12 +337,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             listed += [{"file": f, "name": os.path.splitext(f)[0], "bars": None, "what": "",
                         "category": "Other"} for f in extra]
             try:
-                looks = json.load(open(os.path.join(HERE, "looks.json"))).get("looks", [])
+                looks = json.load(open(LOOKS)).get("looks", [])
             except (OSError, ValueError):
                 looks = []
             show = {}
             try:
-                show = json.load(open(os.path.join(HERE, "show.json")))
+                show = json.load(open(READONLY["/show.json"]))
             except (OSError, ValueError):
                 pass
             cats = loops.get("categories") or []
@@ -704,7 +708,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             param = arena_load.find_param(index, want)
             if not param:
                 raise ValueError("that parameter isn't in the open composition")
-            mp = os.path.join(HERE, "osc_map.json")
+            mp = MAP
             m = json.load(open(mp))
             targets = m.setdefault("targets", [])
             have = next((t for t in targets if t.get("resolume") == param["path"]), None)
@@ -728,7 +732,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             n = int(self.headers.get("Content-Length", 0))
             req = json.loads(self.rfile.read(n) or b"{}")
             lo, hi = float(req["min"]), float(req["max"])
-            mp = os.path.join(HERE, "osc_map.json")
+            mp = MAP
             m = json.load(open(mp))
             t = next((t for t in m.get("targets", []) if t["name"] == req.get("name")), None)
             if not t:
@@ -747,7 +751,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             n = int(self.headers.get("Content-Length", 0))
             req = json.loads(self.rfile.read(n) or b"{}")
-            looks = json.load(open(os.path.join(HERE, "looks.json"))).get("looks", [])
+            looks = json.load(open(LOOKS)).get("looks", [])
             names = req.get("looks") or [req.get("look")]
             chosen = [l for l in looks if l["name"] in names]
             if not chosen:

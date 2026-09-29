@@ -35,8 +35,21 @@ ARTNET_PORT = 6454
 TICK = 1 / 40
 SCREEN_FILE = "//.live/screen.rgba"
 STATUS_FILE = "//.live/status.json"
-RIG_FILE = "//rig.json"
+RIG_FILE = "//rig.json"                 # only when no show folder is known: see show_rig()
 PREVIEW_FILE = "//.live/preview.json"
+
+
+def show_rig():
+    """rig.json lives in the show folder (showfolder.py): $INTERMISSION_SHOW, else the
+    .show file next to the .blend. With neither, next to the .blend as before."""
+    p = os.environ.get("INTERMISSION_SHOW", "").strip()
+    if not p:
+        try:
+            p = open(bpy.path.abspath("//.show")).read().strip()
+        except OSError:
+            p = ""
+    p = os.path.abspath(os.path.expanduser(p)) if p else ""
+    return os.path.join(p, "rig.json") if p and os.path.isdir(p) else bpy.path.abspath(RIG_FILE)
 
 # Full is the default. Laptop is there if a weaker machine ever struggles.
 QUALITY = {
@@ -405,7 +418,7 @@ def _show(ob, visible):
 def _read_rig(force=False):
     """Follow rig.json, which the floor-plan editor writes. Fixtures the file
     doesn't mention are hidden, so pars can be added and removed live."""
-    path = bpy.path.abspath(RIG_FILE)
+    path = show_rig()
     try:
         mtime = os.path.getmtime(path)
     except OSError:

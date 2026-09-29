@@ -10,6 +10,8 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 
 | file | what |
 |---|---|
+| **the show folder** | everything that *is* the show, in one folder shared through Dropbox: the plan files below marked *(show folder)*, `composition.json`, `audio/` (bounces), `library/` (the Library's media), `light-looks/`, `projects/`. `showfolder.py` says where it is on this Mac; `.show` remembers it (per Mac, not in git) |
+| `showfolder.py`, `showfolder.sh` | find the show folder; `--init` lays out a new one from `defaults/` |
 | `Test.command` | **test mode**: double-click at home — previz, screen feed, editors, player |
 | `Live.command` | **live mode**: double-click on show night — checks, then only the player |
 | `preflight.py` | what both launchers check first: plan, Resolume, Live |
@@ -19,20 +21,20 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 | `plan_editor.html` | the floor-plan editor: place the pars in a browser, with a 3D preview |
 | `lib/` | three.js and the 3D preview, kept local so the editor works offline |
 | `plan_server.py` | serves the editor and saves `rig.json` (standard library only) |
-| `rig.json` | **where the fixtures live**: positions, addresses, aim, tilt, beam |
+| `rig.json` *(show folder)* | **where the fixtures live**: positions, addresses, aim, tilt, beam |
 | `fixtures.json` | the two fixture profiles, from the manufacturers' sheets |
 | `sync_show.py` | reads the Ableton set into `show.json`, and says what moved |
 | `show_editor.html` | the show timeline: plan the visual set against the music |
 | `docs.html` | **how it all works** — served at `/docs`, read this first |
-| `show.json` | the music: setlist, tempo, sections in bars (generated, don't edit) |
-| `cues.json` | **the visual plan**: what happens at which section |
-| `looks.json` | named lighting looks — a colour and level per par |
+| `show.json` *(show folder)* | the music: setlist, tempo, sections in bars (generated, don't edit) |
+| `cues.json` *(show folder)* | **the visual plan**: what happens at which section |
+| `looks.json` *(show folder)* | named lighting looks — a colour and level per par |
 | `cue_player.py` | plays the plan: follows Live, fires cues at Resolume over OSC |
-| `osc_map.json` | lanes → Resolume layers, automation targets, the panic look, raw-OSC cues |
-| `composition.json` | Resolume's composition as last seen (names only), for when Arena is closed |
+| `osc_map.json` *(show folder)* | lanes → Resolume layers, automation targets, the panic look, raw-OSC cues |
+| `composition.json` *(show folder)* | Resolume's composition as last seen (names only), for when Arena is closed |
 | `Intermission.command`, `host.py`, `host.html` | the **Host**: one click to open everything for test or the show, and projects (save, load, new) |
 | `library.html`, `library.py` | the **Library**: gathers renders, sequences and live sources, converts to DXV, installs into the screen layers |
-| `library.json` | what's in the show (the media: `content/library/`, not in git) |
+| `library.json` *(show folder)* | what's in the show (the media: `library/` beside it) |
 | `lib/band.js` | plays a loop or look onto the band in the browser, for the floor plan's **Loop** mode |
 | `band.py` | **where each fixture sits on the control band**; renders looks as band stills |
 | `make_light_loops.py` | builds the control-band loops the pars sample |
@@ -52,6 +54,10 @@ Open Resolume and the show set in Live yourself. Then double-click one:
 | editors in the browser | ✓ | — |
 | cue_player following Live | ✓ | ✓ |
 | Resolume Art-Net goes to | `127.0.0.1` (Blender) | the venue's node |
+
+The first time on a Mac, both ask where the **show folder** is: the shared
+`Intermission Show` folder in Dropbox with the plan, the Library's media and the
+bounces. Drag it into the window. `python3 showfolder.py` says what it's set to.
 
 Both run `preflight.py` first and say what's missing. Test starts anyway;
 Live asks before starting if anything is wrong, prints a hand checklist, and
@@ -205,12 +211,13 @@ exists, the sidebar says so.
 
 ### Hearing the music while planning
 
-Bounce the set to audio after a writing session and drop the file in `audio/`.
+Bounce the set to audio after a writing session and drop the file in the show
+folder's `audio/`.
 The timeline finds it, plays it, and the playhead runs along the plan in time
 with the music — so whoever is planning the visuals can listen without Live.
 
 The set's own **Backing** track is the quickest bounce: `python3 sync_show.py
-…/Set.als --backing` stitches its clips into `audio/<Set> (backing).mp3`, from
+…/Set.als --backing` stitches its clips into the show folder's `audio/<Set> (backing).mp3`, from
 bar 1 (offset 0). It overwrites that one file each run, so the timeline's choice
 sticks. The bounce's waveform runs under the section row, and the strip above
 the timeline shows the whole set with the current view framed.
@@ -350,34 +357,44 @@ A copy of the previous rig is kept as `rig.json.bak`.
 
 ## Working on this together
 
-The folder is the project. Put it in a shared folder — Dropbox, Drive — and you
-both have the same rig, looks, plan and bounces, with no Ableton project to
-move around:
+The code is this repo, on GitHub. The show is one folder in Dropbox —
+`Intermission Show`, shared between you. Everything that *is* the show lives
+there: the plan files, the Library's media, the bounces, Arena's composition
+names and the Host's saved projects. Each Mac clones the repo and, the first
+time a launcher runs, points it at the show folder (`.show`, per Mac, not in
+git). Your own render folders never leave your disk: **Add** in the Library
+copies the chosen clip, converted, into the show folder, and that is what syncs.
 
-- **You** write music and, after a session, bounce to `audio/` and re-run
-  `sync_show.py`. That refreshes `show.json` with the new structure.
+- **You** write music and, after a session, run `sync_show.py … --backing`.
+  That refreshes `show.json` and the bounce in the show folder; he has both a
+  minute later.
 - **He** opens the editor, hears the bounce, and plans against the real
   arrangement. Cues stay anchored in bars, so your next session moves them
   rather than breaking them.
 - Blender, Resolume and Live are only needed by whoever is doing that part. The
   editor and the bounce are enough to plan.
+- Tool updates are `git pull`, on both Macs.
 
-Two things to agree on:
+Three things to agree on:
+
+- **Set the show folder to "Make available offline"** in Dropbox, on both Macs.
+  Resolume must never meet a placeholder file mid-show.
 
 - **Don't both edit the same file at the same time.** The editors save whole
   files, so simultaneous edits to `cues.json` will produce a conflicted copy.
   In practice one of you plans while the other writes, which is fine. An editor
   that has gone stale refuses to save over newer work and says *changed
   elsewhere — reload*; reloading picks up what the other person did.
-- **`Test.command` tells the sync client to ignore `.live/`** when the folder
-  sits in Dropbox, Drive or iCloud. That folder is rewritten many times a second
-  while the previz runs and must not be synced.
+- **Don't put the repo itself in Dropbox.** Git and a sync client fight over
+  `.git/`; the show folder is the shared part. `.live/` stays with the code and
+  is never synced (the launchers still tell a sync client to ignore it, should
+  the code end up in a synced folder).
 
 ## Taking it to another machine
 
-Copy this whole folder. That's it — every path inside is relative to the folder,
-and `venue.blend` carries its own scripts and textures, so nothing needs fixing
-up. Tested from a copy in a different location, with a space in its name.
+Clone the repo (or copy this folder) and share the show folder with that Mac in
+Dropbox; the first launcher run asks where it is. `venue.blend` carries its own
+scripts and textures, so nothing else needs fixing up.
 
 What the other Mac needs:
 
@@ -397,8 +414,9 @@ What the other Mac needs:
 The first run on a new Mac also offers to apply the trackpad / numpad
 preferences (see below). Say no and nothing about that Blender changes.
 
-Two things that do *not* travel, because they belong to the machine and not the
-folder: Blender's own Preferences, and Resolume's composition and Lumiverse.
+Three things that do *not* travel, because they belong to the machine: Blender's
+own Preferences, Resolume's composition and Lumiverse, and `.show` (where the show
+folder is on that Mac).
 
 ## Build
 

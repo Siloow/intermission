@@ -37,9 +37,10 @@ Standard library only; it reads the .als directly (gzipped XML), so Live does
 not have to be open.
 """
 import argparse, datetime, glob, gzip, json, os, sys, xml.etree.ElementTree as ET
+import showfolder
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "show.json")
+OUT = showfolder.path("show.json")           # the show folder, see showfolder.py
 SONG_PREFIX = ">>"
 CHAPTER_PREFIX = "##"
 TRACKLIST_TRACK = "Tracklist"     # per-song info clips: "Song | 120 bpm | 72 bars | 4/4"
@@ -345,7 +346,7 @@ def main():
               f"{own:<16} {', '.join(s['name'] for s in g['sections'])}")
     if a.backing and not a.example:
         name = os.path.splitext(os.path.basename(source))[0] + " (backing).mp3"
-        return render_backing(raw, os.path.join(HERE, "audio", name))
+        return render_backing(raw, showfolder.path("audio", name))
     return 0
 
 

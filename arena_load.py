@@ -16,9 +16,10 @@ Needs the web server: Arena → Preferences → Webserver → Enable Webserver &
 API, port 8080. Standard library only.
 """
 import argparse, json, os, sys, time, urllib.parse, urllib.request
+import showfolder
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MAP = os.path.join(HERE, "osc_map.json")
+MAP = showfolder.path("osc_map.json")
 MEDIA = (".mov", ".mp4", ".m4v", ".avi", ".mkv", ".dxv", ".png", ".jpg", ".jpeg", ".gif")
 BPM_SYNC, NO_SNAP = 1, 1          # indices in the clip's transporttype / beatsnap lists
 
@@ -33,7 +34,7 @@ def lanes():
 
 def lane_dir(lane):
     d = (lanes().get(lane) or {}).get("dir")
-    return os.path.join(HERE, d) if d else None
+    return showfolder.content_dir(d)
 
 
 def media_in(folder):
@@ -143,7 +144,7 @@ def load_one(base, lane, filename, sync=True, folder=None):
     layer_ref = cfg.get("layer")
     if not layer_ref:
         raise RuntimeError(f"no layer set for the {lane} lane in osc_map.json")
-    folder = folder or os.path.join(HERE, cfg.get("dir", ""))
+    folder = folder or showfolder.content_dir(cfg.get("dir")) or HERE
     path = os.path.join(folder, filename)
     if not os.path.isfile(path):
         raise RuntimeError(f"no such file: {filename}")
@@ -166,7 +167,7 @@ def load_one(base, lane, filename, sync=True, folder=None):
 # Resolume's OSC addresses are positions (layer 3, clip 6). The plan names
 # things instead, and these turn a name into today's position, so dragging a
 # clip to another slot in Resolume doesn't quietly break a cue.
-CACHE = os.path.join(HERE, "composition.json")    # the last one seen, for when Arena is closed
+CACHE = showfolder.path("composition.json")       # the last one seen, for when Arena is closed
 DEFAULT_NAMES = ("Layer #", "Column #", "")
 
 
@@ -440,7 +441,7 @@ def install(base, lane="lights", names=None, refresh=False, sync=True):
     """Put a folder's clips (the light presets, by default) into the lane's layer.
     The presets are tempo loops, so they go in BPM-synced."""
     cfg = lanes().get(lane) or {}
-    folder = os.path.join(HERE, cfg.get("dir", ""))
+    folder = showfolder.content_dir(cfg.get("dir")) or HERE
     # in the presets' own order (by category), if they came with a loops.json
     try:
         order = [l["file"] for l in json.load(open(os.path.join(folder, "loops.json"))).get("loops", [])]

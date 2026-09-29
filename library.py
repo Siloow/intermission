@@ -9,7 +9,7 @@ gathers them:
 
   sources   folders to look in (library.json "sources"); scanned for videos,
             image sequences and stills, drafts flagged by their names
-  add       copies a chosen one into content/library/, converted to one show
+  add       copies a chosen one into the show folder's library/, converted to one show
             format: 1920x1080, the frame rate it was made at, and a codec
             Resolume plays on the GPU: DXV, stills too. ffmpeg's DXV has no
             alpha, so anything really transparent goes to ProRes 4444 (video)
@@ -20,17 +20,19 @@ gathers them:
   install   puts library clips and live sources into a screen layer in
             Resolume, where the timeline paints with them by name
 
-library.json is the list (small, shared, in git); content/library/ holds the
-media (big: keep it in the shared folder, not in git). Scans, thumbnails and
-hover previews are cached in .live/library/.
+library.json is the list and library/ the media, both in the show folder
+(shared through Dropbox; see showfolder.py), none of it in git. Scans, thumbnails
+and hover previews are cached in .live/library/, per Mac.
 
 Needs ffmpeg and ffprobe. Standard library otherwise.
 """
 import argparse, hashlib, json, os, re, shutil, subprocess, sys, threading, time, urllib.parse
+import showfolder
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-LIB_FILE = os.path.join(HERE, "library.json")
-LIB_DIR = os.path.join(HERE, "content", "library")
+SHOW = showfolder.root()                            # the list and the media live with the show
+LIB_FILE = os.path.join(SHOW, "library.json")
+LIB_DIR = os.path.join(SHOW, "library")
 THUMBS = os.path.join(LIB_DIR, ".thumbs")           # shared with the clips
 CACHE = os.path.join(HERE, ".live", "library")      # this machine's scan, thumbs, previews
 VIDEO = (".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi")
@@ -50,8 +52,8 @@ def config():
         cfg = json.load(open(LIB_FILE))
     except (OSError, ValueError):
         cfg = {}
-    cfg.setdefault("//", "Sources are folders to look in, relative to this file. clips and live "
-                         "are the show's visuals; the media sit in content/library/.")
+    cfg.setdefault("//", "Sources are folders to look in: relative to the tools, or absolute (~ allowed). "
+                         "clips and live are the show's visuals; the media sit in library/ next to this file.")
     cfg.setdefault("sources", ["..", "../../TouchDesigner"])
     cfg.setdefault("sequence_fps", 30)
     cfg.setdefault("clips", [])
@@ -122,7 +124,7 @@ def scan():
     in_show = {c.get("source") for c in cfg["clips"]}
     out, seen = [], set()
     for rel in cfg["sources"]:
-        root = os.path.normpath(os.path.join(HERE, rel))
+        root = os.path.normpath(os.path.join(HERE, os.path.expanduser(rel)))
         if not os.path.isdir(root):
             continue
         for d, dirs, files in os.walk(root):
@@ -337,7 +339,7 @@ def _convert(job, c, name, tags, who, song, fit):
         if t:
             shutil.copy(t, os.path.join(THUMBS, name + ".jpg"))
         cfg = config()
-        entry = {"name": name, "file": os.path.relpath(out, HERE), "source": c["path"],
+        entry = {"name": name, "file": os.path.relpath(out, SHOW), "source": c["path"],
                  "kind": c["kind"], "project": c["project"], "tags": tags, "song": song,
                  "who": who, "fit": fit, "fps": c.get("fps"), "seconds": c.get("seconds"),
                  "codec": label, "added": time.strftime("%Y-%m-%d %H:%M")}
@@ -347,7 +349,7 @@ def _convert(job, c, name, tags, who, song, fit):
                 entry[k] = old.get(k, entry[k])
             if old.get("file") and old["file"] != entry["file"]:
                 try:
-                    os.remove(os.path.join(HERE, old["file"]))
+                    os.remove(os.path.join(SHOW, old["file"]))
                 except OSError:
                     pass
             cfg["clips"] = [entry if x is old else x for x in cfg["clips"]]
@@ -420,7 +422,7 @@ def remove(name):
     cfg = config()
     for x in cfg["clips"]:
         if x["name"] == name:
-            for p in (os.path.join(HERE, x["file"]), os.path.join(THUMBS, name + ".jpg")):
+            for p in (os.path.join(SHOW, x["file"]), os.path.join(THUMBS, name + ".jpg")):
                 if os.path.exists(p):
                     os.remove(p)
     cfg["clips"] = [x for x in cfg["clips"] if x["name"] != name]
@@ -459,7 +461,7 @@ def install(base, names, lane):
     items = []
     for x in cfg["clips"]:
         if x["name"] in names:
-            items.append({"name": x["name"], "url": arena_load.file_url(os.path.join(HERE, x["file"]))})
+            items.append({"name": x["name"], "url": arena_load.file_url(os.path.join(SHOW, x["file"]))})
     for x in cfg["live"]:
         if x["name"] in names:
             items.append({"name": x["name"], "url": "source:///video/" + urllib.parse.quote(x["source"])})

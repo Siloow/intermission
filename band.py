@@ -15,16 +15,19 @@ units of 120 px.
 Standard library only: the looks are written as PNG with zlib.
 """
 import argparse, json, os, struct, zlib
+import showfolder
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 W, H = 1920, 120
-LOOK_DIR = os.path.join(HERE, "content", "light-looks")
+LOOK_DIR = showfolder.path("light-looks")
 UNITS = {"par": 1, "bar": 2}
 
 
 def load(name, default):
+    """A JSON file of the show's (rig, looks, show); fixtures.json is the tools' own."""
+    where = HERE if name == "fixtures.json" else showfolder.root()
     try:
-        return json.load(open(os.path.join(HERE, name)))
+        return json.load(open(os.path.join(where, name)))
     except (OSError, ValueError):
         return default
 
@@ -104,7 +107,7 @@ def main():
         if not chosen:
             raise SystemExit(f"no look called {a.look!r}")
         for l in chosen:
-            print("  " + os.path.relpath(render_look(l), HERE))
+            print("  " + os.path.relpath(render_look(l), showfolder.root()))
         return
     print(f"\n  control band {W}x{H}, left to right in patch order\n")
     for c in layout():

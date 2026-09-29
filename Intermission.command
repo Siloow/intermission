@@ -15,6 +15,7 @@
 
 cd "$(dirname "$0")" || exit 1
 mkdir -p .live
+source ./showfolder.sh          # the show folder: plan, media, bounces
 case "$PWD" in
   *Dropbox*|*"Google Drive"*|*OneDrive*|*iCloud*)
     xattr -w com.dropbox.ignored 1 .live 2>/dev/null

@@ -14,6 +14,7 @@
 
 cd "$(dirname "$0")" || exit 1
 mkdir -p .live
+source ./showfolder.sh          # the show folder: plan, media, bounces
 
 # nothing from a test session may be left fighting for the ports
 pkill -f "cue_player.py|syphon_bridge.py|plan_server.py" 2>/dev/null && sleep 0.5

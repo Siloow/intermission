@@ -80,6 +80,7 @@
       <section class="box">
         <h2>Project <span class="spacer"></span><span id="changed"></span></h2>
         <div class="cur"><b id="cur-name">—</b><span class="hint dim" id="cur-saved"></span></div>
+        <div class="hint dim" id="show-dir" title="the show folder: the plan, the Library's media and the bounces, shared through Dropbox (showfolder.py)"></div>
         <div class="btns">
           <button id="save" class="primary" title="⌘S">Save</button>
           <button id="saveas">Save as…</button>
@@ -156,6 +157,7 @@ function drawProjects(){
   const p = projects, cur = p.projects.find(x => x.current);
   el("cur-name").textContent = p.current || "Not saved as a project yet";
   el("cur-saved").textContent = cur && cur.saved ? `saved ${cur.saved}` : "";
+  el("show-dir").textContent = p.show_dir ? "show folder: " + p.show_dir.replace(/^\/Users\/[^/]+/, "~") : "";
   const ch = p.changed || [];
   el("changed").innerHTML = !p.current ? `<span class="badge warn">unsaved</span>`
     : ch.length ? `<span class="badge warn" title="${esc(ch.join(", "))}">changed: ${esc(ch.map(f => f.replace(".json", "")).join(", "))}</span>`

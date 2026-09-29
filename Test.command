@@ -8,6 +8,7 @@
 #   cue_player          follows Live and fires the plan at Resolume
 #
 # You open yourself, before or after: Resolume Arena, and the show set in Live.
+# The first time on a Mac it asks where the show folder is (see showfolder.py).
 # Quit Blender, or ctrl-C here, and everything this started stops.
 #
 #   ./Test.command              everything
@@ -18,6 +19,7 @@
 cd "$(dirname "$0")" || exit 1
 setopt NULL_GLOB
 mkdir -p .live
+source ./showfolder.sh          # the first time: where is the show folder?
 
 # In a shared folder, keep the runtime scratch out of the sync: .live is
 # rewritten many times a second and would fight the syncing client.

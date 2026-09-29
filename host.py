@@ -1,12 +1,12 @@
 """The show host: projects, and starting the software, from the browser.
 
 Projects
-    A project is a folder in projects/ holding the show's plan files, the same
-    files every tool reads here (show.json, cues.json, rig.json, looks.json,
+    A project is a folder in the show folder's projects/ (see showfolder.py),
+    holding a saved copy of the plan files every tool works on there (show.json, cues.json, rig.json, looks.json,
     osc_map.json, library.json), and project.json: its name, and which Live set,
     Resolume composition and Advanced Output preset go with it.
 
-    The tools keep working on the files in this folder, as they always have.
+    The tools keep working on the files in the show folder, as they always have.
     Save copies them into the project; load copies a project's in, after
     putting what was here into projects/.autosave/ first, so nothing is ever
     lost by loading. The player and Blender follow the files as they change.
@@ -22,9 +22,11 @@ Software
 Standard library only. plan_server.py serves it; only this Mac may start things.
 """
 import glob, json, os, re, shutil, signal, socket, subprocess, sys, threading, time
+import showfolder
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PROJECTS = os.path.join(HERE, "projects")
+SHOW = showfolder.root()                # the plan files live here, with the show
+PROJECTS = os.path.join(SHOW, "projects")
 CURRENT = os.path.join(PROJECTS, ".current")
 AUTOSAVE = os.path.join(PROJECTS, ".autosave")
 PROJECT_FILES = ("show.json", "cues.json", "rig.json", "looks.json", "osc_map.json", "library.json")
@@ -93,12 +95,12 @@ def changed(name):
     if not name or not os.path.isdir(os.path.join(PROJECTS, name)):
         return list(PROJECT_FILES)
     return [f for f in PROJECT_FILES
-            if not _same(os.path.join(HERE, f), os.path.join(PROJECTS, name, f))]
+            if not _same(os.path.join(SHOW, f), os.path.join(PROJECTS, name, f))]
 
 
 def _live_set_of_show():
     try:
-        return json.load(open(os.path.join(HERE, "show.json"))).get("source")
+        return json.load(open(os.path.join(SHOW, "show.json"))).get("source")
     except (OSError, ValueError):
         return None
 
@@ -120,7 +122,7 @@ def listing():
                     "live_set": m.get("live_set"), "composition": m.get("composition"),
                     "output_preset": m.get("output_preset"), "notes": m.get("notes", ""),
                     "cues": n, "current": d == cur})
-    return {"current": cur, "changed": changed(cur) if cur else None, "projects": out,
+    return {"current": cur, "changed": changed(cur) if cur else None, "projects": out, "show_dir": SHOW,
             "compositions": compositions(), "live_set_now": _live_set_of_show()}
 
 
@@ -130,9 +132,9 @@ def _copy_in(src_dir, files=PROJECT_FILES):
         src = os.path.join(src_dir, f)
         if not os.path.exists(src):
             continue
-        tmp = os.path.join(HERE, f + ".loading")
+        tmp = os.path.join(SHOW, f + ".loading")
         shutil.copyfile(src, tmp)
-        os.replace(tmp, os.path.join(HERE, f))
+        os.replace(tmp, os.path.join(SHOW, f))
 
 
 def _autosave(label):
@@ -140,8 +142,8 @@ def _autosave(label):
     dest = os.path.join(AUTOSAVE, f"{stamp} {label}")
     os.makedirs(dest, exist_ok=True)
     for f in PROJECT_FILES:
-        if os.path.exists(os.path.join(HERE, f)):
-            shutil.copyfile(os.path.join(HERE, f), os.path.join(dest, f))
+        if os.path.exists(os.path.join(SHOW, f)):
+            shutil.copyfile(os.path.join(SHOW, f), os.path.join(dest, f))
     olds = sorted(glob.glob(os.path.join(AUTOSAVE, "*")))
     for old in olds[:-KEEP_AUTOSAVES]:
         shutil.rmtree(old, ignore_errors=True)
@@ -156,8 +158,8 @@ def save(name=None):
     d = os.path.join(PROJECTS, name)
     os.makedirs(d, exist_ok=True)
     for f in PROJECT_FILES:
-        if os.path.exists(os.path.join(HERE, f)):
-            shutil.copyfile(os.path.join(HERE, f), os.path.join(d, f))
+        if os.path.exists(os.path.join(SHOW, f)):
+            shutil.copyfile(os.path.join(SHOW, f), os.path.join(d, f))
     meta = _meta(name)
     now = time.strftime("%Y-%m-%d %H:%M")
     meta.setdefault("created", now)
@@ -176,7 +178,7 @@ def load(name):
     backup = _autosave(f"before loading {name}")
     _copy_in(d)
     _set_current(name)
-    return {"name": name, "backup": os.path.relpath(backup, HERE)}
+    return {"name": name, "backup": os.path.relpath(backup, SHOW)}
 
 
 def new(name, keep=True):
@@ -187,7 +189,7 @@ def new(name, keep=True):
     if os.path.isdir(os.path.join(PROJECTS, name)):
         raise ValueError(f"there is already a project called {name!r}")
     _autosave(f"before new {name}")
-    cues_path = os.path.join(HERE, "cues.json")
+    cues_path = os.path.join(SHOW, "cues.json")
     try:
         cues = json.load(open(cues_path))
     except (OSError, ValueError):

@@ -270,7 +270,7 @@
       "curve": 0.4
     },
     {
-      "name": "Composition \u00b7 Transform \u00b7 Scale",
+      "name": "Composition · Transform · Scale",
       "resolume": [
         "composition",
         "effect",
@@ -292,7 +292,7 @@
       "curve": 0
     },
     {
-      "name": "Screen A \u00b7 Transform \u00b7 Position X",
+      "name": "Screen A · Transform · Position X",
       "resolume": [
         "layer",
         1,
@@ -312,7 +312,7 @@
     "Drop": 3,
     "Breakdown": 4
   },
-  "//lanes": "Where each timeline lane's clips live: the Resolume layer they load into, and the folder the picker browses. arena_load.py and the Load clip button in the timeline both use this.",
+  "//lanes": "Where each timeline lane's clips live: the Resolume layer they load into, and the folder the picker browses. content/… is next to the tools (the light-loop presets); anything else is inside the show folder. arena_load.py and the Load clip button in the timeline both use this.",
   "lanes": {
     "lights": {
       "layer": 3,
@@ -320,12 +320,12 @@
     },
     "screen": {
       "layer": 1,
-      "dir": "content/library",
+      "dir": "library",
       "label": "Screen A"
     },
     "overlay": {
       "layer": 2,
-      "dir": "content/library",
+      "dir": "library",
       "label": "Screen B"
     }
   },

@@ -13,7 +13,10 @@ import json, os, socket, subprocess, sys, time
 import arena_load
 from cue_player import osc_encode, osc_decode, compile_cues, compile_panic, compile_automation
 
+import showfolder
+
 HERE = os.path.dirname(os.path.abspath(__file__))
+SHOW = showfolder.root()                # stops here, with the fix, when this Mac has none
 ARENA = "http://127.0.0.1:8080"
 LIVE_IN, LIVE_OUT = 11000, 11001          # AbletonOSC listens / replies
 
@@ -169,7 +172,7 @@ def check_plan(show, cues):
             "The timeline lists them in the sidebar; one click re-points each.")
     else:
         say(OK, f"plan: {n} cues, all on sections that exist")
-    age = (time.time() - os.path.getmtime(os.path.join(HERE, "show.json"))) / 86400
+    age = (time.time() - os.path.getmtime(os.path.join(SHOW, "show.json"))) / 86400
     if age > 7:
         say(WARN, f"show.json was synced {age:.0f} days ago",
             "If the arrangement changed since: python3 sync_show.py --als-dir ~/Music")
@@ -188,11 +191,12 @@ def check_stale():
 
 def main():
     mode = (sys.argv[1:] or ["test"])[0]
-    show = load(os.path.join(HERE, "show.json"), None)
-    cues = load(os.path.join(HERE, "cues.json"), {"cues": []})
-    mapping = load(os.path.join(HERE, "osc_map.json"), {})
+    show = load(os.path.join(SHOW, "show.json"), None)
+    cues = load(os.path.join(SHOW, "cues.json"), {"cues": []})
+    mapping = load(os.path.join(SHOW, "osc_map.json"), {})
 
     print(f"\n  {'LIVE — show night' if mode == 'live' else 'TEST — previz at home'}\n")
+    say(OK, f"show folder: {SHOW}")
     check_stale()
     check_plan(show, cues)
     check_resolume(show, cues, mapping)

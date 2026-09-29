@@ -22,8 +22,10 @@ import numpy as np
 from mathutils import Matrix, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+import sys; sys.path.insert(0, HERE)
+import showfolder                        # rig.json lives in the show folder
 OUT = os.path.join(HERE, "venue.blend")
-RIG = os.path.join(HERE, "rig.json")
+RIG = showfolder.path("rig.json")
 FIXTURES = os.path.join(HERE, "fixtures.json")
 
 # ---------------------------------------------------------------- CONFIG ----

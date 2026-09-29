@@ -531,7 +531,7 @@ painting never means hunting through folders. Three views:</p>
   <li><b>Live</b> — sources Resolume can see from outside it: TouchDesigner over
     Syphon, NDI. Add one and it's in the show like a clip, named your way.</li>
 </ul>
-<p><b>Add to the show</b> converts a copy into <code>content/library/</code>:
+<p><b>Add to the show</b> converts a copy into the show folder's <code>library/</code>:
 1920×1080, at the frame rate it was made at, fitted (black sides) or filled
 (cropped) — the portrait renders need that choice — in a codec Resolume decodes on
 the GPU. The original stays where it is.</p>
@@ -546,9 +546,9 @@ that is full everywhere, and those go to DXV. The codec shows on each clip.
 <code>python3 library.py --reconvert</code> converts clips added before this again
 from their sources, under the same names; <b>Install</b> with the clip in a layer
 reloads it there.</p>
-<div class="note"><code>library.json</code> is the list and goes in git;
-<code>content/library/</code> is the media — gigabytes — and lives in the shared
-folder, not git.</div>
+<div class="note"><code>library.json</code> is the list and <code>library/</code> the
+media — gigabytes. Both live in the show folder, shared through Dropbox; neither
+is in git.</div>
 
 <h3>From the Library into the timeline</h3>
 <ol>
@@ -816,8 +816,12 @@ this network?</i> — say yes and it prints an address like
 same Resolume, same previz, no copies. One person curates the Library while the
 other paints; the save guard stops you overwriting each other. Anyone on that
 network can edit while it's shared, so say no on a public network.</p>
-<p>The folder is the project. Put it in Dropbox and you both have the same rig,
-looks, plan and bounces — no Ableton project to move.</p>
+<p><b>Apart:</b> the code is the git repo; the show is one folder in Dropbox,
+<code>Intermission Show</code>, shared between you — the plan files, the Library's
+media, the bounces, Arena's composition names, the saved projects. Each Mac clones
+the repo and, the first time a launcher runs, says where the show folder is
+(<code>showfolder.py</code>). <b>Add</b> in the Library copies a clip, converted,
+into that folder; your own render folders stay where they are.</p>
 <ul>
   <li><b>Hand-off is a bounce plus a sync.</b> After a writing session, the new
     mp3 and the refreshed <code>show.json</code> are all the other side needs.</li>
@@ -828,8 +832,10 @@ looks, plan and bounces — no Ableton project to move.</p>
     says <i>changed elsewhere — reload</i>. That protects you from a forgotten
     tab wiping out newer work; reload the page and carry on.</li>
   <li><b>Only the previz needs Blender.</b> Planning needs the browser and the bounce.</li>
-  <li><code>Test.command</code> tells the sync client to ignore <code>.live/</code>,
-    which is rewritten many times a second while the previz runs.</li>
+  <li><b>Set the show folder to “Make available offline”</b> in Dropbox, on both
+    Macs: Resolume must never meet a placeholder file mid-show.</li>
+  <li><b>Don't put the repo itself in Dropbox.</b> Git and a sync client fight over
+    <code>.git/</code>; <code>.live/</code> stays with the code and is never synced.</li>
 </ul>
 
 <h2>Show day</h2>
@@ -849,6 +855,7 @@ looks, plan and bounces — no Ableton project to move.</p>
 <h2>The files</h2>
 <table>
   <tr><th>File</th><th>What it holds</th><th>Who writes it</th></tr>
+  <tr><td><b>the show folder</b></td><td>everything that is the show: the JSON files below, <code>composition.json</code>, <code>audio/</code>, <code>library/</code> (the Library's media), <code>light-looks/</code>, <code>projects/</code></td><td>shared through Dropbox; <code>showfolder.py</code> says where it is on this Mac</td></tr>
   <tr><td><code>show.json</code></td><td>setlist, tempo, sections in bars</td><td><code>sync_show.py</code>, from the .als</td></tr>
   <tr><td><code>cues.json</code></td><td>the plan: what happens at which section</td><td>the show timeline</td></tr>
   <tr><td><code>looks.json</code></td><td>named lighting looks</td><td>the floor plan page</td></tr>

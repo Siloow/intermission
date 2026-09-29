@@ -28,11 +28,13 @@ import argparse, json, os, re, select, socket, struct, sys, threading, time
 import http.client, urllib.request
 import arena_load                    # the composition, so cues can name clips
 
+import showfolder                    # the plan lives in the show folder, not next to the code
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-SHOW = os.path.join(HERE, "show.json")
-CUES = os.path.join(HERE, "cues.json")
-LOOKS = os.path.join(HERE, "looks.json")
-MAP = os.path.join(HERE, "osc_map.json")
+SHOW = showfolder.path("show.json")
+CUES = showfolder.path("cues.json")
+LOOKS = showfolder.path("looks.json")
+MAP = showfolder.path("osc_map.json")
 PREVIEW = os.path.join(HERE, ".live", "preview.json")
 PLAYER_STATE = os.path.join(HERE, ".live", "player.json")   # what the timeline mirrors
 PANIC_FLAG = os.path.join(HERE, ".live", "panic")            # survives a player restart

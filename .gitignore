@@ -1,17 +1,16 @@
 .live/
 *.blend1
-audio/*
-!audio/.gitkeep
 __pycache__/
 *.bak
 *.tmp
 .DS_Store
 # this Mac's Blender input settings, saved before setup_input.py changed them
 .input_backup.json
-# the show's media: many GB, kept in the shared folder, not in git (library.json is the list)
-content/library/*
-!content/library/.thumbs/
-
-# the host: backups made before a load, and which project this Mac has open
-projects/.autosave/
-projects/.current
+# where the show folder is on this Mac (see showfolder.py): the path differs per Mac
+.show
+# the show itself lives in the show folder, not here: plan files, media, bounces, projects.
+# These names only catch leftovers from before the split.
+audio/
+content/library/
+content/light-looks/
+projects/
