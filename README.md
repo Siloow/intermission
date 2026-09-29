@@ -1,5 +1,8 @@
 # Venue previz
 
+**New here, planning from your own Mac?** Read [START_HERE.md](START_HERE.md) — the
+short version: set up once, then one double-click.
+
 The cinema hall in Blender: the screen, 6 RGBW floor pars around the performer,
 haze, and audience cameras. At home it plays what Resolume sends, live:
 
@@ -12,6 +15,7 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 |---|---|
 | **the show folder** | everything that *is* the show, in one folder shared through Dropbox: the plan files below marked *(show folder)*, `composition.json`, `audio/` (bounces), `library/` (the Library's media), `light-looks/`, `projects/`. `showfolder.py` says where it is on this Mac; `.show` remembers it (per Mac, not in git) |
 | `showfolder.py`, `showfolder.sh` | find the show folder; `--init` lays out a new one from `defaults/` |
+| `START_HERE.md` | the short how-to for the other Mac: set up once, then one double-click |
 | `Test.command` | **test mode**: double-click at home — previz, screen feed, editors, player |
 | `Live.command` | **live mode**: double-click on show night — checks, then only the player |
 | `preflight.py` | what both launchers check first: plan, Resolume, Live |
@@ -32,6 +36,7 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 | `cue_player.py` | plays the plan: follows Live, fires cues at Resolume over OSC |
 | `osc_map.json` *(show folder)* | lanes → Resolume layers, automation targets, the panic look, raw-OSC cues |
 | `composition.json` *(show folder)* | Resolume's composition as last seen (names only), for when Arena is closed |
+| `Update.command` | double-click: `git pull` the tools |
 | `Intermission.command`, `host.py`, `host.html` | the **Host**: one click to open everything for test or the show, and projects (save, load, new) |
 | `library.html`, `library.py` | the **Library**: gathers renders, sequences and live sources, converts to DXV, installs into the screen layers |
 | `library.json` *(show folder)* | what's in the show (the media: `library/` beside it) |
