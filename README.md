@@ -37,7 +37,7 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 | `osc_map.json` *(show folder)* | lanes → Resolume layers, automation targets, the panic look, raw-OSC cues |
 | `composition.json` *(show folder)* | Resolume's composition as last seen (names only), for when Arena is closed |
 | `Update.command` | double-click: `git pull` the tools |
-| `Intermission.command`, `host.py`, `host.html` | the **Host**: one click to open everything for test or the show, and projects (save, load, new) |
+| `Intermission.command`, `host.py`, `host.html` | the **Host**: one click to open everything for test or the show, projects (save, load, new), and the versions of everything the show runs on |
 | `library.html`, `library.py` | the **Library**: gathers renders, sequences and live sources, converts to DXV, installs into the screen layers |
 | `library.json` *(show folder)* | what's in the show (the media: `library/` beside it) |
 | `lib/band.js` | plays a loop or look onto the band in the browser, for the floor plan's **Loop** mode |

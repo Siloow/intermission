@@ -21,7 +21,7 @@ Software
 
 Standard library only. plan_server.py serves it; only this Mac may start things.
 """
-import glob, json, os, re, shutil, signal, socket, subprocess, sys, threading, time
+import glob, json, os, platform, plistlib, re, shutil, signal, socket, subprocess, sys, threading, time
 import showfolder
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -256,6 +256,62 @@ def find_uv():
     return shutil.which("uv")
 
 
+# ---------------------------------------------------------------- versions --
+def _bundle_version(app):
+    """An app's version from its Info.plist, or None."""
+    try:
+        with open(os.path.join(app, "Contents", "Info.plist"), "rb") as fh:
+            info = plistlib.load(fh)
+        return info.get("CFBundleShortVersionString") or info.get("CFBundleVersion")
+    except (OSError, ValueError, plistlib.InvalidFileException):
+        return None
+
+
+def _cmd_version(args, pattern=r"(\d+(?:\.\d+)+)"):
+    try:
+        out = subprocess.run(args, capture_output=True, text=True, timeout=5)
+        m = re.search(pattern, out.stdout + out.stderr)
+        return m.group(1) if m else None
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+_versions = None
+def versions():
+    """What this Mac runs the show with, read once per server start: the apps from
+    their bundles (so it works with them closed), the tools from git."""
+    global _versions
+    if _versions is not None:
+        return _versions
+    arena = next((a for a in ARENA_APPS if os.path.isdir(a)), None)
+    other = sorted(glob.glob("/Applications/Resolume Arena [0-9.]*/Arena.app"))
+    live = live_app()
+    bl = find_blender()
+    bl_app = bl.split("/Contents/MacOS/")[0] if bl and "/Contents/MacOS/" in bl else None
+    uv = find_uv()
+    try:
+        rev = subprocess.run(["git", "log", "-1", "--format=%h %cs"], cwd=HERE, capture_output=True,
+                             text=True, timeout=5).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=HERE,
+                               capture_output=True, text=True, timeout=5).stdout.strip()
+        tools = (rev + (" · edited since" if dirty else "")) if rev else None
+    except OSError:
+        tools = None
+    _versions = {
+        "arena": _bundle_version(arena) if arena else None,
+        "arena_others": [v for v in (_bundle_version(a) for a in other) if v],
+        "live": _bundle_version(live) if live else None,
+        "live_app": os.path.basename(live)[:-4] if live else None,
+        "blender": _bundle_version(bl_app) if bl_app else None,
+        "python": platform.python_version(),
+        "ffmpeg": _cmd_version(["ffmpeg", "-version"], r"ffmpeg version (\S+)"),
+        "uv": _cmd_version([uv, "--version"]) if uv else None,
+        "macos": platform.mac_ver()[0] or None,
+        "tools": tools,
+    }
+    return _versions
+
+
 class Host:
     """What this server started, and a view of what runs however it started."""
 
@@ -302,7 +358,7 @@ class Host:
                        "mode": self.player_mode, "restarts": self.restarts},
         }
         return {"mode": self.mode, "awake": self.awake is not None and self.awake.poll() is None,
-                "parts": parts, "events": self.events[-12:]}
+                "parts": parts, "events": self.events[-12:], "versions": versions()}
 
     # ---- the apps that hold the show: opened, never quit from here
     def open_arena(self, composition=None):

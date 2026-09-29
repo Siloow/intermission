@@ -110,6 +110,7 @@
           <button id="go-show" class="show"><span>● The show</span><small>only what the night needs</small></button>
         </div>
         <table class="parts" id="parts"></table>
+        <p class="hint dim" id="versions" style="margin:6px 6px 0" title="what this Mac runs the show with; the apps are read from their bundles, so this shows with them closed too"></p>
         <div class="btns" style="margin-top:var(--s3)">
           <button id="stop" class="danger">Stop</button>
           <button id="check">Check everything</button>
@@ -254,7 +255,10 @@ const HOST_PARTS = [
 ];
 function dotOf(p){ return !p || p.ok === null || p.ok === undefined ? "" : p.warn ? "warn" : p.ok ? "ok" : "bad"; }
 function drawStatus(){
-  const s = status, h = s.health || {}, parts = s.parts;
+  const s = status, h = s.health || {}, parts = s.parts, v = s.versions || {};
+  const short = x => (x || "").split(" (")[0];                 // Live's build hash stays in the title
+  const versionOf = {arena: v.arena && (v.arena + (v.arena_others && v.arena_others.length ? ` · also installed: ${v.arena_others.join(", ")}` : "")),
+                     live: short(v.live), blender: v.blender};
   el("mode").innerHTML = s.mode === "show" ? `<span class="badge live">the show${s.awake ? " · kept awake" : ""}</span>`
                        : s.mode === "test" ? `<span class="badge ok">test</span>` : "";
   el("go-test").classList.toggle("running", s.mode === "test");
@@ -282,9 +286,12 @@ function drawStatus(){
     }
     const d = k === "arena" && !p.running ? "bad" : k === "live" && !p.running ? "bad"
             : (k === "blender" || k === "bridge") && !p.running ? "" : dotOf(hp);
-    return `<tr><td><i class="dot ${d}"></i></td><td class="what">${label}</td>` +
+    const ver = versionOf[k] ? ` <span class="dim" style="font-weight:400" title="${esc(k === "live" ? (v.live || "") : "")}">${esc(versionOf[k])}</span>` : "";
+    return `<tr><td><i class="dot ${d}"></i></td><td class="what">${label}${ver}</td>` +
            `<td class="how" title="${esc(hp.fix || "")}">${esc(how)}</td><td>${act}</td></tr>`;
   }).join("");
+  el("versions").textContent = [["macOS", v.macos], ["Python", v.python], ["ffmpeg", v.ffmpeg], ["uv", v.uv], ["tools", v.tools]]
+    .map(([n, x]) => `${n} ${x || "not found"}`).join(" · ");
   const local = s.local;
   document.querySelectorAll("#go-test,#go-show,#stop,#panic,#resume,[data-part]").forEach(b => b.disabled = !local);
   el("stop-note").textContent = local ? "Resolume and Live stay open: they hold the show." : "Only the show Mac can start or stop things.";
