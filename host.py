@@ -23,6 +23,7 @@ Standard library only. plan_server.py serves it; only this Mac may start things.
 """
 import glob, json, os, platform, plistlib, re, shutil, signal, socket, subprocess, sys, threading, time
 import showfolder
+import version
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHOW = showfolder.root()                # the plan files live here, with the show
@@ -206,6 +207,25 @@ def new(name, keep=True):
     return name
 
 
+def delete(name):
+    """Remove a saved project. Nothing is lost: it moves to projects/.autosave/,
+    like the copies made before a load. What is loaded stays as it is; if this
+    was the current project, there is no current one afterwards."""
+    name = slug(name)
+    d = os.path.join(PROJECTS, name)
+    if not os.path.isdir(d):
+        raise ValueError(f"no project called {name!r}")
+    os.makedirs(AUTOSAVE, exist_ok=True)
+    dest = os.path.join(AUTOSAVE, f"{time.strftime('%Y-%m-%d %H.%M.%S')} deleted {name}")
+    shutil.move(d, dest)
+    if current() == name:
+        try:
+            os.remove(CURRENT)
+        except OSError:
+            pass
+    return {"deleted": name, "backup": os.path.relpath(dest, SHOW)}
+
+
 def settings(name, **fields):
     name = slug(name)
     if not os.path.isdir(os.path.join(PROJECTS, name)):
@@ -298,6 +318,7 @@ def versions():
     except OSError:
         tools = None
     _versions = {
+        "intermission": version.read(),
         "arena": _bundle_version(arena) if arena else None,
         "arena_others": [v for v in (_bundle_version(a) for a in other) if v],
         "live": _bundle_version(live) if live else None,

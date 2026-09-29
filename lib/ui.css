@@ -61,6 +61,7 @@ code,kbd,.kbd{font-family:var(--mono)}
   letter-spacing:.01em;margin-right:var(--s3);white-space:nowrap}
 .brand i{width:10px;height:10px;border-radius:3px;background:var(--accent);
   box-shadow:0 0 12px rgba(255,213,74,.5)}
+.brand small{font-weight:500;font-size:var(--fs-xs);color:var(--text-3);margin-left:-2px;letter-spacing:0}
 .tabs-nav{display:flex;gap:2px;background:var(--surface-0);border:1px solid var(--border);
   border-radius:var(--r);padding:2px}
 .tabs-nav a{color:var(--text-2);text-decoration:none;font-size:var(--fs-sm);font-weight:550;

@@ -13,6 +13,7 @@ It listens on localhost only: nothing here is reachable from the network.
 import argparse, http.server, json, os, shutil, socketserver, subprocess, tempfile, threading, time
 import urllib.parse, urllib.request
 import showfolder                    # where the show folder is on this Mac
+import version                       # Intermission's version, from VERSION
 import arena_load                    # talks to Resolume's REST API
 import band                          # the control band: looks rendered as clips
 import library                       # the show's visuals, gathered from everywhere
@@ -157,7 +158,7 @@ def thumbnail(clip_id, version):
 
 def health():
     """One look at every moving part, for the status strip on each page."""
-    out = {"resolume": arena_state()}
+    out = {"resolume": arena_state(), "version": version.read()}
 
     pa = age(PLAYER)
     try:
@@ -642,6 +643,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 out = {"name": host.new(req["name"])}
             elif path == "/projects/settings":
                 out = host.settings(req["name"], **{k: v for k, v in req.items() if k != "name"})
+            elif path == "/projects/delete":
+                out = host.delete(req["name"])
             elif path == "/host/start":
                 H.start("show" if req.get("mode") == "show" else "test", host.current())
                 out = H.status()

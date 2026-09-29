@@ -13,7 +13,7 @@ import json, os, socket, subprocess, sys, time
 import arena_load
 from cue_player import osc_encode, osc_decode, compile_cues, compile_panic, compile_automation
 
-import showfolder
+import showfolder, version
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHOW = showfolder.root()                # stops here, with the fix, when this Mac has none
@@ -195,7 +195,7 @@ def main():
     cues = load(os.path.join(SHOW, "cues.json"), {"cues": []})
     mapping = load(os.path.join(SHOW, "osc_map.json"), {})
 
-    print(f"\n  {'LIVE — show night' if mode == 'live' else 'TEST — previz at home'}\n")
+    print(f"\n  {'LIVE — show night' if mode == 'live' else 'TEST — previz at home'} · Intermission {version.read()}\n")
     say(OK, f"show folder: {SHOW}")
     check_stale()
     check_plan(show, cues)

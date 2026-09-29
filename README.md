@@ -1,7 +1,12 @@
-# Venue previz
+# Intermission
 
 **New here, planning from your own Mac?** Read [START_HERE.md](START_HERE.md) — the
 short version: set up once, then one double-click.
+
+The version is in [`VERSION`](VERSION), the history in [`CHANGELOG.md`](CHANGELOG.md).
+A release is `python3 release.py 0.2.0`: it writes both, commits, tags `v0.2.0` and
+pushes; `Update.command` on the other Mac brings it in. The version shows next to
+the name in the top bar and on the Host.
 
 The cinema hall in Blender: the screen, 6 RGBW floor pars around the performer,
 haze, and audience cameras. At home it plays what Resolume sends, live:
@@ -15,6 +20,7 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 |---|---|
 | **the show folder** | everything that *is* the show, in one folder shared through Dropbox: the plan files below marked *(show folder)*, `composition.json`, `audio/` (bounces), `library/` (the Library's media), `light-looks/`, `projects/`. `showfolder.py` says where it is on this Mac; `.show` remembers it (per Mac, not in git) |
 | `showfolder.py`, `showfolder.sh` | find the show folder; `--init` lays out a new one from `defaults/` |
+| `VERSION`, `CHANGELOG.md`, `release.py`, `version.py` | the version, its history, and the one command that bumps both, tags and pushes |
 | `START_HERE.md` | the short how-to for the other Mac: set up once, then one double-click |
 | `Test.command` | **test mode**: double-click at home — previz, screen feed, editors, player |
 | `Live.command` | **live mode**: double-click on show night — checks, then only the player |

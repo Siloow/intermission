@@ -5,7 +5,7 @@
 cd "$(dirname "$0")" || exit 1
 echo "  updating the tools from GitHub …\n"
 if git pull --ff-only; then
-  echo "\n  up to date. If Intermission.command was running, start it again."
+  echo "\n  up to date: Intermission $(<VERSION). If Intermission.command was running, start it again."
 else
   echo "\n  that didn't work — send Sil a screenshot of this window."
 fi

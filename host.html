@@ -172,7 +172,8 @@ function drawProjects(){
       p.projects.map(x => `<tr class="${x.current ? "on" : ""}"><td><b>${esc(x.name)}</b>${x.notes ? `<br><span class="dim">${esc(x.notes)}</span>` : ""}</td>` +
         `<td class="dim">${esc(x.saved || "")}</td><td class="dim">${x.cues}</td>` +
         `<td class="dim">${esc(base(x.live_set) || "—")}<br>${esc(base(x.composition) || "—")}</td>` +
-        `<td>${x.current ? `<span class="badge ok">open</span>` : `<button data-load="${esc(x.name)}">Load</button>`}</td></tr>`).join("")
+        `<td style="white-space:nowrap">${x.current ? `<span class="badge ok">open</span>` : `<button data-load="${esc(x.name)}">Load</button>`} ` +
+        `<button class="ghost" data-delete="${esc(x.name)}" title="delete this saved project — what's loaded stays as it is; a copy goes to projects/.autosave">Delete</button></td></tr>`).join("")
     : `<tr><td class="dim">No projects yet. <b>Save as…</b> keeps what you have now as the first one.</td></tr>`;
   // settings of the open project
   el("settings").style.display = cur ? "" : "none";
@@ -228,6 +229,13 @@ function confirmLeave(what){
                  `${what[0].toUpperCase() + what.slice(1)} anyway? A copy goes to projects/.autosave either way.`);
 }
 el("projects").addEventListener("click", async e => {
+  const d = e.target.closest("[data-delete]");
+  if (d){
+    if (!confirm(`Delete the saved project “${d.dataset.delete}”?\n\nWhat's loaded now stays as it is. A copy of the project goes to projects/.autosave.`)) return;
+    try { const r = await post("/projects/delete", {name: d.dataset.delete}); tell(`Deleted “${r.deleted}”. A copy is in ${r.backup}.`); await loadProjects(); }
+    catch(err){ tell(err.message, true); }
+    return;
+  }
   const b = e.target.closest("[data-load]"); if (!b) return;
   if (!confirmLeave(`load “${b.dataset.load}”`)) return;
   try {
@@ -293,7 +301,7 @@ function drawStatus(){
     return `<tr><td><i class="dot ${d}"></i></td><td class="what">${label}${ver}</td>` +
            `<td class="how" title="${esc(hp.fix || "")}">${esc(how)}</td><td>${act}</td></tr>`;
   }).join("");
-  el("versions").textContent = [["macOS", v.macos], ["Python", v.python], ["ffmpeg", v.ffmpeg], ["uv", v.uv], ["tools", v.tools]]
+  el("versions").textContent = [["Intermission", v.intermission], ["macOS", v.macos], ["Python", v.python], ["ffmpeg", v.ffmpeg], ["uv", v.uv], ["tools", v.tools]]
     .map(([n, x]) => `${n} ${x || "not found"}`).join(" · ");
   const local = s.local;
   document.querySelectorAll("#go-test,#go-show,#stop,#panic,#resume,[data-part]").forEach(b => b.disabled = !local);
