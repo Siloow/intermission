@@ -125,6 +125,7 @@ still points at the right moment.
     python3 sync_show.py ~/Music/…/Set.als     # extract, and report what moved
     python3 sync_show.py --als-dir ~/Music     # find the newest set under here
     python3 sync_show.py --example             # placeholder, before the music exists
+    python3 sync_show.py …/Set.als --backing   # also stitch the set's Backing track into audio/
 
 It reads the `.als` directly (gzipped XML), so Live doesn't need to be open, and
 it prints a diff against the last sync:
@@ -159,7 +160,7 @@ It works like Live's arrangement:
 | alt-drag | leave a copy behind |
 | drag on empty space | box-select across lanes |
 | shift-click | add or remove one from the selection |
-| drag the ruler or the section rows | scrub the playhead |
+| drag the song, section or waveform rows | scrub the playhead; a click on the ruler jumps there |
 | `space` | play / pause |
 | `⌘Z` / `⇧⌘Z` | undo / redo |
 | `⌘C` `⌘V` | copy, paste at the playhead, keeping the spacing |
@@ -167,7 +168,8 @@ It works like Live's arrangement:
 | `⌘A`, `esc` | select all, deselect |
 | `⌫` | delete the selection |
 | arrows | nudge by the grid; shift for one bar; up/down changes lane |
-| `⌘`-scroll, or the slider | zoom, keeping the bar under the pointer |
+| `⌘`-scroll, or drag the ruler down / up | zoom in / out, keeping the bar under the pointer |
+| the strip above the timeline | the whole set: drag the frame to move, its edges to zoom, click to jump |
 
 The **snap** box at the top sets the grid: 1, 2, 4, 8, 16 bars, or off. Dragging
 several cues moves them together, and the sidebar's What, Lane, Length and note
@@ -202,7 +204,13 @@ Bounce the set to audio after a writing session and drop the file in `audio/`.
 The timeline finds it, plays it, and the playhead runs along the plan in time
 with the music — so whoever is planning the visuals can listen without Live.
 
-- **Space** plays and pauses, **double-click** the timeline to seek.
+The set's own **Backing** track is the quickest bounce: `python3 sync_show.py
+…/Set.als --backing` stitches its clips into `audio/<Set> (backing).mp3`, from
+bar 1 (offset 0). It overwrites that one file each run, so the timeline's choice
+sticks. The bounce's waveform runs under the section row, and the strip above
+the timeline shows the whole set with the current view framed.
+
+- **Space** plays and pauses; click the song, section or waveform rows to seek.
 - The clock shows time, bar and which section you are in.
 - **Room now** in the sidebar shows the pars as they would be at the playhead,
   and sends that look to the previz, so Blender follows the music too.

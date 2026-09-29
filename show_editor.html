@@ -27,17 +27,31 @@
   .head{position:relative;height:26px;border-bottom:1px solid var(--border);cursor:col-resize}
   .songs{background:var(--surface-1)}
   .song{position:absolute;top:0;height:26px;padding:4px 10px;border-left:2px solid var(--border-strong);
-    font-weight:650;font-size:var(--fs-sm);white-space:nowrap;overflow:hidden;pointer-events:none}
+    font-weight:650;font-size:var(--fs-sm);white-space:nowrap;clip-path:inset(0);pointer-events:none}
   .sec{position:absolute;top:0;height:26px;padding:4px 8px;border-left:1px solid var(--border);
-    color:var(--text-2);font-size:var(--fs-sm);white-space:nowrap;overflow:hidden;pointer-events:none;background:var(--surface-0)}
+    color:var(--text-2);font-size:var(--fs-sm);white-space:nowrap;clip-path:inset(0);pointer-events:none;background:var(--surface-0)}
+  /* labels stay in view while their row scrolls past: sticky inside the box, which is
+     clipped with clip-path rather than overflow (overflow:hidden would end the stickiness) */
+  .song .lbl,.sec .lbl{position:sticky;left:8px;display:inline-block}
   .sec.alt{background:#111317}
   .ruler{height:20px;background:var(--surface-0)}
+  .head.ruler{cursor:zoom-in}                /* drag up/down to zoom, sideways to move, like Live */
+  /* a dead strip on the left, so a click near the window edge misses nothing, and
+     no two-finger swipe back a page when the timeline is already at its start */
+  html,body,#scroll,#rz,#rz *{overscroll-behavior-x:none}
+  #scroll,#overview{margin-left:14px}
+  #overview{position:relative;height:34px;flex:none;border-bottom:1px solid var(--border);
+    background:var(--surface-0);cursor:grab}
+  #overview.dragging{cursor:grabbing}
+  #overview canvas{position:absolute;inset:0;width:100%;height:100%}
+  .head.wave{height:44px;background:var(--surface-0)}
+  .wave canvas{position:absolute;top:0;height:44px;pointer-events:none}
   .tick{position:absolute;top:0;height:20px;border-left:1px solid var(--border-strong);
     padding:2px 0 0 4px;font-size:10px;color:var(--text-3);pointer-events:none;font-variant-numeric:tabular-nums}
 
   .lane{position:relative;height:var(--lane-h);border-bottom:1px solid var(--border)}
   .lane:nth-of-type(even){background:rgba(255,255,255,.012)}
-  .lane .name{position:absolute;left:6px;top:4px;z-index:3;padding:1px 8px 1px 4px;display:flex;align-items:center;
+  .lane .name{position:sticky;left:6px;width:max-content;transform:translateY(4px);z-index:3;padding:1px 8px 1px 4px;display:flex;align-items:center;
     font-size:var(--fs-xs);font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);
     background:rgba(14,15,18,.85);border-radius:5px;pointer-events:none}
   .cue{position:absolute;top:18px;height:24px;border-radius:5px;padding:3px 8px;
@@ -53,7 +67,7 @@
 
   .alane{position:relative;height:88px;border-bottom:1px solid var(--border);background:#101216}
   .alane svg{position:absolute;left:0;top:0;overflow:visible}
-  .alane .ahead{position:absolute;left:6px;top:4px;z-index:3;display:flex;gap:4px;align-items:center;
+  .alane .ahead{position:sticky;left:6px;width:max-content;transform:translateY(4px);z-index:3;display:flex;gap:4px;align-items:center;
     padding:3px;background:rgba(21,23,28,.92);border:1px solid var(--border);border-radius:var(--r)}
   .alane .ahead select{width:auto;max-width:230px;height:24px}
   .alane .ahead button{height:24px;padding:0 7px}
@@ -61,9 +75,9 @@
     padding:0 4px;font-weight:600}
   .apt{cursor:grab}
   .agroup{position:relative;height:30px;border-bottom:1px solid var(--border);background:#0f1114}
-  .agroup .name{position:absolute;left:6px;top:5px;padding:1px 8px 1px 4px;font-size:var(--fs-xs);font-weight:650;
+  .agroup .name{position:sticky;left:6px;width:max-content;transform:translateY(4px);padding:1px 8px 1px 4px;font-size:var(--fs-xs);font-weight:650;
     letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);display:flex;gap:8px;align-items:center}
-  .agroup .addauto{position:absolute;left:62px;top:4px;height:22px;padding:0 8px;font-size:var(--fs-xs)}
+  .agroup .addauto{height:22px;padding:0 8px;font-size:var(--fs-xs);text-transform:none;letter-spacing:0}
   .lane .name .addauto{pointer-events:auto;margin-left:6px;height:16px;padding:0 5px;font-size:10px;line-height:1;
     background:none;border:1px solid var(--border);color:var(--text-3);border-radius:4px;cursor:pointer}
   .lane .name .addauto:hover{color:var(--text);border-color:var(--border-strong)}
@@ -216,6 +230,7 @@
         <span class="readout" id="summary">loading</span>
         <span class="float" id="status">cues.json <b id="save">…</b></span>
       </div>
+      <div id="overview" title="the whole set · drag the frame to move, its edges to zoom · ⌘-drag up/down to zoom · click to jump there"><canvas></canvas></div>
       <div id="scroll"><div id="tl"></div></div>
       <section id="rz">
         <div id="rz-head">
@@ -312,8 +327,9 @@
         <div class="panel" data-panel="view">
           <div class="section">
             <div class="section-title">Zoom</div>
-            <input id="zoom" type="range" min="3" max="48" value="10">
-            <p class="hint dim" style="margin-top:6px"><span class="kbd">⌘</span>-scroll zooms around the pointer.</p>
+            <input id="zoom" type="range" min="0" max="1" step="0.001" value="0.5" title="from the whole set to a few bars">
+            <p class="hint dim" style="margin-top:6px"><span class="kbd">⌘</span>-scroll, or drag the ruler down (in) / up (out): zoom around the pointer ·
+              the strip above the timeline is the whole set: drag its frame to move, its edges to zoom, click to jump.</p>
           </div>
           <div class="section">
             <div class="section-title">Cues</div>
@@ -328,7 +344,7 @@
               <span class="kbd">⌘C</span> <span class="kbd">⌘V</span> copy, paste at the playhead ·
               <span class="kbd">⌘D</span> duplicate · <span class="kbd">⌘A</span> all ·
               <span class="kbd">⌫</span> delete · arrows nudge · <span class="kbd">alt</span>-drag copies ·
-              drag the ruler to scrub</p>
+              drag the song, section or waveform rows to scrub · click the ruler to jump</p>
           </div>
           <div class="section">
             <div class="section-title">Automation</div>
@@ -740,8 +756,11 @@ function draw(sidebar){
   const keepPlayhead = el("playhead");
   tl.innerHTML = "";
   tl.style.width = barToX(show.total_bars + 4) + "px";
+  el("zoom").value = sliderPos(pxPerBar);
 
-  const gridStep = pxPerBar < 6 ? 16 : pxPerBar < 14 ? 4 : 1;
+  // the coarser the zoom, the fewer lines: the first step that is at least this wide
+  const step = (minPx, steps) => steps.find(s => s * pxPerBar >= minPx) || steps[steps.length - 1];
+  const gridStep = step(10, [1, 4, 16, 64, 256]);
   for (let bar = 1; bar <= show.total_bars + 1; bar += gridStep){
     const d = document.createElement("div");
     d.className = "grid" + ((bar - 1) % 16 === 0 ? " strong" : "");
@@ -752,6 +771,7 @@ function draw(sidebar){
   const songs = document.createElement("div"); songs.className = "head songs";
   const secs = document.createElement("div"); secs.className = "head";
   const ruler = document.createElement("div"); ruler.className = "head ruler";
+  ruler.title = "drag down to zoom in, up to zoom out · click to jump there";
   show.songs.forEach(g => {
     const start = g.sections[0] ? g.sections[0].bar : 1;
     const d = document.createElement("div");
@@ -759,7 +779,8 @@ function draw(sidebar){
     d.style.left = barToX(start) + "px";
     d.style.width = g.bars * pxPerBar + "px";
     const own = g.info ? [g.info.bpm && `${g.info.bpm} bpm`, g.info.signature].filter(Boolean) : [];
-    d.textContent = [g.name, ...own, `${g.bars.toFixed(0)} bars`, `${(g.seconds/60).toFixed(1)} min`].join(" · ");
+    d.innerHTML = `<span class="lbl"></span>`;
+    d.firstChild.textContent = [g.name, ...own, `${g.bars.toFixed(0)} bars`, `${(g.seconds/60).toFixed(1)} min`].join(" · ");
     if (g.info || g.backing) d.title = [g.info && g.info.label, ...(g.backing || [])].filter(Boolean).join("\n");
     songs.appendChild(d);
     g.sections.forEach((s, i) => {
@@ -767,25 +788,30 @@ function draw(sidebar){
       e.className = "sec" + (i % 2 ? " alt" : "");
       e.style.left = barToX(s.bar) + "px";
       e.style.width = s.bars * pxPerBar + "px";
-      e.textContent = `${s.name} · ${s.bars.toFixed(0)}`;
+      e.innerHTML = `<span class="lbl"></span>`;
+      e.firstChild.textContent = `${s.name} · ${s.bars.toFixed(0)}`;
       secs.appendChild(e);
     });
   });
-  const everyBars = pxPerBar < 6 ? 16 : pxPerBar < 14 ? 8 : 4;
+  const everyBars = step(40, [4, 8, 16, 32, 64, 128, 256, 512]);
   for (let bar = 1; bar <= show.total_bars; bar += everyBars){
     const t = document.createElement("div");
     t.className = "tick"; t.style.left = barToX(bar) + "px"; t.textContent = bar;
     ruler.appendChild(t);
   }
-  tl.append(songs, secs, ruler);
+  const wave = document.createElement("div"); wave.className = "head wave";
+  wave.title = "the bounce playing along · click to jump there";
+  wave.appendChild(waveCanvas);
+  tl.append(songs, secs, wave, ruler);
+  drawWave(); drawOverview(lastBar ?? undefined);
 
   laneRows = [];
   autoRows = [];
   const W = barToX(show.total_bars + 4);
   const autos = cues.automation || [];
   const mainRow = document.createElement("div"); mainRow.className = "agroup";
-  mainRow.innerHTML = `<span class="name">Main</span><button class="addauto" data-addauto="main" ` +
-    `title="automate the whole composition: master, opacity, its effects">＋ automation</button>`;
+  mainRow.innerHTML = `<span class="name">Main<button class="addauto" data-addauto="main" ` +
+    `title="automate the whole composition: master, opacity, its effects">＋ automation</button></span>`;
   tl.appendChild(mainRow);
   autos.filter(a => autoGroup(a) === "main").forEach(a => tl.appendChild(autoLane(a, W)));
   LANES.forEach(([id, label, varName]) => {
@@ -1375,7 +1401,10 @@ el("tl").addEventListener("pointerdown", e => {
       return;
     }
   }
-  if (head){                                        // scrub, like Live's ruler
+  if (head && head.classList.contains("ruler")){  // zoom, like Live's ruler; a plain click jumps
+    drag = {kind:"zoom", cx0: e.clientX, cy0: e.clientY, px0: pxPerBar, bar: xToBar(x), moved: false};
+    try { el("tl").setPointerCapture(e.pointerId); } catch (err) {}
+  } else if (head){                                 // scrub
     drag = {kind:"scrub"};
     seekToBar(Math.max(1, xToBar(x)));
   } else if (cueEl && (e.target.dataset.grip === "fade" || e.target.dataset.grip === "fadeout")){
@@ -1420,6 +1449,15 @@ el("tl").addEventListener("pointermove", e => {
   }
 
   if (drag.kind === "scrub"){ seekToBar(Math.max(1, xToBar(x))); return; }
+  if (drag.kind === "zoom"){
+    // down zooms in, up zooms out; the grabbed bar stays under the pointer, so
+    // moving sideways moves along the set
+    if (!drag.moved && Math.abs(e.clientX - drag.cx0) < 3 && Math.abs(e.clientY - drag.cy0) < 3) return;
+    drag.moved = true;
+    const r = el("scroll").getBoundingClientRect();
+    zoomTo(drag.px0 * Math.exp((e.clientY - drag.cy0) * 0.015), drag.bar, e.clientX - r.left);
+    return;
+  }
 
   if (drag.kind === "envpt"){
     const p = drag.c.env[drag.i];
@@ -1563,6 +1601,7 @@ function laneIndexAt(y){
 
 const endDrag = () => {
   const wasMarquee = drag && drag.kind === "marquee";
+  if (drag && drag.kind === "zoom" && !drag.moved) seekToBar(Math.max(1, drag.bar));   // a click on the ruler
   if (drag && drag.kind === "pencil") commitPencil(drag);
   drag = null; marquee = null;
   el("readout").hidden = true;
@@ -1792,13 +1831,133 @@ el("scroll").addEventListener("wheel", e => {
   e.preventDefault();
   const view = el("scroll"), r = view.getBoundingClientRect();
   const x = e.clientX - r.left + view.scrollLeft;
-  const bar = xToBar(x);
-  pxPerBar = Math.max(3, Math.min(48, pxPerBar * (e.deltaY < 0 ? 1.1 : 1/1.1)));
-  el("zoom").value = pxPerBar;
-  draw();
-  view.scrollLeft = barToX(bar) - (e.clientX - r.left);
+  zoomTo(pxPerBar * (e.deltaY < 0 ? 1.1 : 1/1.1), xToBar(x), e.clientX - r.left);
 }, {passive:false});
-el("zoom").addEventListener("input", () => { pxPerBar = +el("zoom").value; draw(); });
+// the slider runs 0..1 on a log scale, from the whole set to MAX_ZOOM, around the view's centre
+const sliderPx = v => minZoom() * Math.pow(MAX_ZOOM / minZoom(), v);
+const sliderPos = px => Math.log(px / minZoom()) / Math.log(MAX_ZOOM / minZoom());
+el("zoom").addEventListener("input", () => {
+  const view = el("scroll"), mid = view.clientWidth / 2;
+  zoomTo(sliderPx(+el("zoom").value), xToBar(view.scrollLeft + mid), mid);
+});
+
+// Zoom so `bar` stays at `screenX` px from the view's left. Out as far as the whole
+// set fitting the view; a drag asks many times a frame, so it draws once per frame.
+const MAX_ZOOM = 64;
+const minZoom = () => Math.max(0.05, Math.min(3, (el("scroll").clientWidth - 24) / (show.total_bars + 4)));
+let zoomReq = null;
+function zoomTo(px, bar, screenX){
+  const first = !zoomReq;
+  zoomReq = {px, bar, screenX};
+  if (document.hidden) applyZoom();         // no frames come while hidden
+  else if (first) requestAnimationFrame(applyZoom);
+}
+function applyZoom(){
+  if (!zoomReq) return;
+  const {px, bar, screenX} = zoomReq; zoomReq = null;
+  pxPerBar = Math.max(minZoom(), Math.min(MAX_ZOOM, px));
+  draw();
+  el("scroll").scrollLeft = barToX(bar) - screenX;
+  drawOverview(lastBar ?? undefined);
+}
+
+// ------------------------------------------------------------------ overview --
+// The whole set in one strip above the timeline: songs, the bounce, where the view
+// is (the frame) and where the playhead is. Drag the frame, or click to jump.
+const ov = el("overview"), ovCanvas = ov.querySelector("canvas");
+let ovBase = null, ovKey = "";
+function ovBarToX(bar, w){ return (bar - 1) / (show.total_bars + 1) * w; }
+function ovBuild(w, h, dpr){
+  // what doesn't move: songs and waveform, drawn once per size/peaks
+  const c = document.createElement("canvas"); c.width = w * dpr; c.height = h * dpr;
+  const g = c.getContext("2d"); g.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
+  g.font = `600 10px ${v("--font") || "sans-serif"}`; g.textBaseline = "top";
+  show.songs.forEach((s, i) => {
+    const x0 = ovBarToX(s.sections[0] ? s.sections[0].bar : 1, w), x1 = x0 + s.bars / (show.total_bars + 1) * w;
+    g.fillStyle = i % 2 ? v("--surface-1") : v("--surface-2"); g.fillRect(x0, 0, x1 - x0, h);
+    g.fillStyle = v("--border-strong"); g.fillRect(x0, 0, 1, h);
+    g.save(); g.beginPath(); g.rect(x0, 0, x1 - x0 - 3, h); g.clip();
+    g.fillStyle = v("--text-3"); g.fillText(s.name, x0 + 4, 3); g.restore();
+  });
+  if (peaks){
+    const mid = h * .62, amp = h * .34, n = peaks.peak.length;
+    g.fillStyle = v("--accent"); g.globalAlpha = .55;
+    for (let x = 0; x < w; x++){
+      const at = x => Math.floor(barToTime((show.total_bars + 1) * x / w + 1) * peaks.rate);
+      const i0 = Math.max(0, at(x)), i1 = Math.min(n, at(x + 1));
+      let m = 0; for (let i = i0; i < i1; i++) if (peaks.rms[i] > m) m = peaks.rms[i];
+      const y = Math.max(.5, m / 255 * amp); g.fillRect(x, mid - y, 1, y * 2);
+    }
+    g.globalAlpha = 1;
+  }
+  return c;
+}
+function drawOverview(bar){
+  if (!show) return;
+  const w = ov.clientWidth, h = ov.clientHeight, dpr = devicePixelRatio || 1;
+  if (!w) return;
+  const key = [w, h, dpr, peaksGen, offset(), show.total_bars].join();
+  if (key !== ovKey){ ovBase = ovBuild(w, h, dpr); ovKey = key; }
+  if (ovCanvas.width !== w * dpr || ovCanvas.height !== h * dpr){ ovCanvas.width = w * dpr; ovCanvas.height = h * dpr; }
+  const g = ovCanvas.getContext("2d");
+  g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(ovBase, 0, 0); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const view = el("scroll"), css = getComputedStyle(document.documentElement);
+  const fx0 = ovBarToX(xToBar(view.scrollLeft), w), fx1 = ovBarToX(xToBar(view.scrollLeft + view.clientWidth), w);
+  const fw = Math.max(4, fx1 - fx0);
+  g.fillStyle = css.getPropertyValue("--accent-soft"); g.fillRect(fx0, 0, fw, h);
+  g.strokeStyle = css.getPropertyValue("--accent"); g.lineWidth = 1.5; g.strokeRect(fx0 + .75, .75, fw - 1.5, h - 1.5);
+  if (bar !== undefined){ g.fillStyle = "#fff"; g.fillRect(Math.round(ovBarToX(bar, w)), 0, 1.5, h); }
+}
+// drag the frame to move · drag its edges to zoom · ⌘-drag up/down to zoom (down is in)
+let ovDrag = null;
+function ovFrame(){
+  const r = ov.getBoundingClientRect(), view = el("scroll");
+  const b0 = xToBar(view.scrollLeft), b1 = xToBar(view.scrollLeft + view.clientWidth);
+  return {r, b0, b1, x0: ovBarToX(b0, r.width), x1: ovBarToX(b1, r.width),
+          barAt: cx => (cx - r.left) / r.width * (show.total_bars + 1) + 1};
+}
+const ovEdge = (f, x) => Math.abs(x - f.x0) < 6 ? "left" : Math.abs(x - f.x1) < 6 ? "right" : null;
+ov.addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  const f = ovFrame(), x = e.clientX - f.r.left, W = el("scroll").clientWidth;
+  const edge = f.x1 - f.x0 > 14 ? ovEdge(f, x) : null;
+  if (e.metaKey || e.ctrlKey){
+    const bar = f.barAt(e.clientX);
+    const frac = bar >= f.b0 && bar <= f.b1 ? (bar - f.b0) / (f.b1 - f.b0) : .5;
+    ovDrag = {kind: "zoom", cy0: e.clientY, px0: pxPerBar, frac, W};
+  } else if (edge){
+    ovDrag = {kind: "edge", fixed: edge === "left" ? f.b1 : f.b0, edge, W};
+  } else {
+    // grab the frame where it is; elsewhere, centre the frame there first
+    ovDrag = {kind: "move", grab: x >= f.x0 && x <= Math.max(f.x1, f.x0 + 4) ? x - f.x0 : (f.x1 - f.x0) / 2};
+  }
+  ov.classList.add("dragging");
+  try { ov.setPointerCapture(e.pointerId); } catch (err) {}
+  ovMove(e);
+});
+function ovMove(e){
+  const f = ovFrame(), x = e.clientX - f.r.left;
+  if (!ovDrag){
+    ov.style.cursor = e.metaKey || e.ctrlKey ? "zoom-in" : f.x1 - f.x0 > 14 && ovEdge(f, x) ? "ew-resize" : "";
+    return;
+  }
+  if (ovDrag.kind === "move"){
+    el("scroll").scrollLeft = barToX(f.barAt(e.clientX - ovDrag.grab));
+  } else if (ovDrag.kind === "zoom"){
+    const px = ovDrag.px0 * Math.exp((e.clientY - ovDrag.cy0) * 0.015);
+    zoomTo(px, f.barAt(e.clientX), ovDrag.frac * ovDrag.W);
+  } else {                                     // an edge: the other one stays put
+    const bars = Math.max(2, Math.abs(f.barAt(e.clientX) - ovDrag.fixed));
+    zoomTo(ovDrag.W / bars, ovDrag.fixed, ovDrag.edge === "left" ? ovDrag.W : 0);
+  }
+}
+ov.addEventListener("pointermove", ovMove);
+const ovEnd = () => { ovDrag = null; ov.classList.remove("dragging"); };
+ov.addEventListener("pointerup", ovEnd); ov.addEventListener("pointercancel", ovEnd); ov.addEventListener("lostpointercapture", ovEnd);
+el("scroll").addEventListener("scroll", () => drawOverview(lastBar ?? undefined));
+addEventListener("resize", () => drawOverview(lastBar ?? undefined));
 el("snap").addEventListener("change", () => el("snap").blur());
 
 // ------------------------------------------------------------- inspector ----
@@ -2314,16 +2473,69 @@ async function loadAudio(){
     ? files.map(f => `<option ${f===chosen?"selected":""}>${f}</option>`).join("")
     : `<option value="">no bounce in audio/</option>`;
   el("audio-offset").value = offset();
-  if (chosen){ cues.audio.file = chosen; audio.src = "audio/" + encodeURIComponent(chosen); }
+  if (chosen){ cues.audio.file = chosen; audio.src = "audio/" + encodeURIComponent(chosen); loadPeaks(chosen); }
   el("play").disabled = !chosen;
 }
 el("audio-file").addEventListener("change", () => {
   cues.audio.file = el("audio-file").value;
   audio.src = "audio/" + encodeURIComponent(cues.audio.file); save();
+  loadPeaks(cues.audio.file);
 });
 el("audio-offset").addEventListener("change", () => {
-  cues.audio.offset_seconds = +el("audio-offset").value || 0; save();
+  cues.audio.offset_seconds = +el("audio-offset").value || 0; save(); drawWave(); drawOverview(lastBar ?? undefined);
 });
+
+// the bounce's waveform, under the sections. The timeline is far wider than a
+// canvas may be, so the canvas covers only what is in view and redraws on scroll.
+const waveCanvas = document.createElement("canvas");
+let peaks = null, peaksGen = 0, peaksLoading = false;   // peaksGen bumps whenever `peaks` changes, so caches notice
+async function loadPeaks(file){
+  peaks = null; peaksGen++; peaksLoading = !!file; drawWave(); drawOverview(lastBar ?? undefined);
+  if (!file) return;
+  try {
+    const p = await (await fetch("audio/peaks/" + encodeURIComponent(file))).json();
+    const bytes = b64 => Uint8Array.from(atob(b64), ch => ch.charCodeAt(0));
+    if (file === cues.audio.file){ peaks = {rate: p.rate, peak: bytes(p.peak), rms: bytes(p.rms)}; peaksGen++; }
+  } catch(e){}
+  if (file === cues.audio.file) peaksLoading = false;
+  drawWave(); drawOverview(lastBar ?? undefined);
+}
+function drawWave(){
+  const view = el("scroll"), c = waveCanvas;
+  if (!show || !c.isConnected) return;
+  const w = view.clientWidth, h = 44, dpr = devicePixelRatio || 1;
+  if (c.width !== w * dpr || c.height !== h * dpr){ c.width = w * dpr; c.height = h * dpr; c.style.width = w + "px"; }
+  c.style.left = view.scrollLeft + "px";
+  const g = c.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  const css = getComputedStyle(document.documentElement);
+  if (!peaks){
+    if (peaksLoading){                    // the first look at a bounce takes the server a few seconds
+      g.fillStyle = css.getPropertyValue("--text-3").trim(); g.font = `11px ${css.getPropertyValue("--font")}`;
+      g.textBaseline = "middle"; g.fillText("reading the bounce's waveform…", 10, h / 2);
+    }
+    return;
+  }
+  const accent = css.getPropertyValue("--accent").trim() || "#ffd54a";
+  const mid = h / 2, amp = mid - 3, n = peaks.peak.length;
+  const idx = x => Math.floor(barToTime(xToBar(view.scrollLeft + x)) * peaks.rate);
+  for (let layer = 0; layer < 2; layer++){
+    const data = layer ? peaks.rms : peaks.peak;
+    g.fillStyle = accent; g.globalAlpha = layer ? .85 : .28;
+    for (let x = 0; x < w; x++){
+      let i0 = Math.max(0, idx(x)), i1 = Math.min(n, Math.max(i0 + 1, idx(x + 1)));
+      if (i0 >= n || i1 <= 0) continue;
+      let v = 0;
+      for (let i = i0; i < i1; i++) if (data[i] > v) v = data[i];
+      const y = Math.max(.5, v / 255 * amp);
+      g.fillRect(x, mid - y, 1, y * 2);
+    }
+  }
+  g.globalAlpha = 1;
+}
+el("scroll").addEventListener("scroll", drawWave);
+addEventListener("resize", drawWave);
 el("play").onclick = () => audio.paused ? audio.play() : audio.pause();
 audio.addEventListener("play", () => el("transport").classList.add("playing"));
 audio.addEventListener("pause", () => el("transport").classList.remove("playing"));
@@ -2417,6 +2629,7 @@ function tick(){
   if (lastBar === null || Math.abs(bar - lastBar) > 0.02){
     showRoomAt(bar, lastBar === null || Math.abs(bar - lastBar) > 2);
     lastBar = bar;
+    drawOverview(bar);
   }
 }
 

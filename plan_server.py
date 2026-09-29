@@ -10,7 +10,7 @@ sync_show.py extracts from the Ableton set).
 
 It listens on localhost only: nothing here is reachable from the network.
 """
-import argparse, http.server, json, os, shutil, socketserver, subprocess, tempfile, time
+import argparse, http.server, json, os, shutil, socketserver, subprocess, tempfile, threading, time
 import urllib.parse, urllib.request
 import arena_load                    # talks to Resolume's REST API
 import band                          # the control band: looks rendered as clips
@@ -62,6 +62,30 @@ BACKUP_EVERY = 300          # seconds between keeping a spare copy of the rig
 PLAYER = READONLY["/player.json"]
 ARENA = "http://127.0.0.1:8080"
 FRESH = 3.0                 # seconds: older than this and a writer is gone
+
+
+PEAKS_RATE = 50             # waveform values per second of the bounce
+PEAKS_SR = 6000             # decode rate for them: plenty for a picture, quick to scan
+_peaks_lock = threading.Lock()   # one waveform build at a time: a second tab waits, then finds the cache
+
+
+def write_peaks(src, cache):
+    import array, base64, math
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", src, "-ac", "1", "-ar", str(PEAKS_SR),
+                          "-f", "s16le", "-"], capture_output=True, check=True).stdout
+    pcm = array.array("h"); pcm.frombytes(raw[: len(raw) // 2 * 2])
+    win = PEAKS_SR // PEAKS_RATE
+    peak, rms = bytearray(), bytearray()
+    for i in range(0, len(pcm), win):
+        w = pcm[i:i + win]
+        peak.append(min(255, max(max(w), -min(w)) * 255 // 32767))
+        rms.append(min(255, int(math.sqrt(sum(v * v for v in w) / len(w)) * 255 / 32767 * 1.4)))
+    os.makedirs(os.path.dirname(cache), exist_ok=True)
+    tmp = cache + ".tmp"                 # whole or not at all: a reader never sees a half-written file
+    with open(tmp, "w") as fh:
+        json.dump({"rate": PEAKS_RATE, "seconds": len(pcm) / PEAKS_SR,
+                   "peak": base64.b64encode(peak).decode(), "rms": base64.b64encode(rms).decode()}, fh)
+    os.replace(tmp, cache)
 
 
 def age(path):
@@ -396,8 +420,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             except OSError:
                 names = []
             return self._send(200, json.dumps({"files": names}).encode())
+        if path.startswith("/audio/peaks/"):
+            return self.send_peaks(os.path.basename(urllib.parse.unquote(path)))
         if path.startswith("/audio/"):
-            return self.send_audio(os.path.basename(path))
+            return self.send_audio(os.path.basename(urllib.parse.unquote(path)))
         if path == "/status.json":
             # what Blender is seeing right now, for live colours in the preview
             try:
@@ -427,6 +453,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def send_audio(self, name):
         """Serve a bounce, honouring Range requests so the browser can seek."""
         return self.send_file(os.path.join(AUDIO, name))
+
+    def send_peaks(self, name):
+        """The bounce's waveform for the timeline: peak and RMS, PEAKS_RATE per second,
+        each a byte (0-255) in base64. Made once with ffmpeg, then cached next to it."""
+        src = os.path.join(AUDIO, name)
+        cache = os.path.join(AUDIO, ".peaks", name + ".json")
+        try:
+            with _peaks_lock:
+                if not (os.path.exists(cache) and os.path.getmtime(cache) >= os.path.getmtime(src)):
+                    write_peaks(src, cache)
+            return self._send(200, open(cache, "rb").read())
+        except (OSError, subprocess.CalledProcessError) as e:
+            return self._send(404, json.dumps({"error": str(e)}).encode())
 
     def send_file(self, path):
         """Serve a media file, honouring Range requests so the browser can seek."""
