@@ -41,155 +41,179 @@
     ],
     "lights:breathe": {
       "layer": 3,
-      "clip": 6
+      "clip": 1
     },
     "lights:breathe-slow": {
       "layer": 3,
-      "clip": 7
+      "clip": 2
     },
     "lights:glow-drift": {
       "layer": 3,
-      "clip": 8
+      "clip": 3
     },
     "lights:candle": {
       "layer": 3,
-      "clip": 9
+      "clip": 4
     },
     "lights:full": {
       "layer": 3,
-      "clip": 10
+      "clip": 5
     },
     "lights:wave": {
       "layer": 3,
-      "clip": 11
+      "clip": 6
     },
     "lights:sweep-lr": {
       "layer": 3,
-      "clip": 12
+      "clip": 7
     },
     "lights:sweep-rl": {
       "layer": 3,
-      "clip": 13
+      "clip": 8
     },
     "lights:pingpong": {
       "layer": 3,
-      "clip": 14
+      "clip": 9
     },
     "lights:sweep-out": {
       "layer": 3,
-      "clip": 15
+      "clip": 10
     },
     "lights:sweep-in": {
       "layer": 3,
-      "clip": 16
+      "clip": 11
     },
     "lights:rotate": {
       "layer": 3,
-      "clip": 17
+      "clip": 12
     },
     "lights:rotate-back": {
       "layer": 3,
-      "clip": 18
+      "clip": 13
     },
     "lights:chase": {
       "layer": 3,
-      "clip": 19
+      "clip": 14
     },
     "lights:chase-pairs": {
       "layer": 3,
-      "clip": 20
+      "clip": 15
     },
     "lights:chase-random": {
       "layer": 3,
-      "clip": 21
+      "clip": 16
     },
     "lights:alternate": {
       "layer": 3,
-      "clip": 22
+      "clip": 17
     },
     "lights:sides": {
       "layer": 3,
-      "clip": 23
+      "clip": 18
     },
     "lights:pulse": {
       "layer": 3,
-      "clip": 24
+      "clip": 19
     },
     "lights:pulse-8": {
       "layer": 3,
-      "clip": 25
+      "clip": 20
     },
     "lights:kick-snare": {
       "layer": 3,
-      "clip": 26
+      "clip": 21
     },
     "lights:offbeat": {
       "layer": 3,
-      "clip": 27
+      "clip": 22
     },
     "lights:downbeat": {
       "layer": 3,
-      "clip": 28
+      "clip": 23
     },
     "lights:gate": {
       "layer": 3,
-      "clip": 29
+      "clip": 24
     },
     "lights:strobe": {
       "layer": 3,
-      "clip": 30
+      "clip": 25
     },
     "lights:strobe-16": {
       "layer": 3,
-      "clip": 31
+      "clip": 26
     },
     "lights:strobe-random": {
       "layer": 3,
-      "clip": 32
+      "clip": 27
     },
     "lights:blinder": {
       "layer": 3,
-      "clip": 33
+      "clip": 28
     },
     "lights:build": {
       "layer": 3,
-      "clip": 34
+      "clip": 29
     },
     "lights:riser-strobe": {
       "layer": 3,
-      "clip": 35
+      "clip": 30
     },
     "lights:riser-sweep": {
       "layer": 3,
-      "clip": 36
+      "clip": 31
     },
     "lights:fill-up": {
       "layer": 3,
-      "clip": 37
+      "clip": 32
     },
     "lights:hue-sweep": {
       "layer": 3,
-      "clip": 38
+      "clip": 33
     },
     "lights:hue-rotate": {
       "layer": 3,
-      "clip": 39
+      "clip": 34
     },
     "lights:two-tone": {
       "layer": 3,
-      "clip": 40
+      "clip": 35
     },
     "lights:bar-scan": {
       "layer": 3,
-      "clip": 41
+      "clip": 36
     },
     "lights:sparkle": {
       "layer": 3,
-      "clip": 42
+      "clip": 37
     },
     "lights:identify": {
       "layer": 3,
-      "clip": 43
+      "clip": 38
+    },
+    "screen:Trinity": {
+      "layer": 1,
+      "clip": 6
+    },
+    "screen:ballentent overlay": {
+      "layer": 1,
+      "clip": 1
+    },
+    "screen:ballentent soft": {
+      "layer": 1,
+      "clip": 2
+    },
+    "overlay:ballentent soft": {
+      "layer": 2,
+      "clip": 1
+    },
+    "screen:still 1": {
+      "layer": 1,
+      "clip": 3
+    },
+    "screen:acid": {
+      "layer": 1,
+      "clip": 1
     }
   },
   "//targets": "Automation targets, like the rows in Ableton's OSC Send: an address, the range the curve is scaled into, and a curve (-1..1, 0 = straight). host/port are optional and default to the resolume block. These are PLACEHOLDERS - replace them with your real parameters. The three 'Lights ...' targets are the control-band layers: base colour, movement loop, and the Video Router copy of the screen. Layer numbers are PLACEHOLDERS - set them to your real layers.",
@@ -246,18 +270,39 @@
       "curve": 0.4
     },
     {
-      "name": "Lights movement",
-      "address": "/composition/layers/4/video/opacity",
-      "min": 0,
-      "max": 1,
-      "curve": 0.4
+      "name": "Composition \u00b7 Transform \u00b7 Scale",
+      "resolume": [
+        "composition",
+        "effect",
+        "Transform",
+        "Scale"
+      ],
+      "min": 0.0,
+      "max": 1000.0,
+      "curve": 0
     },
     {
-      "name": "Lights mirror screen",
-      "address": "/composition/layers/5/video/opacity",
-      "min": 0,
-      "max": 1,
-      "curve": 0.4
+      "name": "Composition master",
+      "resolume": [
+        "composition",
+        "master"
+      ],
+      "min": 0.0,
+      "max": 1.0,
+      "curve": 0
+    },
+    {
+      "name": "Screen A \u00b7 Transform \u00b7 Position X",
+      "resolume": [
+        "layer",
+        1,
+        "effect",
+        "Transform",
+        "Position X"
+      ],
+      "min": -16384.0,
+      "max": 16384.0,
+      "curve": 0
     }
   ],
   "//scenes": "Scenes lane: a cue whose value is a number fires that Resolume column. Name a scene here to give it a friendlier label.",
