@@ -364,9 +364,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 body = open(os.path.join(LIB, name), "rb").read()
             except OSError:
                 return self._send(404, b"not found", "text/plain")
-            ctype = {".css": "text/css", ".svg": "image/svg+xml"}.get(
-                os.path.splitext(name)[1], "application/javascript")
-            return self._send(200, body, ctype + "; charset=utf-8")
+            ext = os.path.splitext(name)[1].lower()
+            ctype = {".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png",
+                     ".ico": "image/x-icon"}.get(ext, "application/javascript")
+            return self._send(200, body, ctype if ext in (".png", ".ico") else ctype + "; charset=utf-8")
+        if path == "/favicon.ico":                 # a browser asking on its own: the same mark, as PNG
+            try:
+                return self._send(200, open(os.path.join(LIB, "favicon-32.png"), "rb").read(), "image/png")
+            except OSError:
+                return self._send(404, b"not found", "text/plain")
         if path == "/arena/params":
             # every automatable parameter in the open composition, for the target picker
             try:
