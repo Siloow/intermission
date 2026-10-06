@@ -201,6 +201,16 @@ def td_target(mapping):
     return {**TD_DEFAULT, **(mapping.get("td") or {})}
 
 
+def td_connect(mapping):
+    """Resolume's side of TD: the TD layer's NDI clip (osc_map.json lanes.td, its
+    layer and clip; make_composition.py puts it in column 1). Connected when a TD
+    cue fires, so TD shows from the first cue without touching Arena."""
+    t = (mapping.get("lanes") or {}).get("td") or {}
+    if not t.get("layer"):
+        return None
+    return [(f"/composition/layers/{int(t['layer'])}/clips/{int(t.get('clip') or 1)}/connect", [1])]
+
+
 def td_scenes():
     try:
         return {s["name"] for s in json.load(open(showfolder.path("td", "scenes.json"))).get("scenes", [])}
@@ -392,7 +402,8 @@ def compile_cues(show, cues, mapping, snap=None):
         messages, problem = resolve(c["lane"], c.get("value"), mapping, snap, c.get("layer"))
         out.append({"cue": c, "beat": (bar - 1) * bpb, "bar": bar,
                     "messages": messages, "problem": problem,
-                    "to": td_target(mapping) if c["lane"] == "td" else None})
+                    "to": td_target(mapping) if c["lane"] == "td" else None,
+                    "connect": td_connect(mapping) if c["lane"] == "td" else None})
     plan_fades(out, cues, bpb)
     ends = []
     for e in out:
@@ -631,6 +642,7 @@ class Player:
         self.env_sent = {}           # clip opacity address -> last envelope value sent
         self.cleared_at = {}         # layer -> when it was last cleared
         self.recent = []             # last few fired cues, for the timeline
+        self.td_on = False           # the TD layer's NDI clip connected since the last jump
         self.state_t = 0.0
         self.moved_t = 0.0           # when the position last changed
         self.heard_t = 0.0           # when Live last answered at all
@@ -787,6 +799,10 @@ class Player:
         if entry.get("to"):
             # TouchDesigner crossfades by itself; a restate or a panic cuts
             secs = 0.0 if why else td_fade(c, self.show)
+            if entry.get("connect") and (why or not self.td_on):
+                for address, args in entry["connect"]:
+                    self.sender.send(address, args)
+                self.td_on = True
             print(f"{CLEAR}   >> {tag}{'   (' + why + ')' if why else ''}   "
                   f"{'cut' if not secs else f'crossfade {secs:.2g}s'}")
             self.send_td(entry["to"], entry["messages"], secs)

@@ -36,6 +36,7 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 | `sync_show.py` | reads the Ableton set into `show.json`, and says what moved |
 | `show_editor.html` | the show timeline: plan the visual set against the music |
 | `docs.html` | **how it all works** — served at `/docs`, read this first |
+| `make_composition.py`, `resolume/` | **Make composition** on the Host: writes the Resolume composition from the show for this Mac (TD over Syphon — NDI is only an optional preview for other machines — the Library on Base, the Overlay lane's clips, the light presets), from templates cut from one Arena 7.19 saved |
 | `shell.html` | the one top bar every page sits under: each page loads in its own frame, so switching pages never unloads one — the timeline keeps playing (audio, Drive, playhead). `/show?embed=1` etc. is a page on its own |
 | `show.json` *(show folder)* | the music: setlist, tempo, sections in bars (generated, don't edit) |
 | `cues.json` *(show folder)* | **the visual plan**: what happens at which section |

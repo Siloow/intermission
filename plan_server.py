@@ -724,8 +724,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             n = int(self.headers.get("Content-Length", 0))
             req = json.loads(self.rfile.read(n) or b"{}")
-            if path.startswith("/host/") and not self.is_local():
-                return self._send(403, json.dumps({"error": "only the show Mac can start or stop things"}).encode())
+            if (path.startswith("/host/") or path == "/projects/make-composition") and not self.is_local():
+                return self._send(403, json.dumps({"error": "only the show Mac can start or stop things, or write its composition"}).encode())
             H = host.HOST
             if path == "/projects/save":
                 out = {"name": host.save(req.get("name"))}
@@ -737,6 +737,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 out = host.settings(req["name"], **{k: v for k, v in req.items() if k != "name"})
             elif path == "/projects/delete":
                 out = host.delete(req["name"])
+            elif path == "/projects/make-composition":
+                out = host.make_composition(req["name"])
             elif path == "/host/start":
                 H.start("show" if req.get("mode") == "show" else "test", host.current())
                 out = H.status()
@@ -752,6 +754,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     H.open_live(meta.get("live_set") or host._live_set_of_show())
                 elif part == "td" and action == "start":
                     H.open_td(meta)
+                elif part == "td" and action in ("ndi-on", "ndi-off"):
+                    # the set's NDI output: a preview for other machines; Syphon is the live route
+                    td_stills.send("/ndi", [1 if action == "ndi-on" else 0])
+                    time.sleep(0.15)
                 elif part == "blender":
                     H.start_blender() if action == "start" else H.stop_blender()
                 elif part == "bridge":

@@ -271,21 +271,28 @@ Change a number, rebuild, and the previz, the floor plan, the browser's 3D view
 and the printable plan all follow.</p>
 
 <h2>The show composition</h2>
-<p>One layer per job, the same three as the timeline's lanes. A lane then
+<p><b>Host → Make composition</b> writes it for you, from the show, at this Mac's
+paths (<code>make_composition.py</code>, templates in <code>resolume/</code>): the
+four layers below, the Library on Base, what the Overlay lane uses on Overlay, the
+presets on Lights, TouchDesigner's Syphon feed on TD. Close Arena first; the old one
+goes to <code>Compositions/.backup/</code>. Column names and effects set by hand in
+Arena aren't carried over, so set them after, or not at all.</p>
+<p>One layer per job, the same as the timeline's lanes. A lane then
 switches inside one layer, so Resolume crossfades it and the layer's own
 effects, blend mode and automation stay on whatever plays there.</p>
 <table>
   <tr><th>Layer</th><th>Name</th><th>Holds</th><th>Lane</th></tr>
-  <tr><td>3 (top)</td><td>Lights</td><td>the presets and looks, 1920x120, moved down onto the band</td><td>Lights</td></tr>
-  <tr><td>2</td><td>Overlay</td><td>overlays, text, TouchDesigner live sources</td><td>Overlay</td></tr>
-  <tr><td>1</td><td>Base</td><td>every background visual</td><td>Base</td></tr>
+  <tr><td>4 (top)</td><td>Lights</td><td>the presets and looks, 1920x120, moved down onto the band</td><td>Lights</td></tr>
+  <tr><td>3</td><td>Overlay</td><td>overlays, text (Add)</td><td>Overlay</td></tr>
+  <tr><td>2</td><td>Base</td><td>every background visual (Alpha, 100%: it covers TD)</td><td>Base</td></tr>
+  <tr><td>1</td><td>TD</td><td>TouchDesigner over Syphon ("liveset"), column 1; a TD cue connects it. NDI is only a preview for other machines: off unless switched on (Host → NDI preview)</td><td>TD</td></tr>
 </table>
 <ol>
   <li><b>Size 1920x1200</b>: the 1080 picture on top, the 120-row light band under it.</li>
   <li><b>Name the layers</b> as above. The tools go by the numbers in
     <code>osc_map.json</code> → <code>lanes</code>; the names are for you.</li>
   <li><b>Move the picture up and the lights down.</b> Clips fit to the width
-    and sit in the middle, so with the layer's Transform: Base and Overlay up 60 px,
+    and sit in the middle, so with the layer's Transform: TD, Base and Overlay up 60 px,
     Lights down 540 px. Check it in the composition preview once.</li>
   <li><b>Columns are scenes</b>, if you use them: name them, the Columns lane
     fires them by name. They fire every layer at once.</li>

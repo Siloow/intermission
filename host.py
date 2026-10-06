@@ -24,6 +24,7 @@ Software
 Standard library only. plan_server.py serves it; only this Mac may start things.
 """
 import glob, json, os, platform, plistlib, re, shutil, signal, socket, subprocess, sys, threading, time
+import urllib.request
 import showfolder
 import td_stills                         # where the show's TouchDesigner set is
 import version
@@ -232,11 +233,46 @@ def delete(name):
     return {"deleted": name, "backup": os.path.relpath(dest, SHOW)}
 
 
+def td_status():
+    """What the open set says about itself (its web server's /status): the scene
+    on screen, and whether the NDI preview is on. {} when no set answers."""
+    t = td_stills.target()
+    try:
+        with urllib.request.urlopen(f"http://{t['host']}:{int(t.get('web', 9982))}/status", timeout=0.3) as r:
+            return {"answering": True, **json.load(r)}
+    except (OSError, ValueError):
+        return {"answering": False}
+
+
+def composition_path(c):
+    """A project's composition: a file name in Arena's Compositions folder (the
+    same on both Macs, and what Make composition writes), or an absolute path."""
+    return c if not c or os.path.isabs(c) else os.path.join(COMPOSITIONS, c)
+
+
+def make_composition(name):
+    """Write this Mac's composition from the show (make_composition.py) and make
+    it the project's. Arena must be closed."""
+    import make_composition as mc
+    name = slug(name)
+    meta = _meta(name)
+    cur = meta.get("composition")
+    target = os.path.basename(cur) if cur and os.path.dirname(composition_path(cur)) == COMPOSITIONS else mc.DEFAULT_NAME
+    out = mc.make(target)
+    meta["composition"] = os.path.basename(out["path"])
+    _write_meta(name, meta)
+    out["backup"] = out["backup"] and os.path.relpath(out["backup"], COMPOSITIONS)
+    return out
+
+
 def settings(name, **fields):
     name = slug(name)
     if not os.path.isdir(os.path.join(PROJECTS, name)):
         raise ValueError(f"no project called {name!r}")
     meta = _meta(name)
+    c = fields.get("composition")
+    if c and os.path.dirname(c) == COMPOSITIONS:
+        fields["composition"] = os.path.basename(c)        # by name: the same on both Macs
     for k in ("live_set", "composition", "td_set", "output_preset", "notes"):
         if k in fields:
             meta[k] = fields[k] or None if k != "notes" else fields[k] or ""
@@ -379,7 +415,7 @@ class Host:
             "live": {"running": bool(live_pids), "app": live_which,
                      "wrong_app": bool(live_which) and live_app() is not None
                                   and not live_app().endswith(live_which + ".app")},
-            "td": {"running": bool(_pgrep("TouchDesigner.app/Contents/MacOS/TouchDesigner")),
+            "td": {**td_status(), "running": bool(_pgrep("TouchDesigner.app/Contents/MacOS/TouchDesigner")),
                    "set": os.path.relpath(td_stills.set_path(_meta(current()) if current() else {}), SHOW),
                    "set_exists": os.path.exists(td_stills.set_path(_meta(current()) if current() else {}))},
             "blender": {"running": bool(_pgrep("Blender -y venue.blend")), "ours": ours("blender")},
@@ -396,6 +432,7 @@ class Host:
         app = next((a for a in ARENA_APPS if os.path.isdir(a)), None)
         if not app:
             raise RuntimeError("Resolume Arena isn't in /Applications/Resolume Arena")
+        composition = composition_path(composition)
         args = ["open", "-a", app] + ([composition] if composition and os.path.exists(composition) else [])
         subprocess.run(args, check=False)
         self.note("opened Resolume Arena" + (f" with {os.path.basename(composition)}" if composition else ""))

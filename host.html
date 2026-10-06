@@ -98,7 +98,9 @@
         <div id="settings" style="margin-top:var(--s4)">
           <div class="section-title">Goes with this project</div>
           <div class="fld"><label>Live set</label><input id="s-live" placeholder="…/Your Set.als"></div>
-          <div class="fld"><label>Resolume composition</label><select id="s-comp"></select></div>
+          <div class="fld"><label>Resolume composition</label><select id="s-comp"></select>
+            <div class="btns" style="margin-top:6px"><button id="make-comp" title="write the composition from the show: TD (NDI), Base (the Library), Overlay (what its lane uses), Lights (the presets), at this Mac's paths. Arena must be closed; the old one goes to Compositions/.backup/">Make composition</button>
+              <span class="hint dim" id="make-note">from the show, for this Mac</span></div></div>
           <div class="fld"><label>TouchDesigner set <span class="dim">(in the show folder's td/, shared through Dropbox)</span></label>
             <select id="s-td"></select></div>
           <div class="fld"><label>Advanced Output preset <span class="dim">(load it yourself: Arena can't be told)</span></label>
@@ -183,7 +185,7 @@ function drawProjects(){
     el("s-live").value = cur.live_set || "";
     el("s-live").placeholder = p.live_set_now || "…/Your Set.als";
     el("s-comp").innerHTML = `<option value="">— whatever Arena opens with —</option>` +
-      p.compositions.map(c => `<option value="${esc(c)}" ${c === cur.composition ? "selected" : ""}>${esc(base(c).replace(/\.avc$/, ""))}</option>`).join("");
+      p.compositions.map(c => `<option value="${esc(c)}" ${c === cur.composition || base(c) === cur.composition ? "selected" : ""}>${esc(base(c).replace(/\.avc$/, ""))}</option>`).join("");
     el("s-preset").value = cur.output_preset || "";
     const tdSets = p.td_sets || [];
     el("s-td").innerHTML = `<option value="">${esc(p.td_default)} (the default)${tdSets.includes(p.td_default) ? "" : " — not built yet"}</option>` +
@@ -257,6 +259,17 @@ async function setting(field, value){
 }
 el("s-live").addEventListener("change", e => setting("live_set", e.target.value.trim()));
 el("s-comp").addEventListener("change", e => setting("composition", e.target.value));
+el("make-comp").onclick = async () => {
+  if (!projects.current) return;
+  el("make-note").textContent = "writing…";
+  try {
+    const r = await post("/projects/make-composition", {name: projects.current});
+    el("make-note").textContent = `${r.path.split("/").pop()}: TD ${r.layers.td} · Base ${r.layers.screen} · ` +
+      `Overlay ${r.layers.overlay} · Lights ${r.layers.lights} · TD over ${r.td}` + (r.backup ? ` · the old one: .backup/${r.backup}` : "") +
+      (r.note ? ` · ${r.note}` : "");
+    await loadProjects();
+  } catch(e){ el("make-note").textContent = e.message; }
+};
 el("s-td").addEventListener("change", e => setting("td_set", e.target.value));
 el("s-preset").addEventListener("change", e => setting("output_preset", e.target.value.trim()));
 el("s-notes").addEventListener("change", e => setting("notes", e.target.value));
@@ -293,8 +306,12 @@ function drawStatus(){
       else if (p.wrong_app) how = `${p.app} is open: AbletonOSC is set up in the other Live — close it and open the set here`;
       act = p.running ? "" : `<button data-part="live" data-act="start">Open the set</button>`;
     } else if (k === "td"){
-      how = !p.set_exists ? `${p.set} isn't built yet` : p.running ? `open · the project's set is ${p.set}` : `not open · ${p.set}`;
-      act = p.running ? "" : `<button data-part="td" data-act="start" ${p.set_exists ? "" : "disabled"}>Open the set</button>`;
+      how = !p.set_exists ? `${p.set} isn't built yet`
+          : !p.running ? `not open · ${p.set}`
+          : !p.answering ? `open, but no set answering (td_mcp_host.toe, or an older build) · ${p.set}`
+          : `${p.scene} · Syphon "liveset" ${p.syphon ? "on" : "off"} · NDI preview ${p.ndi ? "on" : "off"}`;
+      act = !p.running ? `<button data-part="td" data-act="start" ${p.set_exists ? "" : "disabled"}>Open the set</button>`
+          : p.answering ? `<button data-part="td" data-act="${p.ndi ? "ndi-off" : "ndi-on"}" title="NDI is only for watching the set from another machine; Resolume takes it over Syphon">${p.ndi ? "NDI preview off" : "NDI preview on"}</button>` : "";
     } else if (k === "player"){
       if (p.running && !p.ours) how += " · started outside the host";
       if (p.restarts) how += ` · restarted ${p.restarts}×`;

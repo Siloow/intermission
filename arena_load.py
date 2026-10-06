@@ -437,9 +437,10 @@ def adopt_selected(base, name):
     return {"name": name}
 
 
-def install(base, lane="lights", names=None, refresh=False, sync=True):
-    """Put a folder's clips (the light presets, by default) into the lane's layer.
-    The presets are tempo loops, so they go in BPM-synced."""
+def lane_files(lane="lights"):
+    """The files in a lane's folder that go into Resolume, in order: the presets'
+    own order (by category) when there is a loops.json, a DXV .mov over an mp4 of
+    the same clip. Returns (folder, [file, ...])."""
     cfg = lanes().get(lane) or {}
     folder = showfolder.content_dir(cfg.get("dir")) or HERE
     # in the presets' own order (by category), if they came with a loops.json
@@ -456,6 +457,14 @@ def install(base, lane="lights", names=None, refresh=False, sync=True):
         if stem not in stems or f.lower().endswith(".mov"):
             stems[stem] = f
     files = [stems[s] for s in dict.fromkeys(os.path.splitext(f)[0] for f in files)]
+    return folder, files
+
+
+def install(base, lane="lights", names=None, refresh=False, sync=True):
+    """Put a folder's clips (the light presets, by default) into the lane's layer.
+    The presets are tempo loops, so they go in BPM-synced."""
+    cfg = lanes().get(lane) or {}
+    folder, files = lane_files(lane)
     if names:
         want = set(names)
         files = [f for f in files if os.path.splitext(f)[0] in want]
