@@ -4,7 +4,9 @@ Projects
     A project is a folder in the show folder's projects/ (see showfolder.py),
     holding a saved copy of the plan files every tool works on there (show.json, cues.json, rig.json, looks.json,
     osc_map.json, library.json), and project.json: its name, and which Live set,
-    Resolume composition and Advanced Output preset go with it.
+    Resolume composition, TouchDesigner set and Advanced Output preset go with it.
+    The TouchDesigner set lives in the show folder (td/, shared through Dropbox)
+    and is stored relative to it, so it is the same set on both Macs.
 
     The tools keep working on the files in the show folder, as they always have.
     Save copies them into the project; load copies a project's in, after
@@ -13,8 +15,8 @@ Projects
 
 Software
     Each part the show needs, started and stopped from here: Resolume Arena and
-    Live are opened with the project's composition and set (never quit from
-    here: they hold the show), Blender with the previz, the Syphon bridge, and
+    Live are opened with the project's composition and set, TouchDesigner with
+    its TD set (never quit from here: they hold the show), Blender with the previz, the Syphon bridge, and
     the player, which the host keeps running (a crash restarts it, like
     Live.command does). Test runs everything; the show runs only what it needs,
     keeps the Mac awake, and leaves Blender and the bridge off the GPU.
@@ -23,6 +25,7 @@ Standard library only. plan_server.py serves it; only this Mac may start things.
 """
 import glob, json, os, platform, plistlib, re, shutil, signal, socket, subprocess, sys, threading, time
 import showfolder
+import td_stills                         # where the show's TouchDesigner set is
 import version
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -36,6 +39,7 @@ LIVE_DIR = os.path.join(HERE, ".live")
 PLAYER_PORT = 11001                     # the player listens here (Live's replies, the timeline, us)
 
 ARENA_APPS = ("/Applications/Resolume Arena/Arena.app",)      # 7.19, the licence; not 7.27
+TD_APP = "/Applications/TouchDesigner.app"
 
 
 def live_app():
@@ -121,10 +125,12 @@ def listing():
             n = 0
         out.append({"name": d, "saved": m.get("saved"), "created": m.get("created"),
                     "live_set": m.get("live_set"), "composition": m.get("composition"),
+                    "td_set": m.get("td_set"),
                     "output_preset": m.get("output_preset"), "notes": m.get("notes", ""),
                     "cues": n, "current": d == cur})
     return {"current": cur, "changed": changed(cur) if cur else None, "projects": out, "show_dir": SHOW,
-            "compositions": compositions(), "live_set_now": _live_set_of_show()}
+            "compositions": compositions(), "live_set_now": _live_set_of_show(),
+            "td_sets": td_stills.sets(), "td_default": td_stills.DEFAULT_SET}
 
 
 def _copy_in(src_dir, files=PROJECT_FILES):
@@ -231,7 +237,7 @@ def settings(name, **fields):
     if not os.path.isdir(os.path.join(PROJECTS, name)):
         raise ValueError(f"no project called {name!r}")
     meta = _meta(name)
-    for k in ("live_set", "composition", "output_preset", "notes"):
+    for k in ("live_set", "composition", "td_set", "output_preset", "notes"):
         if k in fields:
             meta[k] = fields[k] or None if k != "notes" else fields[k] or ""
     _write_meta(name, meta)
@@ -324,6 +330,7 @@ def versions():
         "live": _bundle_version(live) if live else None,
         "live_app": os.path.basename(live)[:-4] if live else None,
         "blender": _bundle_version(bl_app) if bl_app else None,
+        "touchdesigner": _bundle_version(TD_APP) if os.path.isdir(TD_APP) else None,
         "python": platform.python_version(),
         "ffmpeg": _cmd_version(["ffmpeg", "-version"], r"ffmpeg version (\S+)"),
         "uv": _cmd_version([uv, "--version"]) if uv else None,
@@ -372,6 +379,9 @@ class Host:
             "live": {"running": bool(live_pids), "app": live_which,
                      "wrong_app": bool(live_which) and live_app() is not None
                                   and not live_app().endswith(live_which + ".app")},
+            "td": {"running": bool(_pgrep("TouchDesigner.app/Contents/MacOS/TouchDesigner")),
+                   "set": os.path.relpath(td_stills.set_path(_meta(current()) if current() else {}), SHOW),
+                   "set_exists": os.path.exists(td_stills.set_path(_meta(current()) if current() else {}))},
             "blender": {"running": bool(_pgrep("Blender -y venue.blend")), "ours": ours("blender")},
             "bridge": {"running": bool(_pgrep("syphon_bridge.py")), "ours": ours("bridge")},
             "player": {"running": bool(_pgrep("cue_player.py --follow")),
@@ -401,6 +411,21 @@ class Host:
         else:
             subprocess.run(["open", "-a", app], check=False)
             self.note(f"opened {name} (no set chosen for this project)")
+
+    def open_td(self, meta=None):
+        """TouchDesigner with the project's set. One TouchDesigner at a time: if one
+        is open already (the set, or td_mcp_host.toe with it pushed in), it's left be."""
+        if not os.path.isdir(TD_APP):
+            raise RuntimeError("TouchDesigner isn't in /Applications")
+        toe = td_stills.set_path(meta or {})
+        if _pgrep("TouchDesigner.app/Contents/MacOS/TouchDesigner"):
+            self.note("TouchDesigner is open already: left as it is")
+            return
+        if not os.path.exists(toe):
+            raise RuntimeError(f"no TouchDesigner set at {os.path.relpath(toe, SHOW)}: build it "
+                               f"(td-pipeline: ./tdgen build liveset) or pick one in the project")
+        subprocess.run(["open", "-a", TD_APP, toe], check=False)
+        self.note(f"opened {os.path.relpath(toe, SHOW)} in TouchDesigner")
 
     # ---- what we run
     def _spawn(self, key, args, log):
@@ -530,6 +555,11 @@ class Host:
                 self.open_arena(meta.get("composition"))
             if not st["live"]["running"]:
                 self.open_live(meta.get("live_set") or _live_set_of_show())
+            if not st["td"]["running"]:
+                try:
+                    self.open_td(meta)
+                except RuntimeError as e:
+                    self.note(str(e))
             if mode == "test":
                 self.start_blender()
                 self.start_bridge()

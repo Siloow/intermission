@@ -333,7 +333,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(200, json.dumps(td_stills.load()).encode())
         if path.startswith("/td/still/"):
             name = os.path.basename(urllib.parse.unquote(path))
-            return self.send_file(os.path.join(td_stills.STILLS, name + ".jpg"))
+            return self.send_file(os.path.join(td_stills.stills_dir(), name + ".jpg"))
         if path == "/library/list":
             # just the show's visuals, for the timeline's quick picker (no rescan)
             cfg = library.config()
@@ -725,6 +725,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     H.open_arena(meta.get("composition"))
                 elif part == "live" and action == "start":
                     H.open_live(meta.get("live_set") or host._live_set_of_show())
+                elif part == "td" and action == "start":
+                    H.open_td(meta)
                 elif part == "blender":
                     H.start_blender() if action == "start" else H.stop_blender()
                 elif part == "bridge":

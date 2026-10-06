@@ -99,6 +99,8 @@
           <div class="section-title">Goes with this project</div>
           <div class="fld"><label>Live set</label><input id="s-live" placeholder="…/Your Set.als"></div>
           <div class="fld"><label>Resolume composition</label><select id="s-comp"></select></div>
+          <div class="fld"><label>TouchDesigner set <span class="dim">(in the show folder's td/, shared through Dropbox)</span></label>
+            <select id="s-td"></select></div>
           <div class="fld"><label>Advanced Output preset <span class="dim">(load it yourself: Arena can't be told)</span></label>
             <input id="s-preset" placeholder="Intermission"></div>
           <div class="fld"><label>Notes</label><textarea id="s-notes" placeholder="what this version is"></textarea></div>
@@ -183,6 +185,9 @@ function drawProjects(){
     el("s-comp").innerHTML = `<option value="">— whatever Arena opens with —</option>` +
       p.compositions.map(c => `<option value="${esc(c)}" ${c === cur.composition ? "selected" : ""}>${esc(base(c).replace(/\.avc$/, ""))}</option>`).join("");
     el("s-preset").value = cur.output_preset || "";
+    const tdSets = p.td_sets || [];
+    el("s-td").innerHTML = `<option value="">${esc(p.td_default)} (the default)${tdSets.includes(p.td_default) ? "" : " — not built yet"}</option>` +
+      tdSets.filter(t => t !== p.td_default).map(t => `<option value="${esc(t)}" ${t === cur.td_set ? "selected" : ""}>${esc(t)}</option>`).join("");
     el("s-notes").value = cur.notes || "";
   }
 }
@@ -252,6 +257,7 @@ async function setting(field, value){
 }
 el("s-live").addEventListener("change", e => setting("live_set", e.target.value.trim()));
 el("s-comp").addEventListener("change", e => setting("composition", e.target.value));
+el("s-td").addEventListener("change", e => setting("td_set", e.target.value));
 el("s-preset").addEventListener("change", e => setting("output_preset", e.target.value.trim()));
 el("s-notes").addEventListener("change", e => setting("notes", e.target.value));
 
@@ -259,6 +265,7 @@ el("s-notes").addEventListener("change", e => setting("notes", e.target.value));
 const HOST_PARTS = [
   ["arena",   "Resolume Arena", h => h.resolume],
   ["live",    "Ableton Live",   h => h.live],
+  ["td",      "TouchDesigner",  h => null],
   ["player",  "Player",         h => h.player],
   ["blender", "Blender previz", h => h.blender],
   ["bridge",  "Screen feed",    h => h.screen],
@@ -269,7 +276,7 @@ function drawStatus(){
   const s = status, h = s.health || {}, parts = s.parts, v = s.versions || {};
   const short = x => (x || "").split(" (")[0];                 // Live's build hash stays in the title
   const versionOf = {arena: v.arena && (v.arena + (v.arena_others && v.arena_others.length ? ` · also installed: ${v.arena_others.join(", ")}` : "")),
-                     live: short(v.live), blender: v.blender};
+                     live: short(v.live), blender: v.blender, td: v.touchdesigner};
   el("mode").innerHTML = s.mode === "show" ? `<span class="badge live">the show${s.awake ? " · kept awake" : ""}</span>`
                        : s.mode === "test" ? `<span class="badge ok">test</span>` : "";
   el("go-test").classList.toggle("running", s.mode === "test");
@@ -285,6 +292,9 @@ function drawStatus(){
       if (!p.running) how = "not open";
       else if (p.wrong_app) how = `${p.app} is open: AbletonOSC is set up in the other Live — close it and open the set here`;
       act = p.running ? "" : `<button data-part="live" data-act="start">Open the set</button>`;
+    } else if (k === "td"){
+      how = !p.set_exists ? `${p.set} isn't built yet` : p.running ? `open · the project's set is ${p.set}` : `not open · ${p.set}`;
+      act = p.running ? "" : `<button data-part="td" data-act="start" ${p.set_exists ? "" : "disabled"}>Open the set</button>`;
     } else if (k === "player"){
       if (p.running && !p.ours) how += " · started outside the host";
       if (p.restarts) how += ` · restarted ${p.restarts}×`;
@@ -295,7 +305,8 @@ function drawStatus(){
       act = p.running ? `<button data-part="${k}" data-act="stop">Stop</button>`
                       : `<button data-part="${k}" data-act="start">Start</button>`;
     }
-    const d = k === "arena" && !p.running ? "bad" : k === "live" && !p.running ? "bad"
+    const d = k === "td" ? (p.running ? "ok" : p.set_exists ? "bad" : "warn")
+            : k === "arena" && !p.running ? "bad" : k === "live" && !p.running ? "bad"
             : (k === "blender" || k === "bridge") && !p.running ? "" : dotOf(hp);
     const ver = versionOf[k] ? ` <span class="dim" style="font-weight:400" title="${esc(k === "live" ? (v.live || "") : "")}">${esc(versionOf[k])}</span>` : "";
     return `<tr><td><i class="dot ${d}"></i></td><td class="what">${label}${ver}</td>` +

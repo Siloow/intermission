@@ -46,7 +46,8 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 | `Intermission.command`, `host.py`, `host.html` | the **Host**: one click to open everything for test or the show, projects (save, load, new), and the versions of everything the show runs on |
 | `library.html`, `library.py` | the **Library**: gathers renders, sequences and live sources, converts to DXV, installs into the screen layers. Which folders it looks in is per Mac (`sources.json`, set on the page) |
 | `library.json` *(show folder)* | what's in the show (the media: `library/` beside it) |
-| `td_stills.py` | stills of the TouchDesigner liveset's scenes, through the bridge on 9981, for the timeline's TD lane and Preview strip (`td/` in the show folder; also the View tab's Grab buttons) |
+| `td/` *(show folder)* | **the TouchDesigner set**: `td/liveset/` holds its spec, assets and the built `liveset.toe`, its `stills/` and `scenes.json`. Shared through Dropbox; a project picks its set (`td_set`, default `td/liveset/liveset.toe`) and the Host opens it. Edit it with td-pipeline, where `projects/liveset` is a link to this folder (`./tdgen live liveset`, `./tdgen build liveset`) |
+| `td_stills.py` | where the project's TouchDesigner set is, and stills of its scenes for the timeline's TD lane and Preview strip, asked of the running set over OSC (`/stills`; also the View tab's Grab buttons) |
 
 The **TD lane** switches the liveset for real: `cue_player` sends each TD cue as OSC
 `/scene <name> <fade s>` to `osc_map.json` → `td` (default `127.0.0.1:10004`), and the

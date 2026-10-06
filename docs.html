@@ -73,13 +73,16 @@ been a few weeks and nothing looks familiar.</p>
   <tr><th></th><th>What it does</th></tr>
   <tr><td><b>Project</b></td><td>Save, Save as, New, Load. A project is a folder in <code>projects/</code>
     with the plan files — timeline, rig, looks, lanes and targets, the Library list —
-    and which Live set, Resolume composition and Advanced Output preset go with it.
+    and which Live set, Resolume composition, TouchDesigner set and Advanced Output preset go with it.
+    The TouchDesigner set lives in the show folder's <code>td/</code> (default
+    <code>td/liveset/liveset.toe</code>), so Dropbox shares it like the rest of the show;
+    the timeline's TD lane switches its scenes and takes its stills over OSC.
     Loading first copies what's here to <code>projects/.autosave/</code>, and every open
     editor reloads, so nothing old is saved over what came in. <b>New</b> keeps the rig,
     lanes, looks and Library, and starts the timeline empty.</td></tr>
-  <tr><td><b>▶ Test</b></td><td>Opens Resolume (with the project's composition) and the
+  <tr><td><b>▶ Test</b></td><td>Opens Resolume (with the project's composition), TouchDesigner (with its set, unless one is open already) and the
     set in Live, starts the Blender previz, the screen feed and the player.</td></tr>
-  <tr><td><b>● The show</b></td><td>Runs the check first, then Resolume, Live and the player
+  <tr><td><b>● The show</b></td><td>Runs the check first, then Resolume, Live, TouchDesigner and the player
     only — it follows Live, never the timeline — stops Blender and the feed, and keeps
     the Mac awake.</td></tr>
   <tr><td><b>PANIC / Resume</b></td><td>The same as <kbd>p</kbd> and <kbd>r</kbd> in the player's window.</td></tr>
