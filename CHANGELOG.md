@@ -22,7 +22,7 @@ The first numbered version: everything built so far, as one system.
 - **Show timeline** — the visual plan against the music: cues anchored to the
   sections of the Ableton set (locators are the contract), fades and easing,
   automation at three levels, looks, a quick picker, Drive from the timeline.
-  Waveform of the bounce, an overview strip, ruler zoom, chapters, sticky labels.
+  Waveform of the bounce, an overview strip, ruler zoom, sticky labels.
 - **Player** — follows Live over AbletonOSC and fires Resolume over OSC; panic
   and resume; picks up plan edits while running; restarts itself on show night.
 - **Floor plan** — place the pars in the browser with a 3D preview; looks as

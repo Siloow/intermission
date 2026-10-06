@@ -137,7 +137,6 @@ lets the visual set be built while the music is still changing.
 Locators in the Ableton arrangement are the contract. A locator named
 `>> Track name` starts a song; plain names after it are that song's sections:
 
-    ## 1 · before       bar 1     a chapter: a label over the songs that follow
     >> Intermission     bar 2     a song
     Build 1             bar 17    its sections
     Drop 1              bar 33
@@ -146,11 +145,6 @@ Locators in the Ableton arrangement are the contract. A locator named
 Nothing else in Live matters to the visuals. Rewrite a section, stretch it,
 replace every sound in it — as long as the locator keeps its name, the plan
 still points at the right moment.
-
-A locator starting with `## ` names a **chapter** — a group of songs. Chapters
-are labels only: they show as a band above the song row, in the strip above
-the timeline and in the setlist, and no cue anchors to them. Put the chapter
-locator a bar before its first `>>` (Live allows one locator per position).
 
 ### Syncing
 

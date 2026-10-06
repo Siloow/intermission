@@ -10,7 +10,7 @@ sync_show.py extracts from the Ableton set).
 
 It listens on localhost only: nothing here is reachable from the network.
 """
-import argparse, html, http.server, json, os, re, shutil, socketserver, subprocess, tempfile, threading, time
+import argparse, sys, html, http.server, json, os, re, shutil, socketserver, subprocess, tempfile, threading, time
 import urllib.parse, urllib.request
 import showfolder                    # where the show folder is on this Mac
 import version                       # Intermission's version, from VERSION
@@ -579,19 +579,41 @@ class Handler(http.server.BaseHTTPRequestHandler):
             partial = rng.startswith("bytes=")
             if partial:
                 first, _, last = rng[6:].partition("-")
-                start = int(first) if first else 0
-                end = int(last) if last else size - 1
+                try:
+                    if first:
+                        start = int(first)
+                        end = int(last) if last else size - 1
+                    else:                                  # "bytes=-500": the last 500 bytes
+                        start = size - int(last)
+                except ValueError:
+                    return self._send(416, b"", "text/plain")
                 start, end = max(0, start), min(end, size - 1)
+                if start > end:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{size}")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+            self.send_response(206 if partial else 200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(end - start + 1))
+            if partial:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.end_headers()
+            # stream it: an 84 MB bounce never sits in memory, and the browser
+            # hanging up (a seek, a reload) just ends the loop
             fh.seek(start)
-            body = fh.read(end - start + 1)
-        self.send_response(206 if partial else 200)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Accept-Ranges", "bytes")
-        self.send_header("Content-Length", str(len(body)))
-        if partial:
-            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
-        self.end_headers()
-        self.wfile.write(body)
+            left = end - start + 1
+            try:
+                while left > 0:
+                    chunk = fh.read(min(256 * 1024, left))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    left -= len(chunk)
+            except (BrokenPipeError, ConnectionResetError):
+                self.close_connection = True
 
     def do_POST(self):
         path = self.path.split("?")[0]
@@ -914,6 +936,13 @@ def lan_address():
 class Server(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        # a browser that hangs up mid-answer (seeking audio, reloading, closing a
+        # tab) is normal, not an error worth a traceback in the terminal
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
+            return
+        super().handle_error(request, client_address)
 
 
 def main():

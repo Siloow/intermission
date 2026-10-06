@@ -19,9 +19,7 @@ everything after it is a section of that song until the next ">>":
     Drop 1                 bar 33
     >> Afterglow           bar 129   next song
 
-A locator starting with "## " marks a chapter (a group of songs, e.g.
-"## 1 · before"). It is not a section: it only lands in show.json's "chapters"
-list. Put it a bar before the chapter's first ">>", because of the next rule.
+Locators starting with "##" are skipped (old labels, not sections).
 
 Live allows only one locator per position, so a song marker and its first
 section cannot share a bar. Whatever plays between the song marker and the
@@ -42,7 +40,7 @@ import showfolder
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = showfolder.path("show.json")           # the show folder, see showfolder.py
 SONG_PREFIX = ">>"
-CHAPTER_PREFIX = "##"
+SKIP_PREFIX = "##"                # old label locators: neither song nor section
 TRACKLIST_TRACK = "Tracklist"     # per-song info clips: "Song | 120 bpm | 72 bars | 4/4"
 BACKING_TRACK = "Backing"         # the bounces the set plays, for the timeline's audio
 
@@ -143,12 +141,10 @@ def build_show(raw, source):
     tempo = raw["tempo"]
     end = max(raw["end_beat"], max((l["beat"] for l in raw["locators"]), default=0) + beats_per_bar * 8)
 
-    songs, chapters, current = [], [], None
+    songs, current = [], None
     for loc in raw["locators"]:
         name = loc["name"]
-        if name.startswith(CHAPTER_PREFIX):          # chapter: a label, never a section
-            chapters.append({"name": name[len(CHAPTER_PREFIX):].strip(), "beat": loc["beat"],
-                             "bar": round(loc["beat"] / beats_per_bar + 1, 2)})
+        if name.startswith(SKIP_PREFIX):
             continue
         if name.startswith(SONG_PREFIX):
             current = {"name": name[len(SONG_PREFIX):].strip() or f"Song {len(songs) + 1}",
@@ -206,7 +202,6 @@ def build_show(raw, source):
         "total_bars": round(end / beats_per_bar, 2),
         "total_seconds": round(end * 60 / tempo, 1),
         "songs": songs,
-        "chapters": chapters,
     }
 
 

@@ -35,12 +35,8 @@
     color:var(--text-2);font-size:var(--fs-sm);white-space:nowrap;clip-path:inset(0);pointer-events:none;background:var(--surface-0)}
   /* labels stay in view while their row scrolls past: sticky inside the box, which is
      clipped with clip-path rather than overflow (overflow:hidden would end the stickiness) */
-  .song .lbl,.sec .lbl,.chap .lbl{position:sticky;left:8px;display:inline-block}
+  .song .lbl,.sec .lbl{position:sticky;left:8px;display:inline-block}
   .sec.alt{background:#111317}
-  .head.chapters{height:20px;background:var(--surface-2)}
-  .chap{position:absolute;top:0;height:20px;padding:3px 10px;border-left:2px solid var(--accent-line);
-    color:var(--accent);font-size:var(--fs-xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;
-    white-space:nowrap;clip-path:inset(0);pointer-events:none}
   .ruler{height:20px;background:var(--surface-0)}
   .head.ruler{cursor:zoom-in}                /* drag up/down to zoom, sideways to move, like Live */
   /* a dead strip on the left, so a click near the window edge misses nothing, and
@@ -501,18 +497,6 @@ const xToBar = x => x / pxPerBar + 1;
 function snapBar(bar){
   const g = +el("snap").value;
   return g ? Math.round((bar - 1) / g) * g + 1 : Math.round(bar);
-}
-// Chapters group songs. A "## " locator sits a bar before its first ">>" (Live allows one
-// locator per position), so a chapter runs from the first song at or after it up to the
-// next chapter's first song. Nothing here if the set has no chapter locators.
-function chapterSpans(){
-  const ch = (show.chapters || []).slice().sort((a, b) => a.beat - b.beat);
-  const songAt = beat => { const g = show.songs.find(g => g.start_beat >= beat - 1e-6); return g ? g.start_beat : beat; };
-  const last = show.songs.length ? show.songs[show.songs.length - 1].end_beat : 0;
-  return ch.map((c, i) => {
-    const start = songAt(c.beat), end = Math.max(start, i + 1 < ch.length ? songAt(ch[i + 1].beat) : last);
-    return {name: c.name, bar: start / bpb() + 1, bars: (end - start) / bpb()};
-  });
 }
 function placeOf(bar){
   let best = null;
@@ -982,6 +966,11 @@ async function load(){
 let saveTimer = null;
 function save(){
   clearTimeout(saveTimer);
+  if (stale){                        // someone else saved: nothing more is written until a reload
+    el("save").textContent = "changed elsewhere — reload (this edit isn't saved)";
+    el("status").classList.add("err");
+    return;
+  }
   el("save").textContent = "saving";
   saveTimer = setTimeout(async () => {
     if (stale) return;
@@ -1028,17 +1017,6 @@ function draw(sidebar){
     tl.appendChild(d);
   }
 
-  const spans = chapterSpans();
-  let chaps = null;
-  if (spans.length){
-    chaps = document.createElement("div"); chaps.className = "head chapters";
-    spans.forEach(c => {
-      const d = document.createElement("div"); d.className = "chap";
-      d.style.left = barToX(c.bar) + "px"; d.style.width = c.bars * pxPerBar + "px";
-      d.innerHTML = `<span class="lbl"></span>`; d.firstChild.textContent = c.name;
-      chaps.appendChild(d);
-    });
-  }
   const songs = document.createElement("div"); songs.className = "head songs";
   const secs = document.createElement("div"); secs.className = "head";
   const ruler = document.createElement("div"); ruler.className = "head ruler";
@@ -1073,7 +1051,7 @@ function draw(sidebar){
   const wave = document.createElement("div"); wave.className = "head wave";
   wave.title = "the bounce playing along · click to jump there";
   wave.appendChild(waveCanvas);
-  tl.append(...(chaps ? [chaps] : []), songs, secs, wave, ruler, previewRow());
+  tl.append(songs, secs, wave, ruler, previewRow());
   monKey = null;
   drawWave(); drawOverview(lastBar ?? undefined);
 
@@ -1318,16 +1296,8 @@ el("fade-ease").addEventListener("change", e => {
 });
 function drawSidebar(){
   drawFadeDefaults();
-  const spans = chapterSpans();
-  let lastChapter = null;
   el("setlist").innerHTML = show.songs.map(g => {
-    const b = g.start_beat / bpb() + 1;
-    const c = spans.find(c => b >= c.bar - 1e-6 && b < c.bar + c.bars - 1e-6);
-    const head = c && c !== lastChapter
-      ? `<tr><td colspan="3" style="padding-top:8px;color:var(--accent);font-size:var(--fs-xs);font-weight:700;` +
-        `letter-spacing:.05em;text-transform:uppercase">${c.name}</td></tr>` : "";
-    if (c) lastChapter = c;
-    return head + `<tr><td>${g.name}</td><td style="text-align:right;color:var(--dim)">${g.bars.toFixed(0)} bars</td>
+    return `<tr><td>${g.name}</td><td style="text-align:right;color:var(--dim)">${g.bars.toFixed(0)} bars</td>
      <td style="text-align:right;color:var(--dim)">${(g.seconds/60).toFixed(1)}m</td></tr>`;
   }).join("");
 
@@ -2160,11 +2130,6 @@ function ovBuild(w, h, dpr){
     g.fillStyle = v("--border-strong"); g.fillRect(x0, 0, 1, h);
     g.save(); g.beginPath(); g.rect(x0, 0, x1 - x0 - 3, h); g.clip();
     g.fillStyle = v("--text-3"); g.fillText(s.name, x0 + 4, 3); g.restore();
-  });
-  chapterSpans().forEach((c, i) => {
-    const x0 = ovBarToX(c.bar, w), x1 = ovBarToX(c.bar + c.bars, w);
-    g.fillStyle = v("--accent"); g.globalAlpha = i % 2 ? .10 : .18; g.fillRect(x0, 0, x1 - x0, 3);
-    g.globalAlpha = .6; g.fillRect(x0, 0, 1, h); g.globalAlpha = 1;
   });
   if (peaks){
     const mid = h * .62, amp = h * .34, n = peaks.peak.length;

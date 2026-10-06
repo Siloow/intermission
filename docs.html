@@ -495,17 +495,13 @@ cue, which is the quickest way to see a cue is wired up.</p>
 
 <h3>Locators in Live</h3>
 <p>This is the contract between the music and the visuals.</p>
-<pre><code>## 1 · before       bar 1     a locator starting with ## names a chapter: a group of songs
-&gt;&gt; Intermission     bar 2     a locator starting with &gt;&gt; starts a song
+<pre><code>&gt;&gt; Intermission     bar 2     a locator starting with &gt;&gt; starts a song
 Build 1             bar 17    plain names are its sections
 Drop 1              bar 33
 &gt;&gt; Afterglow        bar 129   next song</code></pre>
 <ul>
   <li>Live allows one locator per position, so a song marker and its first section
     cannot share a bar. The gap is called <b>Start</b> automatically.</li>
-  <li>A chapter is a label over the songs that follow it — shown above the song row,
-    in the strip above the timeline and in the setlist. No cue anchors to it. Put it
-    a bar before its first &gt;&gt;.</li>
   <li>Rename a section and every cue pointing at it is orphaned — on purpose,
     so renaming is a decision, not an accident.</li>
   <li>Rewrite the music inside a section as much as you like. The plan holds.</li>
