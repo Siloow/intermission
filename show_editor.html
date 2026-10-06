@@ -197,6 +197,29 @@
   #setlist{width:100%;border-collapse:collapse;font-size:var(--fs-sm)}
   #setlist td{padding:5px 2px;border-bottom:1px solid var(--border)}
   #orphans button{height:auto;min-height:28px;white-space:normal;text-align:left;padding:4px 8px}
+
+  /* the preview: what the screen shows when, from the video lanes (a scrub strip) */
+  .head.preview{height:58px;background:#0b0c0f;border-bottom:1px solid var(--border-strong)}
+  .head.preview .name{position:sticky;left:6px;width:max-content;transform:translateY(4px);z-index:3;padding:1px 8px 1px 4px;
+    font-size:var(--fs-xs);font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);
+    background:rgba(14,15,18,.85);border-radius:5px;pointer-events:none}
+  .head.preview .empty{position:absolute;left:96px;top:20px;font-size:var(--fs-xs);color:var(--text-3);white-space:nowrap;pointer-events:none}
+  .pv{position:absolute;top:4px;bottom:4px;background:#000 left center/auto 100% repeat-x;
+    clip-path:inset(0 round 4px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+  .pv + .pv{border-left:2px solid #0b0c0f}
+  .pv.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+  .pv .lbl{position:sticky;left:8px;display:inline-flex;gap:5px;align-items:center;margin-top:22px;padding:1px 6px 1px 2px;
+    border-radius:3px;background:rgba(0,0,0,.66);color:#fff;font-size:10.5px;white-space:nowrap;pointer-events:none}
+  .pv .lbl small{opacity:.65;font-size:10px}
+  .tag{font-style:normal;font-weight:750;font-size:9px;letter-spacing:.04em;padding:0 4px;border-radius:2px;color:#111}
+  /* the monitor: the top clip at the playhead, playing along */
+  #monitor{padding:var(--s2) var(--s2) 0;border-bottom:1px solid var(--border)}
+  .mon-frame{position:relative;aspect-ratio:16/9;background:#000;border-radius:4px;overflow:hidden}
+  .mon-frame video,.mon-frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+  #mon-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--text-3);font-size:var(--fs-xs)}
+  #mon-cap{display:flex;gap:5px;align-items:center;padding:5px 2px 7px;font-size:var(--fs-xs);color:var(--text-2);
+    white-space:nowrap;overflow:hidden}
+  #mon-cap b{color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body class="app-page">
@@ -251,6 +274,11 @@
     </main>
 
     <aside class="inspector">
+      <div id="monitor" title="what the screen shows at the playhead: the top clip of Screen B, Screen A and TD">
+        <div class="mon-frame"><video id="mon-video" muted playsinline loop preload="auto"></video><img id="mon-img" alt="">
+          <span id="mon-empty">nothing on screen</span></div>
+        <div id="mon-cap">—</div>
+      </div>
       <div class="inspector-tabs" id="itabs">
         <button data-tab="cue">Cue<span class="count" id="sel-count" hidden></span></button>
         <button data-tab="show">Show</button>
@@ -332,6 +360,17 @@
         </div>
 
         <div class="panel" data-panel="view">
+          <div class="section">
+            <div class="section-title">Preview</div>
+            <p class="hint">The strip under the ruler is what the screen shows: the top clip of
+              Screen B, Screen A and TD at each moment (B over A, TD underneath). Drag along it to scrub;
+              the monitor above plays the clip at the playhead.</p>
+            <p class="hint dim" id="td-note">TouchDesigner: …</p>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button id="td-grab" title="cook each liveset scene for a moment and save a still (about 20 s)">Grab TD scenes</button>
+              <button id="td-grab-now" title="a still of the scene TouchDesigner shows now: for scenes that only wake up when played">Grab the one on screen</button>
+            </div>
+          </div>
           <div class="section">
             <div class="section-title">Zoom</div>
             <input id="zoom" type="range" min="0" max="1" step="0.001" value="0.5" title="from the whole set to a few bars">
@@ -606,7 +645,7 @@ const snapPtBar = bar => (+el("snap").value ? Math.round(bar) : Math.round(bar *
 // The same rule as cue_player.resolve(): clips and scenes are found by NAME in
 // the composition, so a clip that moves slot in Resolume keeps its cues.
 const laneLayer = lane => ((mapping.lanes || {})[lane] || {}).layer;
-const DEFAULT_END = {screen: "clear", overlay: "clear", lights: "clear", td: "clear", scenes: "hold", note: "hold"};
+const DEFAULT_END = {screen: "clear", overlay: "clear", lights: "clear", td: "hold", scenes: "hold", note: "hold"};
 const endMode = c => c.end || DEFAULT_END[c.lane] || "hold";
 
 // Fades on the video lanes, the same rules the player uses: a cue's own
@@ -615,7 +654,12 @@ const endMode = c => c.end || DEFAULT_END[c.lane] || "hold";
 // opacity eases up; with nothing after it, it eases down before the layer clears.
 const FADE_DEFAULTS = {screen: {in: 1, out: 1}, overlay: {in: 1, out: 1}, lights: {in: 0.5, out: 0.5}};
 const EASE_NAMES = {smooth: "smooth (S-curve)", linear: "straight", in: "ease in", out: "ease out"};
+// TD cues crossfade inside TouchDesigner (cue_player sends /scene <name> <fade>):
+// a bar unless the cue says, and a scene holds until the next one.
+const TD_FADE_BARS = 1;
+const tdTarget = () => Object.assign({host: "127.0.0.1", port: 10004}, mapping.td || {});
 const fadeDefault = (lane, which) => {
+  if (lane === "td") return which === "in" ? TD_FADE_BARS : 0;
   const d = (cues.fade_defaults || {})[lane];
   return d && d[which] != null ? +d[which] : ((FADE_DEFAULTS[lane] || {})[which] || 0);
 };
@@ -639,6 +683,11 @@ function neighbours(c){
   return {prev, next};
 }
 function fadeInfo(c){
+  if (c.lane === "td"){
+    const own = c.fade_bars != null && c.fade_bars !== "";
+    return {fin: Math.min(c.length_bars || 8, own ? +c.fade_bars : TD_FADE_BARS), out: 0, cross: true,
+            outNote: "TD holds a scene until the next", inAuto: !own, outAuto: true, hasNext: true};
+  }
   if (!FADE_DEFAULTS[c.lane]) return null;
   const len = c.length_bars || 8;
   const own = k => c[k] != null;
@@ -665,6 +714,13 @@ function resolveCue(c){
   if (Array.isArray(entry))
     return {ok: true, text: `raw OSC · ${entry.length} message${entry.length > 1 ? "s" : ""}`};
   if (!c.value) return {ok: false, text: "nothing chosen yet"};
+  if (c.lane === "td" && !entry){
+    const s = tdScenes.find(s => s.name === c.value);
+    const to = tdTarget();
+    if (String(c.value).trim().toLowerCase() === "black") return {ok: true, text: `fade to black · OSC ${to.host}:${to.port}`};
+    return s ? {ok: true, text: `TD scene ${s.index + 1} · /scene to ${to.host}:${to.port}`}
+             : {ok: false, text: tdScenes.length ? `no TD scene called “${c.value}”` : "no TD stills yet: View → Grab TD scenes"};
+  }
   const isLook = c.lane === "lights" && looks.looks.some(l => l.name === c.value);
   if (comp && comp.name){
     if (c.lane === "scenes"){
@@ -699,7 +755,8 @@ function resolveCue(c){
 const isOn = state => /^Connected/.test(state || "");
 const thumbUrl = clip => clip && clip.id ? `/arena/thumb/${clip.id}?v=${clip.thumb || ""}` : "";
 function cueDetail(c, r, bar){
-  const img = r.clip ? `<img src="${thumbUrl(r.clip)}" onerror="this.style.visibility='hidden'">` : "";
+  const src = r.clip ? thumbUrl(r.clip) : visualOf(c).img;
+  const img = src ? `<img src="${src}" onerror="this.style.visibility='hidden'">` : "";
   const mark = r.ok === false ? "✗ " : r.ok ? "✓ " : "";
   const sync = r.clip && r.clip.transport
     ? ` · ${r.clip.transport === "BPM Sync" ? "BPM Sync" + (r.clip.beatsnap && r.clip.beatsnap !== "None" ? ", " + r.clip.beatsnap : "") : r.clip.transport + " (not synced)"}`
@@ -712,6 +769,144 @@ function cueDetail(c, r, bar){
     c.note ? `<i>“${esc(c.note)}”</i>` : ""];
   return img + `<div class="info">${lines.join("")}</div>`;
 }
+
+// ---------------------------------------------------------------- preview ---
+// What the screen shows when: at each moment, the top clip of the video lanes.
+// Screen B sits over Screen A in Resolume; TD (its scenes, as stills grabbed by
+// td_stills.py) is put underneath both. A filmstrip under the ruler, and the
+// monitor plays the clip at the playhead. Fades and blend modes aren't shown.
+const PREVIEW_LANES = ["overlay", "screen", "td"];       // top first
+const LANE_TAG = {overlay: "B", screen: "A", td: "TD"};
+const laneLabel = id => (LANES.find(l => l[0] === id) || [])[1] || id;
+let tdScenes = [], tdBust = 0, previewSegs = [];
+const tdStill = s => `/td/still/${encodeURIComponent(s.name)}?v=${encodeURIComponent((s.grabbed || "") + "-" + tdBust)}`;
+function visualOf(c){
+  if (!c || !c.value) return {};
+  if (c.lane === "td"){
+    if (String(c.value).trim().toLowerCase() === "black") return {black: true};
+    const s = tdScenes.find(s => s.name === c.value);
+    return s ? {img: tdStill(s), td: s} : {};
+  }
+  const lib = libItems.clips.find(x => x.name === c.value);
+  if (lib) return {img: `/library/clipthumb/${encodeURIComponent(lib.name)}`,
+                   video: `/library/clipvideo/${encodeURIComponent(lib.name)}`};
+  if (libItems.live.some(x => x.name === c.value)) return {live: true};
+  const r = resolveCue(c);
+  return r.clip ? {img: thumbUrl(r.clip)} : {};
+}
+// where a cue's clip is up: to its end, or on until the next cue on its lane if it holds
+function shownSpan(c){
+  const b = cueBar(c);
+  if (b === null || !c.value) return null;
+  const next = cues.cues.reduce((m, x) => {
+    const xb = x.lane === c.lane && x !== c ? cueBar(x) : null;
+    return xb !== null && xb > b ? Math.min(m, xb) : m;
+  }, show.total_bars + 1);
+  const end = endMode(c) === "hold" ? next : Math.min(next, b + (c.length_bars || 8));
+  return end > b ? [b, end] : null;
+}
+function previewSegments(){
+  const spans = cues.cues.filter(c => PREVIEW_LANES.includes(c.lane))
+                         .map(c => ({c, s: shownSpan(c)})).filter(x => x.s);
+  const cuts = [...new Set(spans.flatMap(x => x.s))].sort((a, b) => a - b);
+  const segs = [];
+  for (let i = 0; i < cuts.length - 1; i++){
+    const a = cuts[i], b = cuts[i + 1], mid = (a + b) / 2;
+    const stack = PREVIEW_LANES.map(l => spans.filter(x => x.c.lane === l && x.s[0] <= mid && mid < x.s[1])
+                                              .sort((p, q) => q.s[0] - p.s[0])[0])
+                               .filter(Boolean).map(x => x.c);
+    if (!stack.length) continue;
+    const key = stack.map(c => c.id).join(), last = segs[segs.length - 1];
+    if (last && last.key === key && last.end === a) last.end = b;
+    else segs.push({start: a, end: b, stack, key});
+  }
+  return segs;
+}
+function previewRow(){
+  previewSegs = previewSegments();
+  const row = document.createElement("div"); row.className = "head preview";
+  row.title = "what the screen shows: drag along it to scrub";
+  row.innerHTML = `<span class="name">Preview</span>` + (previewSegs.length ? "" :
+    `<span class="empty">nothing on the video lanes yet: clips on Screen A / B, TD scenes on TD</span>`);
+  previewSegs.forEach(s => {
+    const top = s.stack[0], v = visualOf(top);
+    const d = document.createElement("div");
+    d.className = "pv" + (s.stack.some(c => selSet.has(c.id)) ? " sel" : "");
+    d.style.left = barToX(s.start) + "px";
+    d.style.width = (s.end - s.start) * pxPerBar + "px";
+    if (v.img) d.style.backgroundImage = `url("${v.img}")`;
+    d.innerHTML = `<span class="lbl"><i class="tag" style="background:var(--${top.lane})">${LANE_TAG[top.lane]}</i>` +
+      esc(top.value) + (s.stack.length > 1 ? ` <small>over ${s.stack.slice(1).map(c => esc(c.value)).join(", ")}</small>` : "") +
+      `</span>`;
+    d.title = s.stack.map(c => `${laneLabel(c.lane)}: ${c.value}`).join("\n") +
+              (v.live ? "\n(a live source: no picture here)" : !v.img && !v.black ? "\n(no picture yet)" : "") +
+              "\ndrag along the strip to scrub";
+    row.appendChild(d);
+  });
+  return row;
+}
+// the monitor, every frame: the top clip at the playhead. A clip loops from its
+// cue's start, like a Resolume clip that's connected there and left running.
+let monKey = null;
+function paintMonitor(bar, playing){
+  const seg = previewSegs.find(s => s.start <= bar + 1e-6 && bar < s.end);
+  const top = seg ? seg.stack[0] : null;
+  const v = top ? visualOf(top) : {};
+  const vid = el("mon-video"), img = el("mon-img");
+  const key = top ? `${seg.key}|${top.value}|${v.video || v.img || ""}` : "";
+  if (key !== monKey){
+    monKey = key;
+    el("mon-cap").innerHTML = !top ? "nothing on the video lanes here" :
+      `<i class="tag" style="background:var(--${top.lane})">${LANE_TAG[top.lane]}</i><b>${esc(top.value)}</b>` +
+      (seg.stack.length > 1 ? `<span>over ${seg.stack.slice(1).map(c => esc(c.value)).join(", ")}</span>` : "");
+    if (v.video){
+      if (vid.getAttribute("src") !== v.video) vid.src = v.video;
+      vid.style.display = "block"; img.style.display = "none";
+    } else {
+      vid.pause(); vid.style.display = "none";
+      if (v.img){ img.src = v.img; img.style.display = "block"; } else img.style.display = "none";
+    }
+    el("mon-empty").textContent = !top ? "nothing on screen" : v.live ? "a live source" : v.black ? "black" : v.video || v.img ? "" : "no picture yet";
+  }
+  if (v.video && vid.readyState >= 1 && vid.duration){
+    const dur = vid.duration, want = (((bar - cueBar(top)) * secPerBar()) % dur + dur) % dur;
+    const off = Math.abs(vid.currentTime - want), drift = Math.min(off, dur - off);
+    if (playing){
+      if (vid.paused) vid.play().catch(() => {});
+      if (drift > 0.3) vid.currentTime = want;
+    } else {
+      if (!vid.paused) vid.pause();
+      if (drift > 0.04) vid.currentTime = want;
+    }
+  }
+}
+async function loadTd(){
+  try { tdScenes = (await (await fetch("/td/list", {cache: "no-store"})).json()).scenes || []; }
+  catch(e){ tdScenes = []; }
+  const when = tdScenes.map(s => s.grabbed).filter(Boolean).sort().pop();
+  el("td-note").textContent = tdScenes.length
+    ? `TouchDesigner: ${tdScenes.length} liveset scenes${when ? `, stills from ${when}` : ""}. Pick them on the TD lane.`
+    : "TouchDesigner: no stills yet. Open the liveset (td_mcp_host.toe), then grab.";
+}
+async function grabTd(current){
+  const b = [el("td-grab"), el("td-grab-now")];
+  b.forEach(x => x.disabled = true);
+  el("td-note").textContent = current ? "grabbing the scene on screen…"
+                                      : "grabbing every scene: about 20 s, TouchDesigner keeps running…";
+  try {
+    const r = await fetch("/td/grab", {method: "POST", headers: {"Content-Type": "application/json"},
+                                       body: JSON.stringify({current})});
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || r.statusText);
+    tdBust++; monKey = null;
+    await loadTd();
+    if ((out.missed || []).length) el("td-note").textContent += ` No still came back for ${out.missed.join(", ")}.`;
+    draw();
+  } catch(e){ el("td-note").textContent = "TouchDesigner: " + e.message; }
+  b.forEach(x => x.disabled = false);
+}
+el("td-grab").onclick = () => grabTd(false);
+el("td-grab-now").onclick = () => grabTd(true);
 
 // ------------------------------------------------------------------- data ---
 async function load(){
@@ -730,6 +925,7 @@ async function load(){
     const rig = await (await fetch("rig.json", {cache:"no-store"})).json();
     rigNames = (rig.fixtures || []).map(f => f.name);
   } catch(e){ rigNames = []; }
+  await Promise.all([loadLibrary(), loadTd()]);         // the pictures for the preview
   el("summary").textContent =
     `${show.songs.length} songs · ${show.total_bars.toFixed(0)} bars · ` +
     `${(show.total_seconds/60).toFixed(1)} min · ${show.tempo} bpm` +
@@ -832,7 +1028,8 @@ function draw(sidebar){
   const wave = document.createElement("div"); wave.className = "head wave";
   wave.title = "the bounce playing along · click to jump there";
   wave.appendChild(waveCanvas);
-  tl.append(...(chaps ? [chaps] : []), songs, secs, wave, ruler);
+  tl.append(...(chaps ? [chaps] : []), songs, secs, wave, ruler, previewRow());
+  monKey = null;
   drawWave(); drawOverview(lastBar ?? undefined);
 
   laneRows = [];
@@ -1171,7 +1368,7 @@ function drawSidebar(){
   el("c-fade").closest(".row").style.display = c.lane === "note" ? "none" : "";
   const fs = (fi ? fi.fin : (+c.fade_bars || 0)) * bpb() * 60 / show.tempo;
   el("fade-secs").textContent = (fs ? `bars · ${fs.toFixed(1)}s` : "bars") + (fi && fi.cross ? " · crossfade" : "") +
-                                (fi && fi.cross && fs > 10 ? " → 10s, Resolume's max" : "");
+                                (fi && fi.cross && fs > 10 && c.lane !== "td" ? " → 10s, Resolume's max" : "");
   el("fadeout-row").style.display = fi ? "" : "none";
   if (fi){
     el("c-fadeout").value = c.fade_out_bars != null ? c.fade_out_bars : "";
@@ -2114,6 +2311,12 @@ function pickOptions(c){
                    sub: `${x.live ? "live · " : ""}in the Library${x.song ? " · ♪ " + x.song : ""} · ` +
                         (comp && comp.live ? `choosing installs it into ${L ? L.name : "the layer"}` : "Resolume isn't answering")});
       });
+    if (c.lane === "td")
+      tdScenes.forEach(s => { if (!opts.some(o => o.value === s.name))
+        opts.push({value: s.name, label: s.name, img: s.grabbed ? tdStill(s) : "",
+                   sub: `TD scene ${s.index + 1} of ${tdScenes.length}${s.grabbed ? "" : " · no still yet"}`}); });
+    if (c.lane === "td" && !opts.some(o => o.value === "black"))
+      opts.push({value: "black", label: "black", sub: "TD fades to black"});
     if (c.lane === "lights")
       looks.looks.forEach(l => { if (!opts.some(o => o.value === l.name))
         opts.push({value: l.name, label: l.name, look: true,
@@ -2665,6 +2868,7 @@ function tick(){
     const ids = new Set(liveState.recent.slice(-3).map(r => r.id));
     document.querySelectorAll(".cue").forEach(c => c.classList.toggle("fired", ids.has(c.dataset.id)));
   }
+  paintMonitor(bar, !audio.paused || (live && liveState.playing !== false));
   if (!audio.paused || live){
     const view = el("scroll"), x = barToX(bar);
     if (x < view.scrollLeft + 60 || x > view.scrollLeft + view.clientWidth - 140)

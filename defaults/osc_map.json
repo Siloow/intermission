@@ -3,6 +3,11 @@
     "host": "127.0.0.1",
     "port": 7000
   },
+  "//td": "TouchDesigner's liveset: the TD lane's cues go here as OSC /scene <name> <fade seconds> (its scene_ctl). Another Mac running TD: its address.",
+  "td": {
+    "host": "127.0.0.1",
+    "port": 10004
+  },
   "//": "One entry per cue value, as 'lane:value'. Either {layer, clip} for Resolume's connect message, or a list of raw OSC messages.",
   "cues": {
     "screen:slow grain": {
@@ -270,7 +275,7 @@
       "curve": 0.4
     },
     {
-      "name": "Composition · Transform · Scale",
+      "name": "Composition \u00b7 Transform \u00b7 Scale",
       "resolume": [
         "composition",
         "effect",
@@ -292,7 +297,7 @@
       "curve": 0
     },
     {
-      "name": "Screen A · Transform · Position X",
+      "name": "Screen A \u00b7 Transform \u00b7 Position X",
       "resolume": [
         "layer",
         1,
@@ -312,7 +317,7 @@
     "Drop": 3,
     "Breakdown": 4
   },
-  "//lanes": "Where each timeline lane's clips live: the Resolume layer they load into, and the folder the picker browses. content/… is next to the tools (the light-loop presets); anything else is inside the show folder. arena_load.py and the Load clip button in the timeline both use this.",
+  "//lanes": "Where each timeline lane's clips live: the Resolume layer they load into, and the folder the picker browses. content/\u2026 is next to the tools (the light-loop presets); anything else is inside the show folder. arena_load.py and the Load clip button in the timeline both use this.",
   "lanes": {
     "lights": {
       "layer": 3,

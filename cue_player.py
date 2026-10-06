@@ -189,6 +189,32 @@ def default_map():
     }
 
 
+# The TD lane: a scene of the TouchDesigner liveset, by name. It goes to TD's own
+# OSC port (osc_map.json "td", else 127.0.0.1:10004) as /scene <name> <fade s>,
+# and the set crossfades straight to it (scene_ctl in the liveset). "black"
+# fades to black. td_stills.py's list says which names exist.
+TD_DEFAULT = {"host": "127.0.0.1", "port": 10004}
+TD_FADE_BARS = 1.0                   # a TD cue's crossfade when it doesn't set one
+
+
+def td_target(mapping):
+    return {**TD_DEFAULT, **(mapping.get("td") or {})}
+
+
+def td_scenes():
+    try:
+        return {s["name"] for s in json.load(open(showfolder.path("td", "scenes.json"))).get("scenes", [])}
+    except (OSError, ValueError, KeyError, TypeError):
+        return set()
+
+
+def td_fade(cue, show, key="fade_bars"):
+    """Seconds: the cue's own fade in bars (0 is a cut), else TD_FADE_BARS."""
+    bars = cue.get(key)
+    bars = TD_FADE_BARS if bars is None or bars == "" else float(bars)
+    return bars * show.get("beats_per_bar", 4) * 60.0 / show["tempo"]
+
+
 def resolve(lane, value, mapping, snap=None, layer=None):
     """What a lane:value means to Resolume: (messages, problem).
 
@@ -203,6 +229,14 @@ def resolve(lane, value, mapping, snap=None, layer=None):
         return [], None
     if isinstance(entry, list):
         return [(m["address"], m.get("args", [])) for m in entry], None
+    if lane == "td":
+        v = str(value or "").strip()
+        if not v:
+            return None, "no value set"
+        known = td_scenes()
+        if known and v.lower() != "black" and v not in known:
+            return None, f"no TD scene called '{v}' (td_stills.py lists them)"
+        return [("/scene", [v])], None
     if snap and value:
         if lane == "scenes":
             col = arena_load.find_column(snap, value)
@@ -245,12 +279,13 @@ def compile_panic(mapping, snap=None):
             continue                           # a comment
         messages, problem = resolve(lane, value, mapping, snap)
         out.append({"cue": {"lane": lane, "value": value, "id": "panic"}, "beat": 0,
-                    "bar": 0, "messages": messages, "problem": problem})
+                    "bar": 0, "messages": messages, "problem": problem,
+                    "to": td_target(mapping) if lane == "td" else None})
     return out
 
 
 # what happens when a cue's length runs out and nothing on its lane takes over
-DEFAULT_END = {"screen": "clear", "overlay": "clear", "lights": "clear", "td": "clear",
+DEFAULT_END = {"screen": "clear", "overlay": "clear", "lights": "clear", "td": "hold",
                "scenes": "hold", "note": "hold"}
 
 
@@ -356,7 +391,8 @@ def compile_cues(show, cues, mapping, snap=None):
         bar = sec["bar"] + (c.get("offset_bars") or 0)
         messages, problem = resolve(c["lane"], c.get("value"), mapping, snap, c.get("layer"))
         out.append({"cue": c, "beat": (bar - 1) * bpb, "bar": bar,
-                    "messages": messages, "problem": problem})
+                    "messages": messages, "problem": problem,
+                    "to": td_target(mapping) if c["lane"] == "td" else None})
     plan_fades(out, cues, bpb)
     ends = []
     for e in out:
@@ -725,6 +761,15 @@ class Player:
             src = entry["end_of"]
             if src["problem"] or not src["messages"]:
                 return
+            if src.get("to"):
+                # a TD cue set to clear: the set fades to black, unless the next takes over
+                if entry.get("handover"):
+                    return
+                secs = 0.0 if why else td_fade(c, self.show, "fade_out_bars")
+                print(f"{CLEAR}   >> bar {entry['bar']:.0f}  td     ({c.get('value')} ends)   "
+                      f"TD to black{'   (' + why + ')' if why else ''}")
+                self.send_td(src["to"], [("/scene", ["black"])], secs)
+                return
             n = self.fades.n_layers if self.fades else 8
             layers = handover_layers(entry, n)
             if not layers:
@@ -738,6 +783,15 @@ class Player:
         tag = f"{at}  {c['lane']:<6} {c.get('value') or '-'}"
         if entry["problem"]:
             print(f"{CLEAR}   !! {tag}   {entry['problem']}")
+            return
+        if entry.get("to"):
+            # TouchDesigner crossfades by itself; a restate or a panic cuts
+            secs = 0.0 if why else td_fade(c, self.show)
+            print(f"{CLEAR}   >> {tag}{'   (' + why + ')' if why else ''}   "
+                  f"{'cut' if not secs else f'crossfade {secs:.2g}s'}")
+            self.send_td(entry["to"], entry["messages"], secs)
+            self.recent.append({"bar": entry["bar"], "lane": c["lane"], "value": c.get("value"),
+                                "id": c.get("id")})
             return
         # a fade only when the cue is played into; a restate or a panic snaps.
         # On a video lane Resolume's transition is only for a crossfade within the
@@ -769,6 +823,12 @@ class Player:
                             "id": c.get("id")})
         if self.preview and c["lane"] == "lights":
             self.write_preview(c.get("value"))
+
+    def send_td(self, to, messages, secs):
+        """To TouchDesigner's scene control: each message with the fade added."""
+        snd = self.sender_for(to)
+        for address, args in messages:
+            snd.send(address, list(args) + [float(secs)])
 
     def write_preview(self, look_name):
         """Rehearsing without Resolume: let the previz show the look itself."""
@@ -892,7 +952,9 @@ class Player:
         for lane in ("scenes", "screen", "overlay", "lights", "td"):
             if only is not None and lane not in only:
                 continue
-            if lane in latest and not latest[lane].get("end_of"):
+            if lane in latest and (not latest[lane].get("end_of")
+                                   or (latest[lane]["end_of"].get("to") and not latest[lane].get("handover"))):
+                # (a TD cue that has ended into black counts: TD has no empty layer)
                 self.fire(latest[lane], "restate" if only is None else "edited")
 
 

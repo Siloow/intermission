@@ -46,6 +46,13 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 | `Intermission.command`, `host.py`, `host.html` | the **Host**: one click to open everything for test or the show, projects (save, load, new), and the versions of everything the show runs on |
 | `library.html`, `library.py` | the **Library**: gathers renders, sequences and live sources, converts to DXV, installs into the screen layers. Which folders it looks in is per Mac (`sources.json`, set on the page) |
 | `library.json` *(show folder)* | what's in the show (the media: `library/` beside it) |
+| `td_stills.py` | stills of the TouchDesigner liveset's scenes, through the bridge on 9981, for the timeline's TD lane and Preview strip (`td/` in the show folder; also the View tab's Grab buttons) |
+
+The **TD lane** switches the liveset for real: `cue_player` sends each TD cue as OSC
+`/scene <name> <fade s>` to `osc_map.json` → `td` (default `127.0.0.1:10004`), and the
+liveset's `scene_ctl` crossfades straight to that scene. The fade is the cue's own (1 bar
+unless set; 0 is a cut), a jump in the timeline cuts, and a scene holds until the next
+TD cue. `black` fades TD to black.
 | `lib/band.js` | plays a loop or look onto the band in the browser, for the floor plan's **Loop** mode |
 | `band.py` | **where each fixture sits on the control band**; renders looks as band stills |
 | `make_light_loops.py` | builds the control-band loops the pars sample |

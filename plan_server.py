@@ -18,6 +18,7 @@ import arena_load                    # talks to Resolume's REST API
 import band                          # the control band: looks rendered as clips
 import library                       # the show's visuals, gathered from everywhere
 import host                          # projects, and starting the software
+import td_stills                     # stills of the TouchDesigner scenes
 import hashlib
 import socket
 from cue_player import osc_encode    # to hand the timeline's playhead to the player
@@ -323,6 +324,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path.startswith("/library/clipthumb/"):
             name = os.path.basename(urllib.parse.unquote(path))
             return self.send_file(os.path.join(library.THUMBS, name + ".jpg"))
+        if path.startswith("/library/clipvideo/"):
+            # a show clip the browser can play, for the timeline's monitor
+            out = library.clip_video(os.path.basename(urllib.parse.unquote(path)))
+            return self.send_file(out) if out else self._send(404, b"", "text/plain")
+        if path == "/td/list":
+            # the TouchDesigner scenes, as td_stills.py last grabbed them
+            return self._send(200, json.dumps(td_stills.load()).encode())
+        if path.startswith("/td/still/"):
+            name = os.path.basename(urllib.parse.unquote(path))
+            return self.send_file(os.path.join(td_stills.STILLS, name + ".jpg"))
         if path == "/library/list":
             # just the show's visuals, for the timeline's quick picker (no rescan)
             cfg = library.config()
@@ -596,6 +607,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(200, json.dumps(report).encode())
         if path.startswith("/library/"):
             return self.library_post(path)
+        if path == "/td/grab":
+            # stills of the TouchDesigner scenes: every scene, or the one on screen
+            try:
+                n = int(self.headers.get("Content-Length", 0))
+                req = json.loads(self.rfile.read(n) or b"{}")
+                out = td_stills.grab(current=bool(req.get("current")), names=req.get("names"),
+                                     log=lambda *a: None)
+            except (ValueError, TypeError, OSError, RuntimeError) as e:
+                return self._send(502, json.dumps({"error": str(e)}).encode())
+            return self._send(200, json.dumps(out).encode())
         if path.startswith("/host/") or path.startswith("/projects/"):
             return self.host_post(path)
         if path == "/transport":

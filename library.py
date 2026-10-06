@@ -343,6 +343,29 @@ def preview(c):
     return out if os.path.exists(out) else None
 
 
+def clip_video(name):
+    """A show clip as a small H.264 the browser can play (it can't play DXV), the
+    whole clip, for the timeline's monitor. Remade when the clip's file changes."""
+    clip = next((x for x in config()["clips"] if x["name"] == name), None)
+    if not clip:
+        return None
+    src = os.path.join(SHOW, clip["file"])
+    if not os.path.exists(src):
+        return None
+    key = hashlib.sha1(f"{src}{os.path.getmtime(src)}".encode()).hexdigest()[:12]
+    out = os.path.join(CACHE, "clipvideo", key + ".mp4")
+    if not os.path.exists(out):
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        tmp = out + ".part.mp4"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-t", "120",
+                        "-vf", "scale=480:-2,format=yuv420p", "-an", "-c:v", "libx264",
+                        "-preset", "veryfast", "-crf", "26", "-movflags", "+faststart", tmp],
+                       capture_output=True, timeout=300)
+        if os.path.exists(tmp):
+            os.replace(tmp, out)
+    return out if os.path.exists(out) else None
+
+
 # -------------------------------------------------------------- adding them --
 def add(cid, name, tags=(), who="", song="", fit="fit"):
     """Start converting a candidate into the show. Returns a job id."""
