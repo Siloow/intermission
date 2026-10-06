@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intermission</title>
+<link rel="icon" href="/lib/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/lib/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/lib/apple-touch-icon.png">
+<link rel="stylesheet" href="/lib/ui.css">
+<style>
+  /* The shell: one top bar, and each page in its own frame under it. A page you
+     leave isn't unloaded, only hidden, so the timeline keeps playing (its audio,
+     Drive and playhead) while you look at the floor plan or the Library. */
+  html,body{height:100%;margin:0;overflow:hidden;background:var(--bg)}
+  .shell{display:grid;grid-template-rows:var(--topbar-h) minmax(0,1fr);height:100vh}
+  #frames{position:relative;min-height:0}
+  #frames iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg);
+    visibility:hidden;pointer-events:none}
+  #frames iframe.on{visibility:visible;pointer-events:auto}
+  /* the bounce playing in the timeline while you are elsewhere */
+  .tabs-nav a .playing{display:none;margin-left:6px;width:6px;height:6px;border-radius:50%;
+    background:var(--ok);box-shadow:0 0 6px rgba(79,199,135,.7);vertical-align:middle}
+  .tabs-nav a.playing .playing{display:inline-block}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="topbar">
+    <div class="brand"><i></i><span>Intermission</span></div>
+    <div class="tabs-nav">
+      <a href="/host">Host</a>
+      <a href="/">Floor plan</a>
+      <a href="/show">Show timeline<span class="playing" title="the bounce is playing"></span></a>
+      <a href="/library">Library</a>
+      <a href="/docs">How it works</a>
+    </div>
+  </nav>
+  <div id="frames"></div>
+</div>
+<script>
+window.INTERMISSION_SHELL = true;
+const ROUTES = ["/host", "/", "/show", "/library", "/docs"];
+const ALIASES = {"/index.html": "/", "/plan_editor.html": "/", "/show_editor.html": "/show",
+                 "/host.html": "/host", "/library.html": "/library", "/docs.html": "/docs"};
+const route = p => ALIASES[p] || p;
+const frames = {};
+let current = null;
+
+function frameFor(r, hash){
+  let f = frames[r];
+  if (!f){
+    f = document.createElement("iframe");
+    f.src = r + "?embed=1" + (hash || "");
+    f.title = r;
+    f.addEventListener("load", () => { if (r === current) document.title = f.contentDocument.title; });
+    document.getElementById("frames").appendChild(f);
+    frames[r] = f;
+  } else if (hash){
+    try { f.contentWindow.location.hash = hash; } catch(e){}
+  }
+  return f;
+}
+
+function go(href, push){
+  const u = new URL(href, location.href);
+  const r = route(u.pathname);
+  if (!ROUTES.includes(r)) { location.href = href; return; }
+  const f = frameFor(r, u.hash);
+  current = r;
+  Object.entries(frames).forEach(([k, x]) => x.classList.toggle("on", k === r));
+  document.querySelectorAll(".tabs-nav a").forEach(a => a.classList.toggle("here", route(new URL(a.href).pathname) === r));
+  try { if (f.contentDocument && f.contentDocument.title) document.title = f.contentDocument.title; } catch(e){}
+  if (push) history.pushState({r}, "", r + u.hash);
+  setTimeout(() => { try { f.contentWindow.focus(); } catch(e){} }, 0);
+}
+
+// the shell's own links (the tabs, the version badge), and the pages' links
+document.addEventListener("click", e => {
+  const a = e.target.closest("a[href]");
+  if (!a || a.target || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  const u = new URL(a.href, location.href);
+  if (u.origin !== location.origin || !ROUTES.includes(route(u.pathname))) return;
+  e.preventDefault();
+  go(u.pathname + u.hash, true);
+});
+addEventListener("message", e => {
+  if (e.origin === location.origin && e.data && e.data.go) go(e.data.go, true);
+});
+addEventListener("popstate", () => go(location.pathname + location.hash, false));
+
+// a dot on the timeline's tab while its bounce plays and you are elsewhere
+setInterval(() => {
+  const f = frames["/show"];
+  let playing = false;
+  try { const a = f && f.contentWindow.timelineAudio; playing = !!(a && !a.paused); } catch(e){}
+  document.querySelector('.tabs-nav a[href="/show"]').classList.toggle("playing", playing && current !== "/show");
+}, 500);
+
+go(location.pathname + location.hash, false);
+history.replaceState({r: current}, "", location.pathname + location.hash);
+</script>
+<script src="/lib/status.js"></script>
+</body>
+</html>
