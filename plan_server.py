@@ -46,6 +46,9 @@ SHOW_PAGE = os.path.join(HERE, "show_editor.html")
 DOCS_PAGE = os.path.join(HERE, "docs.html")
 CHANGELOG = os.path.join(HERE, "CHANGELOG.md")
 LIBRARY_PAGE = os.path.join(HERE, "library.html")
+SHELL_PAGE = os.path.join(HERE, "shell.html")    # one top bar, each page in a frame: the timeline keeps playing
+SHELL_ROUTES = ("/", "/index.html", "/plan_editor.html", "/show", "/show_editor.html", "/docs", "/docs.html",
+                "/host", "/host.html", "/library", "/library.html")
 HOST_PAGE = os.path.join(HERE, "host.html")
 _scan = {"t": 0.0, "v": None}
 
@@ -267,6 +270,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
+        if path in SHELL_ROUTES and "embed=1" not in urllib.parse.urlsplit(self.path).query:
+            # the page itself comes in the shell's frame, asked for with ?embed=1
+            try:
+                return self._send(200, open(SHELL_PAGE, "rb").read(), "text/html; charset=utf-8")
+            except OSError:
+                pass                                # no shell: the page on its own, as before
         if path in ("/", "/index.html", "/plan_editor.html"):
             try:
                 body = open(PAGE, "rb").read()
@@ -328,6 +337,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # a show clip the browser can play, for the timeline's monitor
             out = library.clip_video(os.path.basename(urllib.parse.unquote(path)))
             return self.send_file(out) if out else self._send(404, b"", "text/plain")
+        if path == "/td/frame":
+            # the set's output now, a small JPEG, for the timeline's monitor (TD's preview_web)
+            t = td_stills.target()
+            try:
+                with urllib.request.urlopen(f"http://{t['host']}:{int(t.get('web', 9982))}/frame", timeout=0.6) as r:
+                    body, scene = r.read(), r.headers.get("X-Scene", "")
+            except (OSError, ValueError):
+                return self._send(503, b"", "text/plain")
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Scene", scene)
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path == "/td/list":
             # the TouchDesigner scenes, as td_stills.py last grabbed them
             return self._send(200, json.dumps(td_stills.load()).encode())

@@ -31,7 +31,7 @@ import argparse, json, os, socket, subprocess, sys, time
 import showfolder
 
 DEFAULT_SET = os.path.join("td", "liveset", "liveset.toe")
-TD_DEFAULT = {"host": "127.0.0.1", "port": 10004}
+TD_DEFAULT = {"host": "127.0.0.1", "port": 10004, "web": 9982}   # web: the set's live preview frames
 WARM_SECONDS = 0.75                     # the set cooks an unshown scene 45 frames before saving it
 WIDTH = 640                             # stills are kept this wide
 

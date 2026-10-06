@@ -377,9 +377,9 @@ function side(){
       const inA = [...data.clips, ...data.live].filter(x => inLayer(x.name, "screen")).length;
       const inB = [...data.clips, ...data.live].filter(x => inLayer(x.name, "overlay")).length;
       S.innerHTML = jobsHtml + `<div class="section"><div class="section-title">In the show <span class="spacer"></span><span class="badge">${n}</span></div>
-        <p class="hint">${status && status.live ? `In Resolume's “${esc(status.composition)}”: <b>${inA}</b> in Screen A (${esc(layerName("screen"))}), <b>${inB}</b> in Screen B (${esc(layerName("overlay"))}).` : "Resolume isn't answering — open Arena to install."}</p>
+        <p class="hint">${status && status.live ? `In Resolume's “${esc(status.composition)}”: <b>${inA}</b> in Base (${esc(layerName("screen"))}), <b>${inB}</b> in Overlay (${esc(layerName("overlay"))}).` : "Resolume isn't answering — open Arena to install."}</p>
         <p class="hint">Select what to install; <span class="kbd">shift</span>-click for several. Once a clip is in a layer, the timeline's Resolume panel and quick picker offer it.</p>
-        <div class="btns"><button id="all-a" ${status && status.live ? "" : "disabled"}>Install all in Screen A</button><button id="all-b" ${status && status.live ? "" : "disabled"}>… in Screen B</button></div></div>`;
+        <div class="btns"><button id="all-a" ${status && status.live ? "" : "disabled"}>Install all in Base</button><button id="all-b" ${status && status.live ? "" : "disabled"}>… in Overlay</button></div></div>`;
       const all = [...data.clips, ...data.live].map(x => x.name);
       el("all-a").onclick = () => install(all, "screen"); el("all-b").onclick = () => install(all, "overlay");
       return;
@@ -392,8 +392,8 @@ function side(){
         <div class="row"><label>Tags</label><input id="e-tags" value="${esc((one.tags || []).join(", "))}"></div>` : ""}
       <div class="section-title" style="margin-top:12px">In Resolume</div>
       <div class="pickrow">
-        <button id="i-a" ${status && status.live ? "" : "disabled"}>${chosen.every(x => inLayer(x.name, "screen")) ? "✓ " : ""}Screen A</button>
-        <button id="i-b" ${status && status.live ? "" : "disabled"}>${chosen.every(x => inLayer(x.name, "overlay")) ? "✓ " : ""}Screen B</button>
+        <button id="i-a" ${status && status.live ? "" : "disabled"}>${chosen.every(x => inLayer(x.name, "screen")) ? "✓ " : ""}Base</button>
+        <button id="i-b" ${status && status.live ? "" : "disabled"}>${chosen.every(x => inLayer(x.name, "overlay")) ? "✓ " : ""}Overlay</button>
       </div>
       <p class="hint dim" style="margin-top:6px">Installs into ${esc(layerName("screen"))} or ${esc(layerName("overlay"))}; one clip can be in both. Columns are added at the end if a layer is full.</p>
       ${one && one._kind === "live" ? `<div class="btns"><button id="e-adopt" ${status && status.live ? "" : "disabled"}
@@ -452,10 +452,10 @@ async function install(names, lane){
     if (out.installed.length) bits.push(`${out.installed.length} installed`);
     if (out.skipped.length) bits.push(`${out.skipped.length} already there`);
     if (out.columns_added) bits.push(`${out.columns_added} column${out.columns_added > 1 ? "s" : ""} added`);
-    let msg = `${lane === "overlay" ? "Screen B" : "Screen A"}: ${bits.join(" · ") || "nothing to do"}`;
+    let msg = `${lane === "overlay" ? "Overlay" : "Base"}: ${bits.join(" · ") || "nothing to do"}`;
     if ((out.by_hand || []).length)
       msg += `\n\nThis Arena can't load live sources itself (7.19). For ${out.by_hand.join(", ")}:\n` +
-             `1. In Arena, drag the Syphon source from Sources into a free slot in ${lane === "overlay" ? "Screen B" : "Screen A"}'s layer.\n` +
+             `1. In Arena, drag the Syphon source from Sources into a free slot in ${lane === "overlay" ? "Overlay" : "Base"}'s layer.\n` +
              `2. Click that clip so it's selected.\n3. Here, select the live entry and press “Name the selected Arena clip”.`;
     alert(msg);
   } catch(e){ alert("Install: " + e.message); }

@@ -277,22 +277,22 @@ effects, blend mode and automation stay on whatever plays there.</p>
 <table>
   <tr><th>Layer</th><th>Name</th><th>Holds</th><th>Lane</th></tr>
   <tr><td>3 (top)</td><td>Lights</td><td>the presets and looks, 1920x120, moved down onto the band</td><td>Lights</td></tr>
-  <tr><td>2</td><td>Screen B</td><td>overlays, text, TouchDesigner live sources</td><td>Screen B</td></tr>
-  <tr><td>1</td><td>Screen A</td><td>every background visual</td><td>Screen A</td></tr>
+  <tr><td>2</td><td>Overlay</td><td>overlays, text, TouchDesigner live sources</td><td>Overlay</td></tr>
+  <tr><td>1</td><td>Base</td><td>every background visual</td><td>Base</td></tr>
 </table>
 <ol>
   <li><b>Size 1920x1200</b>: the 1080 picture on top, the 120-row light band under it.</li>
   <li><b>Name the layers</b> as above. The tools go by the numbers in
     <code>osc_map.json</code> → <code>lanes</code>; the names are for you.</li>
   <li><b>Move the picture up and the lights down.</b> Clips fit to the width
-    and sit in the middle, so with the layer's Transform: Screen A and B up 60 px,
+    and sit in the middle, so with the layer's Transform: Base and Overlay up 60 px,
     Lights down 540 px. Check it in the composition preview once.</li>
-  <li><b>Columns are scenes</b>, if you use them: name them, the Scenes lane
+  <li><b>Columns are scenes</b>, if you use them: name them, the Columns lane
     fires them by name. They fire every layer at once.</li>
   <li><b>Advanced Output</b>: the projector's slice takes the top 1920x1080; the
     Lumiverse fixtures sit on the band at <code>python3 band.py</code>'s points,
     in patch order. The Syphon bridge drops the band by itself.</li>
-  <li><b>Fill it from here</b>: Library → Screen A/B, the preset browser's
+  <li><b>Fill it from here</b>: Library → Base/Overlay, the preset browser's
     Install, or drag a clip from another layer onto a lane — it's copied into
     the lane's layer.</li>
   <li><b>Save</b> it, and play <code>identify</code> to check the patch.</li>
@@ -511,7 +511,7 @@ Drop 1              bar 33
   <li><b>Screen and Lights cues</b> name a clip exactly as Resolume calls it. The
     player finds it <b>by name</b> in the open composition, in the lane's layer.
     Move a clip to another slot and its cues follow; rename it and they turn ✗.</li>
-  <li><b>Scenes</b> are Resolume <b>columns</b>, by name. Name a column in
+  <li><b>Columns</b> are Resolume <b>columns</b>, by name. Name a column in
     Resolume ("Drop 1") and that is the scene.</li>
   <li><b>Bounces</b> are dated: <code>Set_2026-09-21.mp3</code>.</li>
   <li><b>Fixtures</b> are <code>PAR_01</code> … in the order they sit on the floor,
@@ -533,7 +533,7 @@ painting never means hunting through folders. Three views:</p>
     stills, grouped by project. Drafts, previews and render passes (depth, EXR) are hidden
     until you tick <b>drafts</b>. Hover a card and it plays.</li>
   <li><b>In the show</b> — what you've added: a name, a song, tags, who added it.
-    <b>Screen A</b> / <b>Screen B</b> install it into that screen layer in Resolume;
+    <b>Base</b> / <b>Overlay</b> install it into that screen layer in Resolume;
     after that the timeline offers it.</li>
   <li><b>Live</b> — sources Resolume can see from outside it: TouchDesigner over
     Syphon, NDI. Add one and it's in the show like a clip, named your way.</li>
@@ -560,19 +560,19 @@ is in git.</div>
 <h3>From the Library into the timeline</h3>
 <ol>
   <li><b>Add to the show</b> in the Library (Sources → pick → Add).</li>
-  <li>In the timeline, double-click the <b>Screen A</b> or <b>Screen B</b> lane where it
+  <li>In the timeline, double-click the <b>Base</b> or <b>Overlay</b> lane where it
     should start. The quick picker lists the clips already in that layer, and then
     the Library's, marked <i>in the Library</i>. Pick one: it's installed into that
     layer and becomes the cue in one go.</li>
 </ol>
-<p>Or install ahead of time from the Library (<b>Screen A</b> / <b>Screen B</b>, or
+<p>Or install ahead of time from the Library (<b>Base</b> / <b>Overlay</b>, or
 <b>Install all</b>) and drag from the timeline's Resolume panel. The Library has a
 card view and a sortable <b>list view</b> (☰).</p>
 
 <h3>Two screen layers</h3>
-<p>The timeline has <b>Screen A</b> (layer 1) and <b>Screen B</b> (layer 2): a base and
+<p>The timeline has <b>Base</b> (layer 1) and <b>Overlay</b> (layer 2): a base and
 something to blend over it. Both lanes clear at the end of a cue by default, like
-Screen always did. Blend Screen B however you like in Resolume (Add, Screen, a
+Screen always did. Blend Overlay however you like in Resolume (Add, Screen, a
 mask); the timeline decides what plays when.</p>
 
 <h3>TouchDesigner: baked or live</h3>
@@ -591,7 +591,7 @@ lane uses it (<i>→ lights</i>). It follows Arena live, so a clip you load or m
 there shows here within a second.</p>
 <ul>
   <li><b>Drag a clip onto a lane</b> — a cue for that clip, at that bar.</li>
-  <li><b>Drag a column onto Scenes</b> — a scene cue that fires the whole row.</li>
+  <li><b>Drag a column onto Columns</b> — a column cue that fires the whole row.</li>
   <li><b>Drag onto a cue</b> — swaps its clip, keeping where and how long.</li>
   <li><b>Click a clip</b> — selects every cue that uses it. The yellow badge says how many.</li>
   <li>A clip playing in Resolume has a green edge.</li>
@@ -628,14 +628,14 @@ needed. Scrubbing while paused jumps there too.</p>
 <h3>When a cue ends</h3>
 <p>A cue's length is real. When it runs out and nothing on its lane takes over, the
 player <b>clears</b> the layers it played on — the screen goes empty rather than
-holding a clip the plan says is over. That's the default for Screen, Lights and TD;
-Scenes hold. <b>At the end</b> in the Cue tab changes it per cue: <i>hold the last
+holding a clip the plan says is over. That's the default for Base, Overlay and Lights;
+Columns and TD hold. <b>At the end</b> in the Cue tab changes it per cue: <i>hold the last
 frame</i> keeps it (the cue shows a striped right edge).</p>
 <p>Jumping around works the same way: land anywhere and every layer the plan uses
 shows what the plan says there, including nothing.</p>
 
 <h3>Fades</h3>
-<p>Every clip on <b>Screen A</b>, <b>Screen B</b> and <b>Lights</b> fades in and out by
+<p>Every clip on <b>Base</b>, <b>Overlay</b> and <b>Lights</b> fades in and out by
 itself, with easing — nothing to draw. How depends on its neighbours:</p>
 <table>
   <tr><th>Where the clip is</th><th>What happens</th></tr>
@@ -646,7 +646,7 @@ itself, with easing — nothing to draw. How depends on its neighbours:</p>
 </table>
 <ul>
   <li><b>Defaults</b> per lane, in bars, and the easing (smooth, straight, ease in,
-    ease out): Show tab → <b>Fades</b>. Screen A/B start at 1 bar in and out, Lights at ½.</li>
+    ease out): Show tab → <b>Fades</b>. Base/Overlay start at 1 bar in and out, Lights at ½.</li>
   <li><b>Per clip</b>: drag the ▾ on its top edge (fade in, from the left) or the one
     near its right end (fade out); or <b>in</b>/<b>out</b> in the quick picker; or the
     Cue tab's fields. <i>auto</i> (an empty field) is the lane's default, <i>cut</i> is none.
@@ -656,7 +656,7 @@ itself, with easing — nothing to draw. How depends on its neighbours:</p>
   <li>Jumping around the arrangement, and panic, always cut.</li>
   <li>A crossfade is at most 10 s (5 bars at 120 bpm), Resolume's longest
     transition. It uses the layer's blend mode: leave it on <b>Alpha</b>.</li>
-  <li>Other lanes (Scenes, TD) keep a plain fade in, as Resolume's transition.</li>
+  <li>Other lanes (Columns, TD) keep a plain fade in, as Resolume's transition.</li>
 </ul>
 
 <h3>Working fast: the quick picker</h3>
@@ -666,7 +666,7 @@ itself, with easing — nothing to draw. How depends on its neighbours:</p>
     few letters, <kbd>enter</kbd>. That's a whole cue.</li>
   <li><b>Enter</b> on a selected cue, or its ▾ button, opens the picker again.</li>
   <li>It lists the clips in that cue's layer with thumbnails (columns, for
-    Scenes; looks too, for Lights). <kbd>↑</kbd><kbd>↓</kbd> and
+    Columns; looks too, for Lights). <kbd>↑</kbd><kbd>↓</kbd> and
     <kbd>enter</kbd>; a name that isn't there is used as typed.</li>
   <li>With several cues selected, the picker and fade chips change them all.</li>
 </ul>
@@ -684,7 +684,7 @@ the player uses the positions in <code>osc_map.json</code>.</div>
   <div class="card">
     <h3>Cue lanes — things that happen</h3>
     <ul>
-      <li><b>Scenes</b> — a Resolume column, by its name (or a number): one
+      <li><b>Columns</b> — a Resolume column, by its name (or a number): one
         trigger changes a whole row.</li>
       <li><b>Screen</b> — a clip, by name, in the screen layer.</li>
       <li><b>Lights</b> — a control-band clip, by name. A look from the floor plan
@@ -897,7 +897,7 @@ into that folder; your own render folders stay where they are.</p>
       <div>∿</div><div>draw a sine, saw, square or random shape over a stretch</div>
       <div>Follow Live</div><div>mirror what the player is doing</div>
       <div>▸ on a lane</div><div>fold open: thumbnail, target, ✓/✗ · <kbd>alt</kbd> all lanes</div>
-      <div>drag from panel</div><div>clip → lane, column → Scenes, onto a cue swaps it</div>
+      <div>drag from panel</div><div>clip → lane, column → Columns, onto a cue swaps it</div>
       <div><kbd>enter</kbd> · ▾</div><div>quick picker: clip, fade, note — on the cue</div>
       <div>▾ on top edge</div><div>drag right to fade the cue in</div>
     </div>

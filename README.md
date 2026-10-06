@@ -36,6 +36,7 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 | `sync_show.py` | reads the Ableton set into `show.json`, and says what moved |
 | `show_editor.html` | the show timeline: plan the visual set against the music |
 | `docs.html` | **how it all works** — served at `/docs`, read this first |
+| `shell.html` | the one top bar every page sits under: each page loads in its own frame, so switching pages never unloads one — the timeline keeps playing (audio, Drive, playhead). `/show?embed=1` etc. is a page on its own |
 | `show.json` *(show folder)* | the music: setlist, tempo, sections in bars (generated, don't edit) |
 | `cues.json` *(show folder)* | **the visual plan**: what happens at which section |
 | `looks.json` *(show folder)* | named lighting looks — a colour and level per par |
@@ -47,7 +48,7 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 | `library.html`, `library.py` | the **Library**: gathers renders, sequences and live sources, converts to DXV, installs into the screen layers. Which folders it looks in is per Mac (`sources.json`, set on the page) |
 | `library.json` *(show folder)* | what's in the show (the media: `library/` beside it) |
 | `td/` *(show folder)* | **the TouchDesigner set**: `td/liveset/` holds its spec, assets and the built `liveset.toe`, its `stills/` and `scenes.json`. Shared through Dropbox; a project picks its set (`td_set`, default `td/liveset/liveset.toe`) and the Host opens it. Edit it with td-pipeline, where `projects/liveset` is a link to this folder (`./tdgen live liveset`, `./tdgen build liveset`) |
-| `td_stills.py` | where the project's TouchDesigner set is, and stills of its scenes for the timeline's TD lane and Preview strip, asked of the running set over OSC (`/stills`; also the View tab's Grab buttons) |
+| `td_stills.py` | where the project's TouchDesigner set is, and stills of its scenes for the timeline's TD lane and Preview strip, asked of the running set over OSC (`/stills`; also the View tab's Grab buttons). The monitor's **TD live** reads the set's own output from its web server (`osc_map.json` → `td.web`, 9982; the server passes it through as `/td/frame`) |
 
 The **TD lane** switches the liveset for real: `cue_player` sends each TD cue as OSC
 `/scene <name> <fade s>` to `osc_map.json` → `td` (default `127.0.0.1:10004`), and the
@@ -100,7 +101,7 @@ Cues name a clip (or a column, for scenes) exactly as Resolume calls it, and the
 player finds it **by name** in the open composition, in the lane's layer. A clip
 moved to another slot keeps its cues; a renamed one turns ✗ in the timeline and
 in `preflight.py`. The timeline's **Resolume panel** shows the composition with
-thumbnails: drag a clip onto a lane, a column onto Scenes, or onto a cue to swap
+thumbnails: drag a clip onto a lane, a column onto Columns, or onto a cue to swap
 it. Fold a lane open (▸) to see each cue's thumbnail, target and ✓/✗; a cue
 glows green while Resolume is playing it.
 
@@ -312,7 +313,7 @@ mirrors the player: its playhead, each lane's current value, cues glowing as
 they fire. The browser never sends OSC itself — a tab can be throttled in the
 background or closed by accident; the player can't.
 
-The **Scenes** lane fires Resolume columns: a number, or a name from `scenes` in
+The **Columns** lane fires Resolume columns: a number, or a name from `scenes` in
 `osc_map.json`.
 
 Automation tracks Live about 60 times a second — smooth for fades and builds,

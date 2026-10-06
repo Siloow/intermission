@@ -220,6 +220,13 @@
   #mon-cap{display:flex;gap:5px;align-items:center;padding:5px 2px 7px;font-size:var(--fs-xs);color:var(--text-2);
     white-space:nowrap;overflow:hidden}
   #mon-cap b{color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis}
+  .mon-row{display:flex;align-items:center;gap:6px}
+  .mon-row #mon-cap{flex:1;min-width:0}
+  #mon-live-btn{height:20px;padding:0 7px;font-size:10px;flex:none}
+  #mon-live-btn.on{background:rgba(229,99,79,.18);border-color:var(--err);color:#ffb3a6}
+  #mon-live-btn.on::before{content:"● "}
+  .mon-frame #mon-live{z-index:1}
+  #mon-cap .warn{color:var(--warn)}
 </style>
 </head>
 <body class="app-page">
@@ -267,17 +274,18 @@
           <button id="rz-fold" class="icon" title="show or hide the Resolume panel">▾</button>
           <b>Resolume</b> <span class="readout" id="rz-name">…</span>
           <span class="spacer" style="flex:1"></span>
-          <span class="readout">drag a clip onto a lane · a column onto Scenes · onto a cue to swap it · click a clip to find its cues</span>
+          <span class="readout">drag a clip onto a lane · a column onto Columns · onto a cue to swap it · click a clip to find its cues</span>
         </div>
         <div id="rz-grid"></div>
       </section>
     </main>
 
     <aside class="inspector">
-      <div id="monitor" title="what the screen shows at the playhead: the top clip of Screen B, Screen A and TD">
+      <div id="monitor" title="what the screen shows at the playhead: the top clip of Overlay, Base and TD">
         <div class="mon-frame"><video id="mon-video" muted playsinline loop preload="auto"></video><img id="mon-img" alt="">
-          <span id="mon-empty">nothing on screen</span></div>
-        <div id="mon-cap">—</div>
+          <img id="mon-live" alt=""><span id="mon-empty">nothing on screen</span></div>
+        <div class="mon-row"><div id="mon-cap">—</div>
+          <button id="mon-live-btn" title="where TD is on screen, show TouchDesigner's own output, live, instead of its still">TD live</button></div>
       </div>
       <div class="inspector-tabs" id="itabs">
         <button data-tab="cue">Cue<span class="count" id="sel-count" hidden></span></button>
@@ -363,8 +371,10 @@
           <div class="section">
             <div class="section-title">Preview</div>
             <p class="hint">The strip under the ruler is what the screen shows: the top clip of
-              Screen B, Screen A and TD at each moment (B over A, TD underneath). Drag along it to scrub;
-              the monitor above plays the clip at the playhead.</p>
+              Overlay, Base and TD at each moment (Overlay over Base, TD underneath). Drag along it to scrub;
+              the monitor above plays the clip at the playhead. <b>TD live</b> on the monitor shows
+              TouchDesigner's own output wherever TD is on top (the set must be open); TD shows what
+              it's on, so use Drive or Follow Live to have it follow the cues.</p>
             <p class="hint dim" id="td-note">TouchDesigner: …</p>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button id="td-grab" title="cook each liveset scene for a moment and save a still (about 20 s)">Grab TD scenes</button>
@@ -464,7 +474,7 @@ async function postJson(name, body){
   fileMtime[name] = r.headers.get("X-File-Mtime");
   return out;
 }
-const LANES = [["scenes","Scenes","--scenes"],["screen","Screen A","--screen"],["overlay","Screen B","--overlay"],
+const LANES = [["scenes","Columns","--scenes"],["screen","Base","--screen"],["overlay","Overlay","--overlay"],
                ["lights","Lights","--lights"],["td","TD","--td"],["note","Notes","--note"]];
 let show = null, cues = {cues: []}, looks = {looks: []}, rigNames = [];
 let selSet = new Set(), primary = null, pxPerBar = 10;
@@ -559,7 +569,7 @@ function valueAt(a, bar){
 }
 const targetOf = a => (mapping.targets || []).find(t => t.name === a.target);
 const cloneCue = (c, extra) => Object.assign(JSON.parse(JSON.stringify(c)), extra || {});
-// Automation sits under the layer it changes: Screen A's under Screen A, the
+// Automation sits under the layer it changes: Base's under Base, the
 // Lights' under Lights. "main" is the whole composition (and anything else).
 const AUTO_LANES = ["screen", "overlay", "lights", "td"];
 function groupOfLayer(n){ const l = laneForLayer(n); return AUTO_LANES.includes(l) ? l : "main"; }
@@ -772,11 +782,11 @@ function cueDetail(c, r, bar){
 
 // ---------------------------------------------------------------- preview ---
 // What the screen shows when: at each moment, the top clip of the video lanes.
-// Screen B sits over Screen A in Resolume; TD (its scenes, as stills grabbed by
+// Overlay sits over Base in Resolume; TD (its scenes, as stills grabbed by
 // td_stills.py) is put underneath both. A filmstrip under the ruler, and the
 // monitor plays the clip at the playhead. Fades and blend modes aren't shown.
 const PREVIEW_LANES = ["overlay", "screen", "td"];       // top first
-const LANE_TAG = {overlay: "B", screen: "A", td: "TD"};
+const LANE_TAG = {overlay: "O", screen: "B", td: "TD"};
 const laneLabel = id => (LANES.find(l => l[0] === id) || [])[1] || id;
 let tdScenes = [], tdBust = 0, previewSegs = [];
 const tdStill = s => `/td/still/${encodeURIComponent(s.name)}?v=${encodeURIComponent((s.grabbed || "") + "-" + tdBust)}`;
@@ -827,7 +837,7 @@ function previewRow(){
   const row = document.createElement("div"); row.className = "head preview";
   row.title = "what the screen shows: drag along it to scrub";
   row.innerHTML = `<span class="name">Preview</span>` + (previewSegs.length ? "" :
-    `<span class="empty">nothing on the video lanes yet: clips on Screen A / B, TD scenes on TD</span>`);
+    `<span class="empty">nothing on the video lanes yet: clips on Base / Overlay, TD scenes on TD</span>`);
   previewSegs.forEach(s => {
     const top = s.stack[0], v = visualOf(top);
     const d = document.createElement("div");
@@ -848,16 +858,51 @@ function previewRow(){
 // the monitor, every frame: the top clip at the playhead. A clip loops from its
 // cue's start, like a Resolume clip that's connected there and left running.
 let monKey = null;
+// TD live: where TD is on top, the monitor shows TouchDesigner's own output, a
+// small JPEG pulled ~12 times a second (/td/frame: the set's preview_web). TD
+// shows whatever it is on, so the caption says when that isn't this cue's scene
+// (Drive or Follow Live make it so).
+let tdLive = false, live = {ok: null, scene: null, at: 0, busy: false, url: null};
+try { tdLive = localStorage.getItem("tl-tdlive") === "1"; } catch(e){}
+async function pullTdFrame(){
+  live.busy = true;
+  try {
+    const r = await fetch("/td/frame", {cache: "no-store"});
+    if (!r.ok) throw new Error(r.status);
+    const u = URL.createObjectURL(await r.blob()), old = live.url, img = el("mon-live");
+    img.onload = () => { if (old) URL.revokeObjectURL(old); };
+    img.src = live.url = u;
+    live.ok = true; live.scene = r.headers.get("X-Scene") || null;
+  } catch(e){ live.ok = false; }
+  live.busy = false;
+}
+function paintLiveButton(){
+  el("mon-live-btn").classList.toggle("on", tdLive);
+  try { localStorage.setItem("tl-tdlive", tdLive ? "1" : "0"); } catch(e){}
+}
+el("mon-live-btn").onclick = () => { tdLive = !tdLive; live.ok = null; monKey = null; paintLiveButton(); };
+paintLiveButton();
 function paintMonitor(bar, playing){
   const seg = previewSegs.find(s => s.start <= bar + 1e-6 && bar < s.end);
   const top = seg ? seg.stack[0] : null;
   const v = top ? visualOf(top) : {};
   const vid = el("mon-video"), img = el("mon-img");
-  const key = top ? `${seg.key}|${top.value}|${v.video || v.img || ""}` : "";
+  const wantLive = tdLive && top && top.lane === "td";
+  if (wantLive && !live.busy){
+    const now = performance.now();
+    if (now - live.at > (live.ok === false ? 2000 : 80)){ live.at = now; pullTdFrame(); }
+  }
+  const showLive = wantLive && live.ok === true;
+  el("mon-live").style.display = showLive ? "block" : "none";
+  const key = top ? `${seg.key}|${top.value}|${v.video || v.img || ""}|${wantLive ? live.ok + "|" + live.scene : ""}` : "";
   if (key !== monKey){
     monKey = key;
+    const off = wantLive && live.scene && live.scene.toLowerCase() !== String(top.value).toLowerCase();
     el("mon-cap").innerHTML = !top ? "nothing on the video lanes here" :
-      `<i class="tag" style="background:var(--${top.lane})">${LANE_TAG[top.lane]}</i><b>${esc(top.value)}</b>` +
+      `<i class="tag" style="background:var(--${top.lane})">${LANE_TAG[top.lane]}</i>` +
+      (showLive ? `<b>${esc(live.scene || "TD")}</b><span>live</span>` +
+                  (off ? `<span class="warn" title="TD shows what it's on: Drive (or Follow Live) switches it with the cues">· cue: ${esc(top.value)}</span>` : "")
+                : `<b>${esc(top.value)}</b>` + (wantLive && live.ok === false ? `<span class="warn" title="the set's preview_web on osc_map.json td.web (9982): is the set open?">· TD not answering</span>` : "")) +
       (seg.stack.length > 1 ? `<span>over ${seg.stack.slice(1).map(c => esc(c.value)).join(", ")}</span>` : "");
     if (v.video){
       if (vid.getAttribute("src") !== v.video) vid.src = v.video;
@@ -2409,7 +2454,7 @@ async function installFromLibrary(name, lane){
                                                body: JSON.stringify({names: [name], lane})});
     const out = await r.json();
     if (!r.ok) throw new Error(out.error || r.statusText);
-    el("save").textContent = out.installed.length ? `${name} → ${lane === "overlay" ? "Screen B" : "Screen A"}` : `${name} was already there`;
+    el("save").textContent = out.installed.length ? `${name} → ${lane === "overlay" ? "Overlay" : "Base"}` : `${name} was already there`;
     compShape = ""; setTimeout(pollCompOnce, 300);
   } catch(e){ el("save").textContent = "install: " + e.message; el("status").classList.add("err"); }
 }
@@ -2517,7 +2562,7 @@ function buildPanel(){
   for (let i = 1; i <= ncol; i++){
     const col = comp.columns.find(c => c.index === i) || {index: i, name: `Column ${i}`, named: false};
     html += `<th><div class="rz-col ${col.named ? "" : "unnamed"}" draggable="true" data-col="${i}"
-      data-name="${esc(col.name)}" title="${esc(col.name)}: drag onto Scenes to fire the whole row` +
+      data-name="${esc(col.name)}" title="${esc(col.name)}: drag onto Columns to fire the whole row` +
       `${col.named ? "" : "\nname it in Resolume (right-click the column) to use it by name"}` +
       `${used["col:" + i] ? `\nused by ${used["col:" + i]} cue(s)` : ""}">${esc(col.name)}</div></th>`;
   }
@@ -2705,6 +2750,7 @@ async function copyToLane(c, from){
 
 // ------------------------------------------------------------------ audio ---
 const audio = new Audio();
+window.timelineAudio = audio;                  // for the shell's "playing" dot on the tab
 audio.preload = "metadata";
 const secPerBar = () => 60 / show.tempo * bpb();
 const offset = () => (cues.audio && cues.audio.offset_seconds) || 0;
@@ -2812,6 +2858,20 @@ function drive(bar){
   fetch("/transport", {method: "POST", headers: {"Content-Type": "application/json"},
                        body: JSON.stringify({beat: Math.max(0, (bar - 1) * bpb())})}).catch(() => {});
 }
+// A hidden tab gets no animation frames, and its timers are slowed to once a
+// second, and a hidden frame in the shell may be held back the same way, but
+// the bounce plays on. A worker's timer isn't held back, so whenever tick()
+// stalls it keeps Drive sending the playhead: switching tabs or pages doesn't
+// stop the show. (While tick() runs, it drives, as before.)
+let lastTick = 0;
+try {
+  const clock = new Worker(URL.createObjectURL(new Blob(["setInterval(() => postMessage(0), 40)"],
+                                                        {type: "text/javascript"})));
+  clock.onmessage = () => {
+    if ((document.hidden || performance.now() - lastTick > 150) && show && driving && !liveFresh())
+      drive(timeToBar(audio.currentTime));
+  };
+} catch(e){}
 el("follow").onclick = () => {
   following = !following;
   el("follow").classList.toggle("on", following);
@@ -2833,6 +2893,7 @@ const liveFresh = () => following && liveState && liveState.t && Date.now()/1000
 let playhead = null, lastBar = null, shownLook = null;
 function tick(){
   requestAnimationFrame(tick);
+  lastTick = performance.now();
   if (!show) return;
   const live = liveFresh();
   const bar = live ? liveState.bar : timeToBar(audio.currentTime);

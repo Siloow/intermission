@@ -3,10 +3,11 @@
     "host": "127.0.0.1",
     "port": 7000
   },
-  "//td": "TouchDesigner's liveset: the TD lane's cues go here as OSC /scene <name> <fade seconds> (its scene_ctl). Another Mac running TD: its address.",
+  "//td": "TouchDesigner's liveset: the TD lane's cues go to port as OSC /scene <name> <fade seconds> (its scene_ctl), and the timeline's monitor reads its live frames from web (HTTP /frame). Another Mac running TD: its address.",
   "td": {
     "host": "127.0.0.1",
-    "port": 10004
+    "port": 10004,
+    "web": 9982
   },
   "//": "One entry per cue value, as 'lane:value'. Either {layer, clip} for Resolume's connect message, or a list of raw OSC messages.",
   "cues": {
@@ -297,7 +298,7 @@
       "curve": 0
     },
     {
-      "name": "Screen A \u00b7 Transform \u00b7 Position X",
+      "name": "Base \u00b7 Transform \u00b7 Position X",
       "resolume": [
         "layer",
         1,
@@ -310,7 +311,7 @@
       "curve": 0
     }
   ],
-  "//scenes": "Scenes lane: a cue whose value is a number fires that Resolume column. Name a scene here to give it a friendlier label.",
+  "//scenes": "Columns lane: a cue whose value is a number fires that Resolume column. Name a scene here to give it a friendlier label.",
   "scenes": {
     "Intro": 1,
     "Build": 2,
@@ -326,12 +327,12 @@
     "screen": {
       "layer": 1,
       "dir": "library",
-      "label": "Screen A"
+      "label": "Base"
     },
     "overlay": {
       "layer": 2,
       "dir": "library",
-      "label": "Screen B"
+      "label": "Overlay"
     }
   },
   "panic": {
