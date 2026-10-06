@@ -12,213 +12,213 @@
   "//": "One entry per cue value, as 'lane:value'. Either {layer, clip} for Resolume's connect message, or a list of raw OSC messages.",
   "cues": {
     "screen:slow grain": {
-      "layer": 1,
+      "layer": 2,
       "clip": 1
     },
     "screen:liquid": {
-      "layer": 1,
+      "layer": 2,
       "clip": 2
     },
     "lights:Amber wash": {
-      "layer": 2,
+      "layer": 3,
       "clip": 1
     },
     "lights:Deep blue": {
-      "layer": 2,
+      "layer": 3,
       "clip": 2
     },
     "lights:White snap": {
-      "layer": 2,
+      "layer": 3,
       "clip": 3
     },
     "lights:Sides only": [
       {
-        "address": "/composition/layers/2/clips/4/connect",
+        "address": "/composition/layers/3/clips/4/connect",
         "args": [
           1
         ]
       },
       {
-        "address": "/composition/layers/2/video/opacity",
+        "address": "/composition/layers/3/video/opacity",
         "args": [
           0.8
         ]
       }
     ],
     "lights:breathe": {
-      "layer": 3,
+      "layer": 4,
       "clip": 1
     },
     "lights:breathe-slow": {
-      "layer": 3,
+      "layer": 4,
       "clip": 2
     },
     "lights:glow-drift": {
-      "layer": 3,
+      "layer": 4,
       "clip": 3
     },
     "lights:candle": {
-      "layer": 3,
+      "layer": 4,
       "clip": 4
     },
     "lights:full": {
-      "layer": 3,
+      "layer": 4,
       "clip": 5
     },
     "lights:wave": {
-      "layer": 3,
+      "layer": 4,
       "clip": 6
     },
     "lights:sweep-lr": {
-      "layer": 3,
+      "layer": 4,
       "clip": 7
     },
     "lights:sweep-rl": {
-      "layer": 3,
+      "layer": 4,
       "clip": 8
     },
     "lights:pingpong": {
-      "layer": 3,
+      "layer": 4,
       "clip": 9
     },
     "lights:sweep-out": {
-      "layer": 3,
+      "layer": 4,
       "clip": 10
     },
     "lights:sweep-in": {
-      "layer": 3,
+      "layer": 4,
       "clip": 11
     },
     "lights:rotate": {
-      "layer": 3,
+      "layer": 4,
       "clip": 12
     },
     "lights:rotate-back": {
-      "layer": 3,
+      "layer": 4,
       "clip": 13
     },
     "lights:chase": {
-      "layer": 3,
+      "layer": 4,
       "clip": 14
     },
     "lights:chase-pairs": {
-      "layer": 3,
+      "layer": 4,
       "clip": 15
     },
     "lights:chase-random": {
-      "layer": 3,
+      "layer": 4,
       "clip": 16
     },
     "lights:alternate": {
-      "layer": 3,
+      "layer": 4,
       "clip": 17
     },
     "lights:sides": {
-      "layer": 3,
+      "layer": 4,
       "clip": 18
     },
     "lights:pulse": {
-      "layer": 3,
+      "layer": 4,
       "clip": 19
     },
     "lights:pulse-8": {
-      "layer": 3,
+      "layer": 4,
       "clip": 20
     },
     "lights:kick-snare": {
-      "layer": 3,
+      "layer": 4,
       "clip": 21
     },
     "lights:offbeat": {
-      "layer": 3,
+      "layer": 4,
       "clip": 22
     },
     "lights:downbeat": {
-      "layer": 3,
+      "layer": 4,
       "clip": 23
     },
     "lights:gate": {
-      "layer": 3,
+      "layer": 4,
       "clip": 24
     },
     "lights:strobe": {
-      "layer": 3,
+      "layer": 4,
       "clip": 25
     },
     "lights:strobe-16": {
-      "layer": 3,
+      "layer": 4,
       "clip": 26
     },
     "lights:strobe-random": {
-      "layer": 3,
+      "layer": 4,
       "clip": 27
     },
     "lights:blinder": {
-      "layer": 3,
+      "layer": 4,
       "clip": 28
     },
     "lights:build": {
-      "layer": 3,
+      "layer": 4,
       "clip": 29
     },
     "lights:riser-strobe": {
-      "layer": 3,
+      "layer": 4,
       "clip": 30
     },
     "lights:riser-sweep": {
-      "layer": 3,
+      "layer": 4,
       "clip": 31
     },
     "lights:fill-up": {
-      "layer": 3,
+      "layer": 4,
       "clip": 32
     },
     "lights:hue-sweep": {
-      "layer": 3,
+      "layer": 4,
       "clip": 33
     },
     "lights:hue-rotate": {
-      "layer": 3,
+      "layer": 4,
       "clip": 34
     },
     "lights:two-tone": {
-      "layer": 3,
+      "layer": 4,
       "clip": 35
     },
     "lights:bar-scan": {
-      "layer": 3,
+      "layer": 4,
       "clip": 36
     },
     "lights:sparkle": {
-      "layer": 3,
+      "layer": 4,
       "clip": 37
     },
     "lights:identify": {
-      "layer": 3,
+      "layer": 4,
       "clip": 38
     },
     "screen:Trinity": {
-      "layer": 1,
+      "layer": 2,
       "clip": 6
     },
     "screen:ballentent overlay": {
-      "layer": 1,
-      "clip": 1
-    },
-    "screen:ballentent soft": {
-      "layer": 1,
-      "clip": 2
-    },
-    "overlay:ballentent soft": {
       "layer": 2,
       "clip": 1
     },
+    "screen:ballentent soft": {
+      "layer": 2,
+      "clip": 2
+    },
+    "overlay:ballentent soft": {
+      "layer": 3,
+      "clip": 1
+    },
     "screen:still 1": {
-      "layer": 1,
+      "layer": 2,
       "clip": 3
     },
     "screen:acid": {
-      "layer": 1,
+      "layer": 2,
       "clip": 1
     }
   },
@@ -232,15 +232,15 @@
       "curve": 0
     },
     {
-      "name": "Layer 1 opacity",
-      "address": "/composition/layers/1/video/opacity",
+      "name": "Base opacity",
+      "address": "/composition/layers/2/video/opacity",
       "min": 0,
       "max": 1,
       "curve": 0
     },
     {
-      "name": "Layer 2 opacity",
-      "address": "/composition/layers/2/video/opacity",
+      "name": "Overlay opacity",
+      "address": "/composition/layers/3/video/opacity",
       "min": 0,
       "max": 1,
       "curve": 0
@@ -270,7 +270,7 @@
     },
     {
       "name": "Lights base",
-      "address": "/composition/layers/3/video/opacity",
+      "address": "/composition/layers/4/video/opacity",
       "min": 0,
       "max": 1,
       "curve": 0.4
@@ -301,7 +301,7 @@
       "name": "Base \u00b7 Transform \u00b7 Position X",
       "resolume": [
         "layer",
-        1,
+        2,
         "effect",
         "Transform",
         "Position X"
@@ -321,18 +321,24 @@
   "//lanes": "Where each timeline lane's clips live: the Resolume layer they load into, and the folder the picker browses. content/\u2026 is next to the tools (the light-loop presets); anything else is inside the show folder. arena_load.py and the Load clip button in the timeline both use this.",
   "lanes": {
     "lights": {
-      "layer": 3,
+      "layer": 4,
       "dir": "content/light-loops"
     },
     "screen": {
-      "layer": 1,
+      "layer": 2,
       "dir": "library",
       "label": "Base"
     },
     "overlay": {
-      "layer": 2,
+      "layer": 3,
       "dir": "library",
       "label": "Overlay"
+    },
+    "td": {
+      "layer": 1,
+      "label": "TD",
+      "//": "TouchDesigner's NDI feed (make_composition.py puts it in column 1); a TD cue connects it, and switches the set's scenes over OSC",
+      "clip": 1
     }
   },
   "panic": {

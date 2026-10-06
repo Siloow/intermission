@@ -1393,7 +1393,7 @@ function drawSidebar(){
   el("look-note").innerHTML = r.ok === null ? "" :
     `<span style="color:${r.ok ? "var(--ok)" : "var(--warn)"}">${r.ok ? "✓" : "✗"}</span> ` +
     (r.ok ? "→ Resolume " : "") + esc(r.text) + (r.columnClips ? `<br>${esc(r.columnClips)}` : "");
-  const clipLane = ["screen", "overlay", "lights", "td"].includes(c.lane);
+  const clipLane = ["screen", "overlay", "lights"].includes(c.lane);
   el("layer-row").style.display = clipLane && !many ? "" : "none";
   if (clipLane){
     const dflt = laneLayer(c.lane);
@@ -1434,7 +1434,7 @@ function drawSidebar(){
 // the lane's Resolume layer, maps it to its name, and points the cue at it.
 let mediaLane = null;
 async function fillMedia(lane){
-  const laneHasMedia = ["lights", "screen", "overlay", "td"].includes(lane);
+  const laneHasMedia = ["lights", "screen", "overlay"].includes(lane);   // TD picks scenes, not files
   el("load-row").style.display = laneHasMedia ? "" : "none";
   el("media-note").textContent = "";
   if (!laneHasMedia || mediaLane === lane) return;
@@ -2345,7 +2345,8 @@ function pickOptions(c){
       sub: `column ${col.index}${col.named ? "" : " · unnamed in Resolume"}`}));
   } else if (c.lane !== "note"){
     const L = findLayer(c.layer || laneLayer(c.lane));
-    ((L && L.clips) || []).forEach(k => opts.push({value: k.name, label: k.name, clip: k,
+    // (TD's layer holds its NDI feed, always on: the TD lane picks the set's scenes instead)
+    ((c.lane !== "td" && L && L.clips) || []).forEach(k => opts.push({value: k.name, label: k.name, clip: k,
       sub: `${L.name} · clip ${k.index}${k.missing ? " · media missing" : ""}`}));
     // the Library's clips that aren't in this layer yet: choosing one installs it
     if (["screen", "overlay"].includes(c.lane) && !c.layer)
