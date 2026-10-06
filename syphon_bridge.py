@@ -109,7 +109,11 @@ def pick_server(directory, query):
     return None, servers
 
 
-def run_syphon(sink, query, fps_cap):
+def run_syphon(sink, query, fps_cap, bottom_up=True):
+    """bottom_up: the frames syphon-python's Metal client hands over from Arena 7.19
+    are bottom row first (measured 2026-10-06 with a top-white test card: the
+    white came out at the end). They are turned top row first here, which
+    write_topdown expects; before this the previz showed Resolume upside down."""
     import Metal
     from syphon import SyphonMetalClient, SyphonServerDirectory
     from syphon.utils.raw import copy_mtl_texture_to_bytes
@@ -135,6 +139,8 @@ def run_syphon(sink, query, fps_cap):
             tex = client.new_frame_image
             data = copy_mtl_texture_to_bytes(tex)
             img = np.frombuffer(data, np.uint8).reshape(tex.height(), tex.width(), 4)
+            if bottom_up:
+                img = img[::-1]
             sink.write_topdown(img, bgra=tex.pixelFormat() == Metal.MTLPixelFormatBGRA8Unorm)
             frames += 1
             time.sleep(1 / fps_cap)
@@ -154,6 +160,8 @@ def main():
     ap.add_argument("--demo", action="store_true", help="send a test pattern instead of Syphon")
     ap.add_argument("--size", default="960x540", help="frame size handed to Blender, WxH")
     ap.add_argument("--fps", type=float, default=30, help="max frames per second to Blender")
+    ap.add_argument("--upright", action="store_true",
+                    help="the server's frames already arrive top row first (don't turn them)")
     a = ap.parse_args()
     sys.stdout.reconfigure(line_buffering=True)
 
@@ -172,7 +180,7 @@ def main():
     w, h = (int(v) for v in a.size.lower().split("x"))
     sink = Sink(w, h)
     try:
-        demo(sink) if a.demo else run_syphon(sink, a.server, a.fps)
+        demo(sink) if a.demo else run_syphon(sink, a.server, a.fps, bottom_up=not a.upright)
     except KeyboardInterrupt:
         print("\n[bridge] stopped")
 
