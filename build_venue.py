@@ -83,6 +83,9 @@ DMX_START = 1                  # address of PAR_01
 # layout and raise the footprint; the previz follows whatever is set here.
 DMX_FOOTPRINT = 4              # channels per par
 DMX_LAYOUT = ("r", "g", "b", "w")  # channel order inside the footprint
+BAR_PROFILE = "led-bar-12-rgbwauv"  # the bars on site: 12 segments of RGBWA+UV
+AMBER_TINT = (1.0, 0.55, 0.0)   # colour of the A LED
+UV_TINT = (0.25, 0.0, 0.6)      # what UV looks like in the previz: a faint violet
 
 # Haze - is a haze machine allowed in the cinema? Toggle on the Scene: "haze"
 HAZE_DENSITY = 0.035
@@ -108,7 +111,7 @@ def default_rig():
     """The starting rig, used only when rig.json does not exist yet:
     8 pars in a semicircle and 4 bars across the stage."""
     profiles = load_profiles()
-    par_p, bar_p = profiles["gm-par-rgbw-7x10"], profiles["showtec-pixelbar-18-q4"]
+    par_p, bar_p = profiles["gm-par-rgbw-7x10"], profiles[BAR_PROFILE]
     par_fp = par_p["modes"][par_p["default_mode"]]["footprint"]
     bar_fp = bar_p["modes"][bar_p["default_mode"]]["footprint"]
 
@@ -128,7 +131,7 @@ def default_rig():
         addr += par_fp
     for i, b in enumerate(BAR_POSITIONS):
         fixtures.append({
-            "name": f"BAR_{i + 1:02d}", "profile": "showtec-pixelbar-18-q4",
+            "name": f"BAR_{i + 1:02d}", "profile": BAR_PROFILE,
             "mode": bar_p["default_mode"], "address": addr,
             "x": b["x"], "y": b["y"], "z": 0.07,
             "rot_deg": b["rot_deg"],       # the bar's long axis, 0 = across the room
@@ -422,12 +425,14 @@ def emissive(name):
 
 
 def channel_drivers(owner_obj, light_data, emission_node, watts, glow=40):
-    """r g b w dim (0-255) on owner_obj -> light colour and power, and lens glow."""
-    vars_ = [(ch, owner_obj, f'["{ch}"]') for ch in ("r", "g", "b", "w", "dim")]
+    """r g b w a uv dim (0-255) on owner_obj -> light colour and power, and lens glow."""
+    vars_ = [(ch, owner_obj, f'["{ch}"]') for ch in ("r", "g", "b", "w", "a", "uv", "dim")]
     wr, wg, wb = WHITE_TINT
-    exprs = [f"min(1.0, (r + w * {wr}) / 255)",
-             f"min(1.0, (g + w * {wg}) / 255)",
-             f"min(1.0, (b + w * {wb}) / 255)"]
+    ar, ag, ab = AMBER_TINT
+    ur, ug, ub = UV_TINT
+    exprs = [f"min(1.0, (r + w * {wr} + a * {ar} + uv * {ur}) / 255)",
+             f"min(1.0, (g + w * {wg} + a * {ag} + uv * {ug}) / 255)",
+             f"min(1.0, (b + w * {wb} + a * {ab} + uv * {ub}) / 255)"]
     for k, e in enumerate(exprs):
         if light_data:
             add_driver(light_data, "color", k, e, vars_)
@@ -451,7 +456,7 @@ def dmx_props(ob, address, universe, layout, in_rig, profile=None, mode=None, pi
         ob["mode"] = mode
     if pixel is not None:
         ob["pixel"] = int(pixel)
-    for ch in ("r", "g", "b", "w", "dim"):
+    for ch in ("r", "g", "b", "w", "a", "uv", "dim"):
         # neither the pars' 4ch nor the bars' 72ch mode has a dimmer channel, so
         # brightness rides in the colour: dim starts at full and stays there
         ob[ch] = 255 if ch == "dim" else 0
@@ -518,11 +523,13 @@ def build_par(coll, name, f, rig_data, profile, body_mat):
 
 
 def build_bar(coll, name, f, rig_data, profile, body_mat):
-    """The Showtec Pixel Bar: one body, 18 pixels, each its own RGBW fixture."""
+    """A pixel bar: one body, its pixels (segments) each their own little fixture."""
     bod = profile["body"]
     pixels = profile["pixels"]
     mode = f.get("mode", profile["default_mode"]) if f else profile["default_mode"]
-    per_pixel = "per_pixel" in profile["modes"][mode]
+    per_pixel = profile["modes"][mode].get("per_pixel")       # the channels of one pixel, or None
+    px_layout = ",".join(per_pixel) if per_pixel else ",".join(DMX_LAYOUT)
+    stride = len(per_pixel) if per_pixel else 0
     fp = profile["modes"][mode]["footprint"]
 
     rig = link(bpy.data.objects.new(name, None), coll)
@@ -532,10 +539,11 @@ def build_bar(coll, name, f, rig_data, profile, body_mat):
     rig.rotation_euler = bar_euler(f["aim_deg"] if f else 180.0, f["tilt_deg"] if f else BAR_TILT,
                                    float(f.get("rot_deg", 0)) if f else 0.0)
     dmx_props(rig, f["address"] if f else 1, rig_data.get("universe", DMX_UNIVERSE),
-              ",".join(DMX_LAYOUT), bool(f),
+              px_layout, bool(f),
               f.get("profile") if f else None, mode)
     rig["kind"] = "bar"
     rig["pixels"] = pixels
+    rig["pixel_footprint"] = stride
     rig["length"] = bod["length"]
     rig["rot_deg"] = float(f.get("rot_deg", 0)) if f else 0.0
     parts = [rig]
@@ -563,8 +571,8 @@ def build_bar(coll, name, f, rig_data, profile, body_mat):
         parts.append(px)
 
         # every pixel is its own little fixture, addressed inside the bar's footprint
-        addr = (f["address"] if f else 1) + (i * 4 if per_pixel else 0)
-        dmx_props(px, addr, rig_data.get("universe", DMX_UNIVERSE), "r,g,b,w", bool(f),
+        addr = (f["address"] if f else 1) + i * stride
+        dmx_props(px, addr, rig_data.get("universe", DMX_UNIVERSE), px_layout, bool(f),
                   f.get("profile") if f else None, mode, pixel=i + 1)
         px["kind"] = "pixel"
         px["of"] = name
@@ -609,7 +617,7 @@ def build_fixtures(coll, rig_data):
     for i in range(MAX_PARS):
         slot(f"PAR_{i + 1:02d}", "par", "gm-par-rgbw-7x10")
     for i in range(MAX_BARS):
-        slot(f"BAR_{i + 1:02d}", "bar", "showtec-pixelbar-18-q4")
+        slot(f"BAR_{i + 1:02d}", "bar", BAR_PROFILE)
     return made
 
 

@@ -506,12 +506,13 @@ The rig is 8 pars and 4 bars, 320 channels in one universe:
 | fixture | model | mode | channels each |
 |---|---|---|---|
 | PAR_01–08 | GM Light LED PAR RGBW IP65 7x10, 25° | 4ch R/G/B/W | 4, from 1 |
-| BAR_01–04 | Showtec Pixel Bar 18 Q4 Tour, 18°, 1.04 m | 72ch, 18 pixels × RGBW | 72, from 33 |
+| BAR_01–04 | LED pixel bar, 12 segments × RGBWA+UV (model unknown) | 72ch, 12 segments × 6 ch (R/G/B/W/A/UV) | 72, from 33 |
 
 Set each par to its 4-channel mode and each bar to 72-channel; the previz,
 `patch/patch.md` and Resolume all follow `rig.json`. In Resolume a par is a
-1 × 1 pixel fixture and a bar is 18 × 1, which is what lets a chase run along a
-bar. The bars are IP20, indoor only; the pars are IP65.
+1 × 1 pixel fixture and a bar is 12 RGBWA fixtures of 5 channels, 6 apart
+(33–37, 39–43 … 99–103 for BAR_01): the 6th channel of each segment is its UV,
+which pixel mapping leaves at 0. That is what lets a chase run along a bar.
 
 `export_patch.py` writes the table, a CSV and a printable floor plan with the
 bars drawn at their real length.

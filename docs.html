@@ -317,17 +317,17 @@ the lights. Nobody sees it. If your Lumiverse's <b>Input Source</b> can be set t
 a layer or group instead of the whole composition, use that instead: same idea,
 nothing to project by accident.</p>
 <p>Fixtures sit left to right in <b>patch order</b>. A par gets one unit and
-samples its middle; a pixel bar gets two units and samples each of its 18 pixels
+samples its middle; a pixel bar gets two units and samples each of its 12 segments
 across its cell. With 8 pars and 4 bars that's 16 units of 120 px.
 <code>band.py</code> is the one place this is defined, and the loops and looks
 follow it. Print it for patching the Lumiverse:</p>
 <pre><code>python3 band.py
 
 PAR_01 … PAR_08   one par each 120 px: samples x 60, 180, 300 … 900
-BAR_01            cell  960-1200   18 pixels, x 967 → 1193
-BAR_02            cell 1200-1440   18 pixels, x 1207 → 1433
-BAR_03            cell 1440-1680   18 pixels, x 1447 → 1673
-BAR_04            cell 1680-1920   18 pixels, x 1687 → 1913</code></pre>
+BAR_01            cell  960-1200   12 pixels, x 970 → 1190
+BAR_02            cell 1200-1440   12 pixels, x 1210 → 1430
+BAR_03            cell 1440-1680   12 pixels, x 1450 → 1670
+BAR_04            cell 1680-1920   12 pixels, x 1690 → 1910</code></pre>
 <div class="note warn">The band used to be 6 cells of 320 px. If your Lumiverse
 was patched to that, move the fixtures to these points once.</div>
 
@@ -429,9 +429,9 @@ fixtures are in the wrong cells — not the pars.</p>
       <td>7 x 10 W RGBW, 25° beam, IP65</td>
       <td><b>4 channels</b> R G B W<br><span style="color:var(--dim)">8ch adds dimmer + strobe, which pixel mapping cannot reach</span></td>
       <td>8 of them, in a semicircle around you</td></tr>
-  <tr><td><b>Bar</b><br><span style="color:var(--dim)">Showtec Pixel Bar 18 Q4 Tour</span></td>
-      <td>18 x 8 W RGBW, 18° beam, 1.04 m long, IP20 (indoor)</td>
-      <td><b>72 channels</b> = 18 pixels x RGBW<br><span style="color:var(--dim)">6ch makes the whole bar one colour</span></td>
+  <tr><td><b>Bar</b><br><span style="color:var(--dim)">LED pixel bar, RGBWA+UV (order R G B W A UV confirmed)</span></td>
+      <td>12 segments of RGBWA+UV; size and beam still placeholders</td>
+      <td><b>72 channels</b> = 12 segments x 6 (R G B W A UV)<br><span style="color:var(--dim)">in Arena: 12 RGBWA fixtures of 5 ch, 6 apart; UV stays 0</span></td>
       <td>4 of them, across the stage</td></tr>
 </table>
 <p>That is 8 x 4 + 4 x 72 = <b>320 channels</b>, so the whole rig fits in one
@@ -440,7 +440,7 @@ from the manufacturers' sheets in <code>content/</code>; the placement lives in
 <code>rig.json</code>.</p>
 <div class="note">
   The bars are the reason to keep 72-channel mode: Resolume can run a chase
-  <i>along</i> a bar, because each of the 18 LEDs is its own pixel in the
+  <i>along</i> a bar, because each of the 12 segments is its own pixel in the
   Lumiverse. In the previz each pixel is its own little fixture too, so what you
   see is per-LED, not an average.
 </div>

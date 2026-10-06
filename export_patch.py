@@ -26,7 +26,7 @@ def fixtures():
                      key=lambda o: o.name):
         x, y, _ = ob.location
         x = -x                     # back to the floor plan's terms: +x is the audience's right
-        layout = str(ob.get("dmx_layout", "r,g,b,w")).split(",")
+        layout = str(ob.get("dmx_layout", "r,g,b,w")).split(",")   # a bar: one pixel's channels
         beam = bpy.data.objects.get(ob.name + "_beam")
         kind = ob.get("kind", "par")
         pixels = int(ob.get("pixels", 1))

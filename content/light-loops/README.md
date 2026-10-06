@@ -1,6 +1,6 @@
 # Control-band presets
 
-1920x120, 12 fixtures, written at 120 bpm. Made in stage space from
+1920x120, 12 fixtures, written at 140 bpm. Made in stage space from
 rig.json: re-run `uv run make_light_loops.py` after moving fixtures.
 
 White on black on purpose: colour comes from a Solid Color layer under
@@ -105,10 +105,10 @@ sample to its last:
 | PAR_06 | 600–720 | x 660 |
 | PAR_08 | 720–840 | x 780 |
 | PAR_07 | 840–960 | x 900 |
-| BAR_01 | 960–1200 | x 967 → 1193 (18 pixels) |
-| BAR_02 | 1200–1440 | x 1207 → 1433 (18 pixels) |
-| BAR_03 | 1440–1680 | x 1447 → 1673 (18 pixels) |
-| BAR_04 | 1680–1920 | x 1687 → 1913 (18 pixels) |
+| BAR_01 | 960–1200 | x 970 → 1190 (12 pixels) |
+| BAR_02 | 1200–1440 | x 1210 → 1430 (12 pixels) |
+| BAR_03 | 1440–1680 | x 1450 → 1670 (12 pixels) |
+| BAR_04 | 1680–1920 | x 1690 → 1910 (12 pixels) |
 
 Play `identify.mp4` and watch the previz (or the real rig): the fixtures
 should light one at a time in patch order. If they do not, the fixtures

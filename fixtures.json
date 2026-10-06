@@ -9,11 +9,33 @@
       "watts": 70,
       "beam_deg": 25,
       "ip": "IP65",
-      "body": {"diameter": 0.16, "depth": 0.20},
+      "body": {
+        "diameter": 0.16,
+        "depth": 0.2
+      },
       "modes": {
-        "4ch": {"channels": ["r", "g", "b", "w"], "footprint": 4},
-        "8ch": {"channels": ["dim", "r", "g", "b", "w", "strobe", "macro", "speed"],
-                "footprint": 8}
+        "4ch": {
+          "channels": [
+            "r",
+            "g",
+            "b",
+            "w"
+          ],
+          "footprint": 4
+        },
+        "8ch": {
+          "channels": [
+            "dim",
+            "r",
+            "g",
+            "b",
+            "w",
+            "strobe",
+            "macro",
+            "speed"
+          ],
+          "footprint": 8
+        }
       },
       "default_mode": "4ch",
       "//mode": "Resolume pixel-maps colour, so 4ch RGBW is the one to use; 8ch adds a master dimmer and strobe you would have to drive some other way."
@@ -27,14 +49,75 @@
       "watts": 144,
       "beam_deg": 18,
       "ip": "IP20",
-      "body": {"length": 1.04, "width": 0.09, "height": 0.144},
+      "body": {
+        "length": 1.04,
+        "width": 0.09,
+        "height": 0.144
+      },
       "modes": {
-        "3ch": {"channels": ["program", "speed", "strobe"], "footprint": 3},
-        "6ch": {"channels": ["r", "g", "b", "w", "dim", "strobe"], "footprint": 6},
-        "72ch": {"per_pixel": ["r", "g", "b", "w"], "pixels": 18, "footprint": 72}
+        "3ch": {
+          "channels": [
+            "program",
+            "speed",
+            "strobe"
+          ],
+          "footprint": 3
+        },
+        "6ch": {
+          "channels": [
+            "r",
+            "g",
+            "b",
+            "w",
+            "dim",
+            "strobe"
+          ],
+          "footprint": 6
+        },
+        "72ch": {
+          "per_pixel": [
+            "r",
+            "g",
+            "b",
+            "w"
+          ],
+          "pixels": 18,
+          "footprint": 72
+        }
       },
       "default_mode": "72ch",
       "//mode": "72ch gives each of the 18 LEDs its own RGBW, which is what pixel mapping in Resolume wants. 6ch treats the whole bar as one colour."
+    },
+    "led-bar-12-rgbwauv": {
+      "name": "LED pixel bar 12 \u00d7 RGBWA+UV",
+      "source": "the bars on site (2026-10-06): 12 segments of R,G,B,W,A,UV, channel order confirmed by Sil; model unknown",
+      "kind": "bar",
+      "leds": 12,
+      "pixels": 12,
+      "watts": 144,
+      "beam_deg": 25,
+      "ip": "IP20",
+      "body": {
+        "length": 1.0,
+        "width": 0.09,
+        "height": 0.144
+      },
+      "modes": {
+        "72ch": {
+          "per_pixel": [
+            "r",
+            "g",
+            "b",
+            "w",
+            "a",
+            "uv"
+          ],
+          "pixels": 12,
+          "footprint": 72
+        }
+      },
+      "default_mode": "72ch",
+      "//mode": "72ch gives each of the 12 segments its own RGBWA+UV, in that order (confirmed). Resolume pixel-maps them as RGBWA (5 ch, the UV channel of each segment left at 0). Body size and beam are placeholders until the model is known."
     }
   }
 }

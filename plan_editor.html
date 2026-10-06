@@ -527,7 +527,7 @@ function draw(){
       const dx = Math.cos(rot) * L/2, dy = Math.sin(rot) * L/2;
       add(line(px-dx, py-dy, px+dx, py+dy, on ? C.accent : "#0b0c0f", on ? 12 : 10));
       add(line(px-dx, py-dy, px+dx, py+dy, "#1f3a40", 7));
-      const n = profOf(f).pixels || 18;                    // the 18 LEDs
+      const n = profOf(f).pixels || 12;                    // its pixels (segments)
       for (let k = 0; k < n; k++){
         const t = (k + 0.5)/n - 0.5;
         const c = circle(px + Math.cos(rot)*L*t, py + Math.sin(rot)*L*t, 1.6, "#0d2b31");
@@ -1246,7 +1246,7 @@ function nextName(prefix){
 function addFixture(kind){
   pushUndo();
   const isBar = kind === "bar";
-  const key = isBar ? "showtec-pixelbar-18-q4" : "gm-par-rgbw-7x10";
+  const key = isBar ? "led-bar-12-rgbwauv" : "gm-par-rgbw-7x10";
   const pr = profiles[key] || {};
   rig.fixtures.push(Object.assign({
     name: nextName(isBar ? "BAR" : "PAR"), profile: key, mode: pr.default_mode,

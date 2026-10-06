@@ -287,7 +287,7 @@ def _drain_artnet():
 
 
 def _fixtures():
-    """Real fixtures the rig uses - pars and bars. A bar's 18 pixels are their
+    """Real fixtures the rig uses - pars and bars. A bar's pixels are their
     own little fixtures; they are addressed separately but listed under the bar."""
     return [ob for ob in bpy.data.objects
             if ob.get("in_rig", False) and ob.get("kind") in ("par", "bar")]
@@ -398,7 +398,7 @@ def _lay_out_bar(bar, f):
     pixels = int(bar.get("pixels", 18))
     step = length / pixels
     base = int(f.get("address", bar.get("dmx_address", 1)))
-    per_pixel = str(f.get("mode", bar.get("mode", "72ch"))) == "72ch"
+    stride = int(bar.get("pixel_footprint", 4)) if str(f.get("mode", bar.get("mode", "72ch"))) == "72ch" else 0
     body = bpy.data.objects.get(bar.name + "_body")
     if body:
         body.rotation_euler = (0, 0, spin)
@@ -407,7 +407,7 @@ def _lay_out_bar(bar, f):
         along = -length / 2 + step * (i + 0.5)
         px.location = (math.cos(spin) * along, math.sin(spin) * along, px.location.z)
         px.rotation_euler = (0, 0, spin)
-        px["dmx_address"] = base + (i * 4 if per_pixel else 0)
+        px["dmx_address"] = base + i * stride
 
 
 def _show(ob, visible):
@@ -462,7 +462,10 @@ def _read_rig(force=False):
             _lay_out_bar(ob, f)
         ob["dmx_address"] = int(f.get("address", 1))
         ob["dmx_universe"] = int(rig.get("universe", 0))
-        ob["dmx_layout"] = str(rig.get("layout", "r,g,b,w"))
+        for px in (_pixels_of(ob.name) if ob.get("kind") == "bar" else []):
+            px["dmx_universe"] = ob["dmx_universe"]    # the pixels are what read DMX
+        if ob.get("kind") != "bar":                 # a bar keeps its pixels' layout, from the build
+            ob["dmx_layout"] = str(rig.get("layout", "r,g,b,w"))
         beam = bpy.data.objects.get(ob.name + "_beam")
         if beam:
             beam.data.spot_size = math.radians(float(f.get("beam_deg", 25)))
@@ -517,7 +520,7 @@ def _apply_preview():
         if px and 0 <= k < len(px):
             q = px[k]
             v = {"r": q[0], "g": q[1], "b": q[2], "w": q[3] if len(q) > 3 else 0, "dim": 255}
-        for ch in ("r", "g", "b", "w", "dim"):
+        for ch in ("r", "g", "b", "w", "a", "uv", "dim"):    # looks are RGBW: amber and UV go dark
             new = int(round(float(v.get(ch, 0))))
             if ob.get(ch) != new:
                 ob[ch] = new
