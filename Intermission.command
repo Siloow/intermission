@@ -23,6 +23,20 @@ case "$PWD" in
 esac
 
 URL="http://localhost:8765"
+# A host started before the tools were updated keeps running the old code: it
+# runs detached, so closing this window doesn't stop it. If any of its files
+# changed after it started, stop it, so the one started below is current. (A
+# player it started keeps running: the new host finds it.)
+PID=$(lsof -nP -iTCP:8765 -sTCP:LISTEN -t 2>/dev/null | head -1)
+if [[ -n "$PID" ]]; then
+  STARTED=$(LC_ALL=C date -j -f "%a %b %e %T %Y" "$(LC_ALL=C ps -o lstart= -p $PID | xargs)" +%s 2>/dev/null)
+  NEWEST=$(stat -f %m *.py *.html lib/* resolume/* 2>/dev/null | sort -n | tail -1)
+  if [[ -n "$STARTED" && -n "$NEWEST" ]] && (( NEWEST > STARTED )); then
+    echo "  the host is older than the tools: restarting it"
+    kill $PID 2>/dev/null
+    for i in {1..20}; do lsof -nP -iTCP:8765 -sTCP:LISTEN -t >/dev/null 2>&1 || break; sleep 0.25; done
+  fi
+fi
 if curl -s -m 1 -o /dev/null "$URL/health"; then
   echo "  the host is already running"
 else
