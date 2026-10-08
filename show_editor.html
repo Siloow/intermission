@@ -1000,7 +1000,16 @@ function step(from, to){
 
 // ------------------------------------------------------------------- draw ---
 let laneRows = [];
+// A redraw empties the timeline first: for that moment it is only as tall as
+// the view, and the browser pulls the vertical scroll back to the top. Hold
+// its height and put the scroll back, so a click low on the lanes stays there.
 function draw(sidebar){
+  const view = el("scroll"), tl = el("tl"), top = view.scrollTop;
+  tl.style.minHeight = tl.offsetHeight + "px";
+  try { drawAll(sidebar); }
+  finally { tl.style.minHeight = ""; view.scrollTop = top; }
+}
+function drawAll(sidebar){
   const tl = el("tl");
   const keepPlayhead = el("playhead");
   tl.innerHTML = "";
