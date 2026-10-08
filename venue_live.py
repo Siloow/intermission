@@ -126,6 +126,7 @@ HELP_LINES = [
     ("opt L", "live on / off (Art-Net + screen)"),
     ("opt C", "test chase on / off"),
     ("opt K", "hide this list"),
+    ("opt F", "full screen: just the room, no panels (again: back)"),
     ("", ""),
     ("opt drag", "orbit    shift opt drag: pan    scroll: zoom"),
     ("shift `", "walk: W A S D, E/Q up-down, click to stop"),
@@ -823,6 +824,69 @@ class VENUE_OT_help(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def _fit_camera_views():
+    """Every 3D view in camera view, the camera frame fitted to it."""
+    for win in bpy.context.window_manager.windows:
+        for area in win.screen.areas:
+            if area.type != "VIEW_3D":
+                continue
+            space = area.spaces.active
+            region = next((r for r in area.regions if r.type == "WINDOW"), None)
+            if space.region_3d:
+                space.region_3d.view_perspective = "CAMERA"
+            if region:
+                try:
+                    with bpy.context.temp_override(window=win, area=area, region=region):
+                        bpy.ops.view3d.view_center_camera()
+                except Exception:
+                    pass
+                if space.region_3d:
+                    space.region_3d.view_perspective = "CAMERA"
+            area.tag_redraw()
+    return None                                   # (as a timer: once)
+
+
+class VENUE_OT_present(bpy.types.Operator):
+    bl_idname = "venue.present"
+    bl_label = "Full screen"
+    bl_description = ("Just the room: the 3D view fills the screen through the camera, without "
+                      "Blender's panels, the controls list or the overlays. Again to go back")
+
+    def execute(self, context):
+        scene, screen = context.scene, context.screen
+        if screen.show_fullscreen:                   # presenting: back to normal
+            scene["show_help"] = bool(scene.get("present_help", True))
+            bpy.ops.screen.back_to_previous()
+            overlays = bool(scene.get("present_overlays", True))
+            def restore():                           # on the normal layout, once it's back
+                for win in bpy.context.window_manager.windows:
+                    for area in win.screen.areas:
+                        if area.type == "VIEW_3D":
+                            area.spaces.active.overlay.show_overlays = overlays
+                            area.tag_redraw()
+                return None
+            bpy.app.timers.register(restore, first_interval=0.1)
+        else:
+            area = context.area
+            if not area or area.type != "VIEW_3D":
+                self.report({"WARNING"}, "Point at the 3D view first")
+                return {"CANCELLED"}
+            space = area.spaces.active
+            scene["present_overlays"] = space.overlay.show_overlays
+            scene["present_help"] = bool(scene.get("show_help", True))
+            space.overlay.show_overlays = False
+            scene["show_help"] = False
+            if space.region_3d:
+                space.region_3d.view_perspective = "CAMERA"
+            # Blender's own full screen only: toggling the macOS window full screen in
+            # the same step crashed Blender 5.2 (mid-animation, 2026-10-08)
+            bpy.ops.screen.screen_full_area(use_hide_panels=True)
+            # the full-screen area is new: fit the camera to it once it exists
+            bpy.app.timers.register(_fit_camera_views, first_interval=0.15)
+        _redraw()
+        return {"FINISHED"}
+
+
 class VENUE_OT_quality(bpy.types.Operator):
     bl_idname = "venue.quality"
     bl_label = "Quality"
@@ -865,6 +929,7 @@ class VENUE_PT_panel(bpy.types.Panel):
         else:
             col.label(text="Idle", icon="RADIOBUT_OFF")
 
+        lay.operator("venue.present", icon="FULLSCREEN_ENTER", text="Full screen (opt F)")
         lay.operator("venue.help", icon="QUESTION",
                      text="Hide controls" if context.scene.get("show_help", True)
                      else "Show controls (opt K)",
@@ -924,7 +989,7 @@ class VENUE_PT_panel(bpy.types.Panel):
 
 
 CLASSES = (VENUE_OT_live, VENUE_OT_chase, VENUE_OT_camera, VENUE_OT_camera_cycle,
-           VENUE_OT_haze, VENUE_OT_help, VENUE_OT_quality, VENUE_PT_panel)
+           VENUE_OT_haze, VENUE_OT_help, VENUE_OT_present, VENUE_OT_quality, VENUE_PT_panel)
 
 # alt + key shortcuts, live only while the file is open (nothing global changes)
 # Both the number row and the numpad names: with Preferences -> Input ->
@@ -947,6 +1012,7 @@ KEYMAP = [
     ("venue.camera_cycle", "LEFT_ARROW", {"step": -1}),
     ("venue.haze", "H", {}),
     ("venue.help", "K", {}),
+    ("venue.present", "F", {}),
     ("venue.live", "L", {}),
     ("venue.chase", "C", {}),
 ]
