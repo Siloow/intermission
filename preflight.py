@@ -182,7 +182,7 @@ def check_plan(show, cues):
 def check_stale():
     if running_player() is not None:
         return                                   # a session is up, not leftovers
-    r = subprocess.run(["pgrep", "-f", "cue_player.py|syphon_bridge.py|plan_server.py"],
+    r = subprocess.run(["pgrep", "-f", "cue_player.py|syphon_bridge.py|gamepad_osc.py|plan_server.py"],
                        capture_output=True, text=True)
     pids = [p for p in r.stdout.split() if p and int(p) != os.getpid()]
     if pids:

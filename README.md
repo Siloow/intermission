@@ -28,6 +28,7 @@ haze, and audience cameras. At home it plays what Resolume sends, live:
 | `build_venue.py` | builds `venue.blend` from the CONFIG block (room, screen, pars, DMX patch) |
 | `venue_live.py` | runtime inside the .blend: Art-Net listener, screen feed, **Venue** sidebar tab |
 | `syphon_bridge.py` | Syphon receiver, run with `uv` (Blender's Python can't load Syphon) |
+| `td/bridge/` *(show folder)* | the **controller bridge**: the PS5 pad into the set as OSC, since TouchDesigner can't read a pad on a Mac. The Host starts it with everything else, in both modes; a copy of td-pipeline's `bridge/`, plain Python |
 | `plan_editor.html` | the floor-plan editor: place the pars in a browser, with a 3D preview |
 | `lib/` | three.js and the 3D preview, kept local so the editor works offline |
 | `plan_server.py` | serves the editor and saves `rig.json` (standard library only) |
@@ -72,6 +73,7 @@ Open Resolume and the show set in Live yourself. Then double-click one:
 |---|---|---|
 | Blender previz | ✓ | — |
 | Syphon bridge | ✓ | — |
+| controller bridge (PS5 → TouchDesigner) | ✓ | ✓ |
 | editors in the browser | ✓ | — |
 | cue_player following Live | ✓ | ✓ |
 | Resolume Art-Net goes to | `127.0.0.1` (Blender) | the venue's node |

@@ -133,7 +133,7 @@
       <section class="box wide">
         <h2>What happened <span class="spacer"></span>
           <select id="log-name" style="width:auto"><option value="">events</option><option>player.log</option>
-            <option>bridge.log</option><option>blender.log</option><option>server.log</option></select></h2>
+            <option>bridge.log</option><option>gamepad.log</option><option>blender.log</option><option>server.log</option></select></h2>
         <ul class="events" id="events"></ul>
         <pre id="log" hidden></pre>
       </section>
@@ -282,6 +282,7 @@ const HOST_PARTS = [
   ["player",  "Player",         h => h.player],
   ["blender", "Blender previz", h => h.blender],
   ["bridge",  "Screen feed",    h => h.screen],
+  ["gamepad", "Controller",     h => null],
   ["artnet",  "Art-Net",        h => h.artnet],
 ];
 function dotOf(p){ return !p || p.ok === null || p.ok === undefined ? "" : p.warn ? "warn" : p.ok ? "ok" : "bad"; }
@@ -317,6 +318,11 @@ function drawStatus(){
       if (p.restarts) how += ` · restarted ${p.restarts}×`;
       act = p.running ? `<button data-part="player" data-act="stop">Stop</button>`
                       : `<button data-part="player" data-act="start">Start</button>`;
+    } else if (k === "gamepad"){
+      how = !p.exists ? "no bridge in the show folder (td/bridge/gamepad_osc.py)"
+          : p.running ? "PS5 → TouchDesigner as OSC, port 10000" + (p.ours ? "" : " · started outside the host") : "off";
+      act = p.running ? `<button data-part="gamepad" data-act="stop">Stop</button>`
+                      : `<button data-part="gamepad" data-act="start" ${p.exists ? "" : "disabled"}>Start</button>`;
     } else if (k === "blender" || k === "bridge"){
       if (!p.running) how = "off";
       act = p.running ? `<button data-part="${k}" data-act="stop">Stop</button>`
@@ -324,6 +330,7 @@ function drawStatus(){
     }
     const d = k === "td" ? (p.running ? "ok" : p.set_exists ? "bad" : "warn")
             : k === "arena" && !p.running ? "bad" : k === "live" && !p.running ? "bad"
+            : k === "gamepad" ? (p.running ? "ok" : p.exists ? "warn" : "bad")
             : (k === "blender" || k === "bridge") && !p.running ? "" : dotOf(hp);
     const ver = versionOf[k] ? ` <span class="dim" style="font-weight:400" title="${esc(k === "live" ? (v.live || "") : "")}">${esc(versionOf[k])}</span>` : "";
     return `<tr><td><i class="dot ${d}"></i></td><td class="what">${label}${ver}</td>` +

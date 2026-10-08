@@ -41,7 +41,7 @@ for a in "$@"; do
 done
 
 # a helper left over from an earlier run would hold its port
-pkill -f "cue_player.py|syphon_bridge.py|plan_server.py" 2>/dev/null && sleep 0.5
+pkill -f "cue_player.py|syphon_bridge.py|gamepad_osc.py|plan_server.py" 2>/dev/null && sleep 0.5
 rm -f .live/panic
 
 if [[ $PLAN_ONLY -eq 1 ]]; then
@@ -135,10 +135,17 @@ else
   PIDS+=$BLENDER_PID
 fi
 
+# the PS5 controller into the set, as OSC (TouchDesigner can't read a pad on a
+# Mac); a bridge already running, by hand or from the Host, is left be
+GAMEPAD="$INTERMISSION_SHOW/td/bridge/gamepad_osc.py"
+if [[ -f "$GAMEPAD" ]] && ! pgrep -f "gamepad_osc.py|tdgen gamepad" >/dev/null; then
+  python3 -u "$GAMEPAD" > .live/gamepad.log 2>&1 &
+  PIDS+=$!
+fi
 sleep 1
 open "http://localhost:8765/show"
 
-echo "  running:  Blender previz · screen feed · editors · cue_player"
+echo "  running:  Blender previz · screen feed · controller bridge · editors · cue_player"
 echo "  timeline  http://localhost:8765/show     floor plan  http://localhost:8765"
 if [[ -n "$LAN" ]]; then
   sleep 0.5

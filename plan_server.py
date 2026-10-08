@@ -784,6 +784,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     H.start_blender() if action == "start" else H.stop_blender()
                 elif part == "bridge":
                     H.start_bridge() if action == "start" else H.stop_bridge()
+                elif part == "gamepad":
+                    H.start_gamepad() if action == "start" else H.stop_gamepad()
                 elif part == "player":
                     if action == "start":
                         H.start_player("show" if req.get("mode") == "show" else "test")

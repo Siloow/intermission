@@ -17,7 +17,7 @@ mkdir -p .live
 source ./showfolder.sh          # the show folder: plan, media, bounces
 
 # nothing from a test session may be left fighting for the ports
-pkill -f "cue_player.py|syphon_bridge.py|plan_server.py" 2>/dev/null && sleep 0.5
+pkill -f "cue_player.py|syphon_bridge.py|gamepad_osc.py|plan_server.py" 2>/dev/null && sleep 0.5
 rm -f .live/panic                 # a new show starts following the plan
 
 python3 preflight.py live
@@ -32,6 +32,14 @@ fi
 
 caffeinate -dims -w $$ &          # no sleep, no screen saver, until this closes
 
+# the PS5 controller into the set, as OSC (TouchDesigner can't read a pad on a
+# Mac); a bridge already running, by hand or from the Host, is left be
+GAMEPAD="$INTERMISSION_SHOW/td/bridge/gamepad_osc.py"
+if [[ -f "$GAMEPAD" ]] && ! pgrep -f "gamepad_osc.py|tdgen gamepad" >/dev/null; then
+  python3 -u "$GAMEPAD" > .live/gamepad.log 2>&1 &
+  GAMEPAD_PID=$!
+fi
+
 echo "\n  LIVE. Play the set in Live; cues follow the playhead. ctrl-C to stop.\n"
 
 # ctrl-C is a clean stop (exit 0). Anything else is a crash: start again. A
@@ -44,3 +52,4 @@ while true; do
   echo "\n  !! the player stopped (exit $CODE) — restarting; it picks up where the music is\n"
   sleep 1
 done
+[[ -n "$GAMEPAD_PID" ]] && kill $GAMEPAD_PID 2>/dev/null

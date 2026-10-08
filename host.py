@@ -41,6 +41,7 @@ PLAYER_PORT = 11001                     # the player listens here (Live's replie
 
 ARENA_APPS = ("/Applications/Resolume Arena/Arena.app",)      # 7.19, the licence; not 7.27
 TD_APP = "/Applications/TouchDesigner.app"
+GAMEPAD = os.path.join(SHOW, "td", "bridge", "gamepad_osc.py")   # the PS5 controller bridge, shared with the set
 
 
 def live_app():
@@ -420,6 +421,8 @@ class Host:
                    "set_exists": os.path.exists(td_stills.set_path(_meta(current()) if current() else {}))},
             "blender": {"running": bool(_pgrep("Blender -y venue.blend")), "ours": ours("blender")},
             "bridge": {"running": bool(_pgrep("syphon_bridge.py")), "ours": ours("bridge")},
+            "gamepad": {"running": bool(_pgrep("gamepad_osc.py|tdgen gamepad")), "ours": ours("gamepad"),
+                        "exists": os.path.exists(GAMEPAD)},
             "player": {"running": bool(_pgrep("cue_player.py --follow")),
                        "ours": self.player_thread is not None and self.player_thread.is_alive(),
                        "mode": self.player_mode, "restarts": self.restarts},
@@ -528,6 +531,20 @@ class Host:
         self._stop_pattern("bridge", "syphon_bridge.py")
         self.note("stopped the screen feed")
 
+    def start_gamepad(self):
+        """The PS5 controller into the set, as OSC: TouchDesigner can't read a pad on
+        a Mac. One is enough, so a bridge started by hand (tdgen gamepad) is left be."""
+        if _pgrep("gamepad_osc.py|tdgen gamepad"):
+            return
+        if not os.path.exists(GAMEPAD):
+            raise RuntimeError("no controller bridge: td/bridge/gamepad_osc.py is missing from the show folder")
+        self._spawn("gamepad", [sys.executable, "-u", GAMEPAD], "gamepad.log")
+        self.note("started the controller bridge (PS5 → TouchDesigner)")
+
+    def stop_gamepad(self):
+        self._stop_pattern("gamepad", "gamepad_osc.py")
+        self.note("stopped the controller bridge")
+
     def start_player(self, mode):
         """Run the player, and keep it running: exit 0 is a stop, anything else a
         crash, restarted in a second (a panic survives it)."""
@@ -597,6 +614,10 @@ class Host:
                     self.open_td(meta)
                 except RuntimeError as e:
                     self.note(str(e))
+            try:
+                self.start_gamepad()               # both modes: the pad plays the set
+            except RuntimeError as e:
+                self.note(str(e))
             if mode == "test":
                 self.start_blender()
                 self.start_bridge()
@@ -617,6 +638,8 @@ class Host:
     def stop(self):
         with self.lock:
             self.stop_player()
+            if _pgrep("gamepad_osc.py"):
+                self.stop_gamepad()
             if _pgrep("syphon_bridge.py"):
                 self.stop_bridge()
             if _pgrep("Blender -y venue.blend"):
