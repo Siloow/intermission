@@ -295,7 +295,7 @@ def compile_panic(mapping, snap=None):
 
 
 # what happens when a cue's length runs out and nothing on its lane takes over
-DEFAULT_END = {"screen": "clear", "overlay": "clear", "lights": "clear", "td": "hold",
+DEFAULT_END = {"screen": "clear", "overlay": "clear", "lights": "clear", "colour": "clear", "td": "hold",
                "scenes": "hold", "note": "hold"}
 
 
@@ -306,7 +306,7 @@ def end_mode(cue):
 # Fades, per lane, in bars, unless a cue sets its own (fade_bars / fade_out_bars;
 # 0 is a cut). cues.json "fade_defaults" overrides these, and picks the easing.
 DEFAULT_FADES = {"screen": {"in": 1, "out": 1}, "overlay": {"in": 1, "out": 1},
-                 "lights": {"in": 0.5, "out": 0.5}}
+                 "lights": {"in": 0.5, "out": 0.5}, "colour": {"in": 1, "out": 1}}
 FADE_LANES = tuple(DEFAULT_FADES)
 EASES = {"smooth": ("s", 0.5), "linear": ("linear", 0.0),
          "in": ("linear", 0.6), "out": ("linear", -0.6)}     # shape, curve: as bend() takes them
@@ -837,7 +837,7 @@ class Player:
             self.sender.send(address, args)
         self.recent.append({"bar": entry["bar"], "lane": c["lane"], "value": c.get("value"),
                             "id": c.get("id")})
-        if self.preview and c["lane"] == "lights":
+        if self.preview and c["lane"] in ("lights", "colour"):
             self.write_preview(c.get("value"))
 
     def send_td(self, to, messages, secs):
@@ -965,7 +965,7 @@ class Player:
             print(f"{CLEAR}   >> nothing plays on layer {', '.join(map(str, stale))} here: cleared")
             for L in stale:
                 self.clear(L)
-        for lane in ("scenes", "screen", "overlay", "lights", "td"):
+        for lane in ("scenes", "screen", "overlay", "lights", "colour", "td"):
             if only is not None and lane not in only:
                 continue
             if lane in latest and (not latest[lane].get("end_of")

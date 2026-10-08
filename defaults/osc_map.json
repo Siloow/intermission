@@ -254,10 +254,17 @@
     },
     {
       "name": "Hue",
-      "address": "/composition/video/effects/huerotate/effect/huerotate",
       "min": 0,
       "max": 1,
-      "curve": 0
+      "curve": 0,
+      "resolume": [
+        "layer",
+        5,
+        "effect",
+        "HueRotate",
+        "Hue Rotate"
+      ],
+      "//": "the lights' colours only (Light colour layer), not the screen"
     },
     {
       "name": "TD energy",
@@ -339,6 +346,12 @@
       "label": "TD",
       "//": "TouchDesigner's NDI feed (make_composition.py puts it in column 1); a TD cue connects it, and switches the set's scenes over OSC",
       "clip": 1
+    },
+    "colour": {
+      "layer": 5,
+      "dir": "light-looks",
+      "label": "Light colour",
+      "//": "looks as band stills, over Lights in Multiply: the white presets take their colours"
     }
   },
   "panic": {

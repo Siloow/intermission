@@ -464,8 +464,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._send(200, json.dumps({"live": False, "params": []}).encode())
             # not the Transforms that put the band where the fixtures read: the Lights
             # layer's, and the composition's (it moves everything, band included)
-            lights = (arena_load.lanes().get("lights") or {}).get("layer")
-            index = [p for p in index if p["path"][:4] != ["layer", lights, "effect", "Transform"]
+            band = {(arena_load.lanes().get(l) or {}).get("layer") for l in ("lights", "colour")}
+            index = [p for p in index if not (p["path"][:1] == ["layer"] and p["path"][1] in band
+                                              and p["path"][2:4] == ["effect", "Transform"])
                      and p["path"][:3] != ["composition", "effect", "Transform"]]
             return self._send(200, json.dumps({"live": True, "params": [
                 {k: p[k] for k in ("path", "label", "group", "min", "max", "value")} for p in index]}).encode())
@@ -903,6 +904,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             req = json.loads(self.rfile.read(n) or b"{}")
             looks = json.load(open(LOOKS)).get("looks", [])
             names = req.get("looks") or [req.get("look")]
+            lane = req.get("lane") or "lights"            # Lights, or the Light colour layer over it
+            if lane not in ("lights", "colour"):
+                raise ValueError(f"looks go on Lights or Light colour, not {lane!r}")
             chosen = [l for l in looks if l["name"] in names]
             if not chosen:
                 raise ValueError(f"no look called {names[0]!r} in looks.json")
@@ -911,7 +915,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 path = band.render_look(look)
                 # a look is a still: no tempo to sync to
                 name, layer, clip = arena_load.load_one(
-                    ARENA, "lights", os.path.basename(path), sync=False, folder=band.LOOK_DIR)
+                    ARENA, lane, os.path.basename(path), sync=False, folder=band.LOOK_DIR)
                 done.append({"look": look["name"], "name": name, "layer": layer, "clip": clip})
         except (ValueError, TypeError, OSError, RuntimeError, SystemExit) as e:
             return self._send(502, json.dumps({"error": str(e)}).encode())

@@ -226,6 +226,21 @@ names, and selecting the cue shows its look in the previz — so you can walk th
 plan cue by cue and watch the room change. If a cue names a look that no longer
 exists, the sidebar says so.
 
+### Light colour
+
+The 38 presets on the **Lights** lane are white on black: they are movement only.
+Colour comes from the **Light colour** lane: a look on the Resolume layer above
+Lights (layer 5), which sits on the same band and blends in **Multiply**. Each
+fixture takes its colour from the look, so a white chase over *Amber wash* is an
+amber chase, and over a look with warm sides and a cool middle it changes colour
+as it travels. With nothing on Light colour the presets stay white.
+
+The two lanes change on their own schedule (say colour per song, movement per
+section), and colour cues crossfade over a bar by default. Pick looks on the
+lane like on Lights; choosing one makes it a clip on that layer. For a single
+tint over everything there is still the Colorize on Lights; the **Hue** target
+turns the Light colour layer's hue, so it never touches the screen.
+
 ### Hearing the music while planning
 
 Bounce the set to audio after a writing session and drop the file in the show

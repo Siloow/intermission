@@ -23,7 +23,7 @@
   --accent-line:rgba(255,213,74,.45);
   --ok:#4fc787; --warn:#e8a33d; --err:#e5634f; --info:#6fb7ff;
   /* the show's lanes */
-  --screen:#5b8cff; --lights:#ffd54a; --td:#57c98a; --note:#b07de0; --scenes:#ff8a5b; --auto:#6fd3e0;
+  --screen:#5b8cff; --lights:#ffd54a; --colour:#ff7ac6; --td:#57c98a; --note:#b07de0; --scenes:#ff8a5b; --auto:#6fd3e0;
   /* shape */
   --r-sm:5px; --r:8px; --r-lg:12px;
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;

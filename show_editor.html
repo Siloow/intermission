@@ -471,7 +471,7 @@ async function postJson(name, body){
   return out;
 }
 const LANES = [["scenes","Columns","--scenes"],["screen","Base","--screen"],["overlay","Overlay","--overlay"],
-               ["lights","Lights","--lights"],["td","TD","--td"],["note","Notes","--note"]];
+               ["lights","Lights","--lights"],["colour","Light colour","--colour"],["td","TD","--td"],["note","Notes","--note"]];
 let show = null, cues = {cues: []}, looks = {looks: []}, rigNames = [];
 let selSet = new Set(), primary = null, pxPerBar = 10;
 let undo = [], redo = [], clipboard = [];
@@ -555,7 +555,7 @@ const targetOf = a => (mapping.targets || []).find(t => t.name === a.target);
 const cloneCue = (c, extra) => Object.assign(JSON.parse(JSON.stringify(c)), extra || {});
 // Automation sits under the layer it changes: Base's under Base, the
 // Lights' under Lights. "main" is the whole composition (and anything else).
-const AUTO_LANES = ["screen", "overlay", "lights", "td"];
+const AUTO_LANES = ["screen", "overlay", "lights", "colour", "td"];
 function groupOfLayer(n){ const l = laneForLayer(n); return AUTO_LANES.includes(l) ? l : "main"; }
 function autoGroup(a){
   const t = targetOf(a);
@@ -572,7 +572,7 @@ const groupLabel = g => g === "main" ? "Main — the whole composition" : ((LANE
 // A clip's own opacity line, inside the clip: it moves and copies with it. The
 // player sets that clip's opacity from it while the cue plays (times the layer's
 // and the composition's), and puts it back to 100% after.
-const ENV_LANES = ["screen", "overlay", "lights"], ENV_PAD = 3;
+const ENV_LANES = ["screen", "overlay", "lights", "colour"], ENV_PAD = 3;
 let envEdit = null;                               // the cue whose envelope is being edited
 function envSvg(c, open){
   const len = c.length_bars || 8, w = Math.max(16, len * pxPerBar), h = open ? 72 : 24;
@@ -639,14 +639,18 @@ const snapPtBar = bar => (+el("snap").value ? Math.round(bar) : Math.round(bar *
 // The same rule as cue_player.resolve(): clips and scenes are found by NAME in
 // the composition, so a clip that moves slot in Resolume keeps its cues.
 const laneLayer = lane => ((mapping.lanes || {})[lane] || {}).layer;
-const DEFAULT_END = {screen: "clear", overlay: "clear", lights: "clear", td: "hold", scenes: "hold", note: "hold"};
+const DEFAULT_END = {screen: "clear", overlay: "clear", lights: "clear", colour: "clear", td: "hold", scenes: "hold", note: "hold"};
 const endMode = c => c.end || DEFAULT_END[c.lane] || "hold";
 
 // Fades on the video lanes, the same rules the player uses: a cue's own
 // fade_bars / fade_out_bars (0 = cut), else its lane's default. Into the same
 // layer as the clip before it, it's a crossfade; into an empty layer, the clip's
 // opacity eases up; with nothing after it, it eases down before the layer clears.
-const FADE_DEFAULTS = {screen: {in: 1, out: 1}, overlay: {in: 1, out: 1}, lights: {in: 0.5, out: 0.5}};
+// Light colour: a look on the layer over Lights, in Multiply, so the white presets
+// take its colours; it fades a bar, so colour changes glide rather than jump.
+const FADE_DEFAULTS = {screen: {in: 1, out: 1}, overlay: {in: 1, out: 1}, lights: {in: 0.5, out: 0.5},
+                       colour: {in: 1, out: 1}};
+const LOOK_LANES = ["lights", "colour"];             // lanes that take looks (as band stills)
 const EASE_NAMES = {smooth: "smooth (S-curve)", linear: "straight", in: "ease in", out: "ease out"};
 // TD cues crossfade inside TouchDesigner (cue_player sends /scene <name> <fade>):
 // a bar unless the cue says, and a scene holds until the next one.
@@ -715,7 +719,7 @@ function resolveCue(c){
     return s ? {ok: true, text: `TD scene ${s.index + 1} · /scene to ${to.host}:${to.port}`}
              : {ok: false, text: tdScenes.length ? `no TD scene called “${c.value}”` : "no TD stills yet: View → Grab TD scenes"};
   }
-  const isLook = c.lane === "lights" && looks.looks.some(l => l.name === c.value);
+  const isLook = LOOK_LANES.includes(c.lane) && looks.looks.some(l => l.name === c.value);
   if (comp && comp.name){
     if (c.lane === "scenes"){
       const v = String(c.value).trim();
@@ -1088,7 +1092,7 @@ function drawAll(sidebar){
       const d = document.createElement("div");
       d.className = "cue" + (selSet.has(c.id) ? " sel" : "") + (bar === null ? " orphan" : "") +
                     (res.ok === false ? " unres" : "") +
-                    (["screen", "overlay", "lights", "td"].includes(c.lane) && endMode(c) === "hold" ? " holds" : "");
+                    (["screen", "overlay", "lights", "colour", "td"].includes(c.lane) && endMode(c) === "hold" ? " holds" : "");
       d.style.background = `var(${varName})`;
       d.style.left = barToX(bar === null ? show.total_bars + 1 : bar) + "px";
       d.style.width = Math.max(16, (c.length_bars || 8) * pxPerBar) + "px";
@@ -1366,13 +1370,13 @@ function drawSidebar(){
   const inLayer = c.lane === "scenes" ? (comp && comp.columns || []).map(x => x.name)
     : ((findLayer(c.layer || laneLayer(c.lane)) || {}).clips || []).map(x => x.name);
   const offered = [...new Set([...inLayer, ...mapped,
-                   ...(c.lane === "lights" ? looks.looks.map(l => l.name) : [])])];
+                   ...(LOOK_LANES.includes(c.lane) ? looks.looks.map(l => l.name) : [])])];
   el("look-names").innerHTML = offered.map(n => `<option value="${n}">`).join("");
   const r = resolveCue(c);
   el("look-note").innerHTML = r.ok === null ? "" :
     `<span style="color:${r.ok ? "var(--ok)" : "var(--warn)"}">${r.ok ? "✓" : "✗"}</span> ` +
     (r.ok ? "→ Resolume " : "") + esc(r.text) + (r.columnClips ? `<br>${esc(r.columnClips)}` : "");
-  const clipLane = ["screen", "overlay", "lights"].includes(c.lane);
+  const clipLane = ["screen", "overlay", "lights", "colour"].includes(c.lane);
   el("layer-row").style.display = clipLane && !many ? "" : "none";
   if (clipLane){
     const dflt = laneLayer(c.lane);
@@ -1401,11 +1405,11 @@ function drawSidebar(){
     el("fadeout-note").textContent = fi.hasNext ? fi.outNote : endMode(c) !== "clear" ? "holds: no fade out" : "bars";
   }
   el("make-row").style.display = r.look && !many ? "" : "none";
-  el("end-row").style.display = ["screen", "overlay", "lights", "td", "scenes"].includes(c.lane) ? "" : "none";
+  el("end-row").style.display = ["screen", "overlay", "lights", "colour", "td", "scenes"].includes(c.lane) ? "" : "none";
   el("end-default").textContent = `lane's default — ${DEFAULT_END[c.lane] === "clear" ? "clears" : "holds"}`;
   el("c-end").value = c.end || "";
   el("c-note").value = c.note || "";
-  if (c.lane === "lights" && c.value) previewLook(c.value);
+  if (LOOK_LANES.includes(c.lane) && c.value) previewLook(c.value);
 }
 
 // ----------------------------------------------------------- loading clips --
@@ -1413,7 +1417,7 @@ function drawSidebar(){
 // the lane's Resolume layer, maps it to its name, and points the cue at it.
 let mediaLane = null;
 async function fillMedia(lane){
-  const laneHasMedia = ["lights", "screen", "overlay"].includes(lane);   // TD picks scenes, not files
+  const laneHasMedia = ["lights", "colour", "screen", "overlay"].includes(lane);   // TD picks scenes, not files
   el("load-row").style.display = laneHasMedia ? "" : "none";
   el("media-note").textContent = "";
   if (!laneHasMedia || mediaLane === lane) return;
@@ -2244,7 +2248,7 @@ bind("c-fade", (c,v) => { const f = Math.max(0, Math.round(+v * 4) / 4);
   else if (f || FADE_DEFAULTS[c.lane]) c.fade_bars = f; else delete c.fade_bars; });
 bind("c-fadeout", (c,v) => { if (!FADE_DEFAULTS[c.lane]) return;
   if (v === "") delete c.fade_out_bars; else c.fade_out_bars = Math.max(0, Math.round(+v * 4) / 4); });
-el("make-clip").onclick = () => { const c = (primary && byId(primary.id)) || selected()[0]; if (c) makeClips([c.value]); };
+el("make-clip").onclick = () => { const c = (primary && byId(primary.id)) || selected()[0]; if (c) makeClips([c.value], c.lane); };
 bind("c-song", (c,v) => { c.song = v; const s = sectionsOf(v)[0]; if (s) c.section = s.name; });
 bind("c-section", (c,v) => c.section = v);
 bind("c-offset", (c,v) => c.offset_bars = Math.round(+v));
@@ -2337,7 +2341,7 @@ function pickOptions(c){
                    sub: `TD scene ${s.index + 1} of ${tdScenes.length}${s.grabbed ? "" : " · no still yet"}`}); });
     if (c.lane === "td" && !opts.some(o => o.value === "black"))
       opts.push({value: "black", label: "black", sub: "TD fades to black"});
-    if (c.lane === "lights")
+    if (LOOK_LANES.includes(c.lane))
       looks.looks.forEach(l => { if (!opts.some(o => o.value === l.name))
         opts.push({value: l.name, label: l.name, look: true,
                    sub: comp && comp.live ? "look · choosing it makes it a clip" : "look · previz only until Arena is open"}); });
@@ -2413,7 +2417,7 @@ function choosePick(opt){
   selected().filter(x => x.lane === c.lane).forEach(x => x.value = v);
   draw(); save();
   closePick();
-  if (opt && opt.look && comp && comp.live) makeClips([v]);
+  if (opt && opt.look && comp && comp.live) makeClips([v], c.lane);
   if (opt && opt.lib && comp && comp.live) installFromLibrary(v, c.lane);
 }
 
@@ -2482,11 +2486,11 @@ document.addEventListener("pointerdown", e => {
 }, true);
 el("scroll").addEventListener("scroll", placePick);
 
-async function makeClips(names){
+async function makeClips(names, lane){
   el("save").textContent = "making clip…";
   try {
     const r = await fetch("/looks/clip", {method: "POST", headers: {"Content-Type": "application/json"},
-                                           body: JSON.stringify({looks: names})});
+                                           body: JSON.stringify({looks: names, lane: lane || "lights"})});
     const out = await r.json();
     if (!r.ok) throw new Error(out.error || r.statusText);
     el("save").textContent = out.made.map(m => `${m.name} → layer ${m.layer} clip ${m.clip}`).join(", ");
@@ -2694,7 +2698,7 @@ el("tl").addEventListener("drop", e => {
   const L = layerOf(placed.lane);
   if (L) placed.layer = L; else delete placed.layer;
   select([placed.id]);
-  if (L && ["screen", "overlay", "lights"].includes(placed.lane)) copyToLane(placed, L);
+  if (L && ["screen", "overlay", "lights", "colour"].includes(placed.lane)) copyToLane(placed, L);
   dragItem = null;
   if (panelStale){ panelStale = false; }
   buildPanel(); draw(); save();
@@ -2925,12 +2929,20 @@ function previewLook(name){
 }
 
 function showRoomAt(bar, jumped){
-  let best = null;
-  for (const c of cues.cues){
-    if (c.lane !== "lights") continue;
-    const b = cueBar(c);
-    if (b !== null && b <= bar + 1e-6 && (!best || b > cueBar(best))) best = c;
-  }
+  // the room's colours: a look on Lights, else the Light colour lane's look (the
+  // presets themselves are white, so it's their colour that shows)
+  const latest = lane => {
+    let best = null;
+    for (const c of cues.cues){
+      if (c.lane !== lane) continue;
+      const b = cueBar(c);
+      if (b !== null && b <= bar + 1e-6 && (!best || b > cueBar(best))) best = c;
+    }
+    return best;
+  };
+  const isLookName = v => looks.looks.some(l => l.name === v);
+  const lit = latest("lights"), tint = latest("colour");
+  const best = lit && isLookName(lit.value) ? lit : tint && isLookName(tint.value) ? tint : lit;
   const name = best ? best.value : null;
   if (name === shownLook && !jumped) return;
   shownLook = name;
