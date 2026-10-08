@@ -349,9 +349,9 @@
     },
     "colour": {
       "layer": 5,
-      "dir": "light-looks/colour",
+      "dir": "content/colour-loops",
       "label": "Light colour",
-      "//": "looks as band stills, over Lights in Multiply: the white presets take their colours"
+      "//": "colour clips (make_colour_loops.py) and looks, over Lights in Multiply: the white presets take their colours"
     }
   },
   "panic": {

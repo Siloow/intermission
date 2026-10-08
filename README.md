@@ -60,6 +60,7 @@ TD cue. `black` fades TD to black.
 | `lib/band.js` | plays a loop or look onto the band in the browser, for the floor plan's **Loop** mode |
 | `band.py` | **where each fixture sits on the control band**; renders looks as band stills |
 | `make_light_loops.py` | builds the control-band loops the pars sample |
+| `make_colour_loops.py`, `content/colour-loops/` | the colour clips for the Light colour layer: steady colours, splits and colour changes |
 | `content/light-looks/` | looks rendered as band stills by Make clip, loaded into the lights layer |
 | `arena_load.py` | loads clips into Resolume over its REST API, and maps them to cue names |
 | `content/light-loops/` | the 38 presets (1920x120), their pattern cards, `loops.json` and a README |
@@ -236,6 +237,13 @@ amber chase, and over a look with warm sides and a cool middle it changes colour
 as it travels. With nothing on Light colour the presets stay white, and so do
 the fixtures a look leaves out: the layer gets its own copy of each look
 (`light-looks/colour/`) with those fixtures white, so they pass the preset through.
+
+For colour that covers every fixture, or moves, there are 21 colour clips
+(`content/colour-loops/`, made by `uv run make_colour_loops.py`): steady colours
+(amber, red, blue, ice…), splits (bars blue and pars amber, left warm and right
+cool…) and changes (colour cycles, swaps every four bars, a warm-to-cool edge
+travelling across the stage, every fixture drifting on its own). They are
+BPM-synced like the presets and sit on the Light colour layer with the looks.
 
 The two lanes change on their own schedule (say colour per song, movement per
 section), and colour cues crossfade over a bar by default. Pick looks on the

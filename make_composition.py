@@ -9,7 +9,7 @@ the show already knows, at this Mac's own paths:
     layer 2  Base     every clip in the Library (Alpha blend, 100%)
     layer 3  Overlay  the Library clips the Overlay lane uses
     layer 4  Lights   the light presets (BPM Sync, no snap), then the looks
-    layer 5  Light colour  the looks again, on the band in Multiply: colour for the white presets
+    layer 5  Light colour  the colour clips, then the looks: on the band in Multiply, colour for the white presets
 
 The layers keep the template's size, lift and blends (the picture up 60 px, the
 light band down 540). Column names, effects and anything else set by hand in
@@ -115,6 +115,15 @@ def plan():
         bpm = 120.0
     for f in files:
         out[LAYERS["lights"]].append({"kind": "synced", "name": os.path.splitext(f)[0],
+                                      "path": os.path.join(folder, f), "bpm": bpm})
+    # Light colour: the colour clips (make_colour_loops.py), BPM-synced like the presets
+    folder, files = arena_load.lane_files("colour")
+    try:
+        bpm = float(json.load(open(os.path.join(folder, "loops.json"))).get("bpm") or 120)
+    except (OSError, ValueError):
+        bpm = 120.0
+    for f in files:
+        out[LAYERS["colour"]].append({"kind": "synced", "name": os.path.splitext(f)[0],
                                       "path": os.path.join(folder, f), "bpm": bpm})
     # Looks, as band stills, rendered fresh from looks.json: on Lights (a static look)
     # and on Light colour above it (Multiply: the colours the white presets take)

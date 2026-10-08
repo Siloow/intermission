@@ -1,0 +1,204 @@
+{
+ "bpm": 140.0,
+ "fps": 30,
+ "size": [
+  1920,
+  120
+ ],
+ "categories": [
+  "Steady",
+  "Split",
+  "Change"
+ ],
+ "loops": [
+  {
+   "file": "amber.mp4",
+   "name": "amber",
+   "bars": 1,
+   "category": "Steady",
+   "what": "everything amber",
+   "card": "amber.png",
+   "colour": true
+  },
+  {
+   "file": "warm white.mp4",
+   "name": "warm white",
+   "bars": 1,
+   "category": "Steady",
+   "what": "everything a warm, tungsten white",
+   "card": "warm white.png",
+   "colour": true
+  },
+  {
+   "file": "red.mp4",
+   "name": "red",
+   "bars": 1,
+   "category": "Steady",
+   "what": "everything red",
+   "card": "red.png",
+   "colour": true
+  },
+  {
+   "file": "magenta.mp4",
+   "name": "magenta",
+   "bars": 1,
+   "category": "Steady",
+   "what": "everything magenta",
+   "card": "magenta.png",
+   "colour": true
+  },
+  {
+   "file": "violet.mp4",
+   "name": "violet",
+   "bars": 1,
+   "category": "Steady",
+   "what": "everything violet",
+   "card": "violet.png",
+   "colour": true
+  },
+  {
+   "file": "blue.mp4",
+   "name": "blue",
+   "bars": 1,
+   "category": "Steady",
+   "what": "everything deep blue",
+   "card": "blue.png",
+   "colour": true
+  },
+  {
+   "file": "cyan.mp4",
+   "name": "cyan",
+   "bars": 1,
+   "category": "Steady",
+   "what": "everything cyan",
+   "card": "cyan.png",
+   "colour": true
+  },
+  {
+   "file": "ice.mp4",
+   "name": "ice",
+   "bars": 1,
+   "category": "Steady",
+   "what": "everything a pale, cold blue",
+   "card": "ice.png",
+   "colour": true
+  },
+  {
+   "file": "bars blue, pars amber.mp4",
+   "name": "bars blue, pars amber",
+   "bars": 1,
+   "category": "Split",
+   "what": "the pixel bars blue, the pars amber",
+   "card": "bars blue, pars amber.png",
+   "colour": true
+  },
+  {
+   "file": "bars amber, pars blue.mp4",
+   "name": "bars amber, pars blue",
+   "bars": 1,
+   "category": "Split",
+   "what": "the pixel bars amber, the pars blue",
+   "card": "bars amber, pars blue.png",
+   "colour": true
+  },
+  {
+   "file": "sides red, middle ice.mp4",
+   "name": "sides red, middle ice",
+   "bars": 1,
+   "category": "Split",
+   "what": "the outer fixtures red, the middle pale blue",
+   "card": "sides red, middle ice.png",
+   "colour": true
+  },
+  {
+   "file": "left warm, right cool.mp4",
+   "name": "left warm, right cool",
+   "bars": 1,
+   "category": "Split",
+   "what": "stage left amber, stage right cyan",
+   "card": "left warm, right cool.png",
+   "colour": true
+  },
+  {
+   "file": "cycle warm.mp4",
+   "name": "cycle warm",
+   "bars": 16,
+   "category": "Change",
+   "what": "amber, red, magenta, round again: four bars each, gliding",
+   "card": "cycle warm.png",
+   "colour": true
+  },
+  {
+   "file": "cycle cool.mp4",
+   "name": "cycle cool",
+   "bars": 16,
+   "category": "Change",
+   "what": "blue, cyan, violet, round again",
+   "card": "cycle cool.png",
+   "colour": true
+  },
+  {
+   "file": "cycle all.mp4",
+   "name": "cycle all",
+   "bars": 32,
+   "category": "Change",
+   "what": "through every colour, slowly",
+   "card": "cycle all.png",
+   "colour": true
+  },
+  {
+   "file": "swap amber blue.mp4",
+   "name": "swap amber blue",
+   "bars": 8,
+   "category": "Change",
+   "what": "bars and pars trade amber and blue every four bars",
+   "card": "swap amber blue.png",
+   "colour": true
+  },
+  {
+   "file": "swap sides.mp4",
+   "name": "swap sides",
+   "bars": 8,
+   "category": "Change",
+   "what": "the two sides trade red and cyan every four bars",
+   "card": "swap sides.png",
+   "colour": true
+  },
+  {
+   "file": "travel warm cool.mp4",
+   "name": "travel warm cool",
+   "bars": 8,
+   "category": "Change",
+   "what": "a warm-to-cool edge sliding across the stage and back",
+   "card": "travel warm cool.png",
+   "colour": true
+  },
+  {
+   "file": "drift warm.mp4",
+   "name": "drift warm",
+   "bars": 16,
+   "category": "Change",
+   "what": "every fixture drifting between warm colours on its own",
+   "card": "drift warm.png",
+   "colour": true
+  },
+  {
+   "file": "drift cool.mp4",
+   "name": "drift cool",
+   "bars": 16,
+   "category": "Change",
+   "what": "every fixture drifting between cool colours on its own",
+   "card": "drift cool.png",
+   "colour": true
+  },
+  {
+   "file": "rainbow.mp4",
+   "name": "rainbow",
+   "bars": 16,
+   "category": "Change",
+   "what": "a soft rainbow across the stage, turning",
+   "card": "rainbow.png",
+   "colour": true
+  }
+ ]
+}
