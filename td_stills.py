@@ -110,7 +110,13 @@ def grab(current=False, names=None, log=print):
     send("/stills", [out_dir, 1 if current else 0])
 
     # The set answers by writing grabbed.json last. Every scene takes WARM frames.
-    deadline = started + (4 if current else 8 + 22 * WARM_SECONDS * 2)
+    # The set may have grown since the last grab: wait for as many scenes as it
+    # had then (scenes.json), never fewer than the 30 it has now.
+    try:
+        n_scenes = len(json.load(open(os.path.join(os.path.dirname(out_dir), "scenes.json")))["scenes"])
+    except (OSError, ValueError, KeyError, TypeError):
+        n_scenes = 0
+    deadline = started + (4 if current else 8 + max(30, n_scenes) * WARM_SECONDS * 2)
     got = None
     while time.time() < deadline:
         try:
