@@ -75,12 +75,19 @@ def safe_name(name):
     return "".join(ch for ch in name if ch not in '/\\:*?"<>|').strip() or "look"
 
 
-def render_look(look, width=W, height=H, out_dir=LOOK_DIR):
+COLOUR_DIR = os.path.join(LOOK_DIR, "colour")
+
+
+def render_look(look, width=W, height=H, out_dir=LOOK_DIR, colour=False):
     """Write a look as a still of the band. Returns the file path.
 
     Each fixture's whole cell gets its colour, so a sample that lands a pixel
-    off still reads right. Fixtures the look leaves out are black."""
-    row = bytearray(width * 3)
+    off still reads right. Fixtures the look leaves out are black; for the Light
+    colour layer (colour=True, in COLOUR_DIR) they are white instead, since that
+    layer multiplies the presets: white lets a fixture's preset through as it is."""
+    if colour and out_dir == LOOK_DIR:
+        out_dir = COLOUR_DIR
+    row = bytearray(b"\xff" * (width * 3) if colour else width * 3)
     for cell in layout(width=width):
         v = (look.get("fixtures") or {}).get(cell["name"])
         if not v:

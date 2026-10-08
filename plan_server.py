@@ -912,10 +912,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 raise ValueError(f"no look called {names[0]!r} in looks.json")
             done = []
             for look in chosen:
-                path = band.render_look(look)
+                path = band.render_look(look, colour=lane == "colour")
                 # a look is a still: no tempo to sync to
                 name, layer, clip = arena_load.load_one(
-                    ARENA, lane, os.path.basename(path), sync=False, folder=band.LOOK_DIR)
+                    ARENA, lane, os.path.basename(path), sync=False, folder=os.path.dirname(path))
                 done.append({"look": look["name"], "name": name, "layer": layer, "clip": clip})
         except (ValueError, TypeError, OSError, RuntimeError, SystemExit) as e:
             return self._send(502, json.dumps({"error": str(e)}).encode())

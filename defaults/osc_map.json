@@ -349,7 +349,7 @@
     },
     "colour": {
       "layer": 5,
-      "dir": "light-looks",
+      "dir": "light-looks/colour",
       "label": "Light colour",
       "//": "looks as band stills, over Lights in Multiply: the white presets take their colours"
     }

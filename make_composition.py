@@ -8,7 +8,8 @@ the show already knows, at this Mac's own paths:
     layer 1  TD       TouchDesigner's liveset over Syphon (the live route), column 1
     layer 2  Base     every clip in the Library (Alpha blend, 100%)
     layer 3  Overlay  the Library clips the Overlay lane uses
-    layer 4  Lights   the light presets (BPM Sync, no snap), then any rendered looks
+    layer 4  Lights   the light presets (BPM Sync, no snap), then the looks
+    layer 5  Light colour  the looks again, on the band in Multiply: colour for the white presets
 
 The layers keep the template's size, lift and blends (the picture up 60 px, the
 light band down 540). Column names, effects and anything else set by hand in
@@ -33,7 +34,7 @@ COMPOSITIONS = os.path.expanduser("~/Documents/Resolume Arena/Compositions")
 DEFAULT_NAME = "Intermission.avc"
 SPARE_COLUMNS = 4                       # empty columns after the last clip, to drop things into
 PHASE = 16384.0                         # Arena stores a clip's width/height also as value / 16384
-LAYERS = {"td": 0, "screen": 1, "overlay": 2, "lights": 3}     # the template's layers, bottom up
+LAYERS = {"td": 0, "screen": 1, "overlay": 2, "lights": 3, "colour": 4}   # the template's layers, bottom up
 
 
 def tpl(name):
@@ -115,11 +116,17 @@ def plan():
     for f in files:
         out[LAYERS["lights"]].append({"kind": "synced", "name": os.path.splitext(f)[0],
                                       "path": os.path.join(folder, f), "bpm": bpm})
-    looks = showfolder.path("light-looks")
-    for f in sorted(os.listdir(looks)) if os.path.isdir(looks) else []:
-        if f.lower().endswith((".mov", ".mp4")):
-            out[LAYERS["lights"]].append({"kind": "free", "name": os.path.splitext(f)[0],
-                                          "path": os.path.join(looks, f)})
+    # Looks, as band stills, rendered fresh from looks.json: on Lights (a static look)
+    # and on Light colour above it (Multiply: the colours the white presets take)
+    import band
+    try:
+        all_looks = json.load(open(showfolder.path("looks.json"))).get("looks", [])
+    except (OSError, ValueError):
+        all_looks = []
+    for look in all_looks:
+        out[LAYERS["lights"]].append({"kind": "free", "name": look["name"], "path": band.render_look(look)})
+        out[LAYERS["colour"]].append({"kind": "free", "name": look["name"],
+                                      "path": band.render_look(look, colour=True)})
     return out
 
 
@@ -201,7 +208,7 @@ def main():
     a = ap.parse_args()
     if a.dry_run:
         for layer, items in sorted(plan().items()):
-            label = {0: "TD", 1: "Base", 2: "Overlay", 3: "Lights"}[layer]
+            label = {0: "TD", 1: "Base", 2: "Overlay", 3: "Lights", 4: "Light colour"}[layer]
             print(f"layer {layer + 1} {label:8} {len(items):3}  " + ", ".join(i["name"] for i in items[:6])
                   + (" …" if len(items) > 6 else ""))
         return

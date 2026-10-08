@@ -233,7 +233,9 @@ Colour comes from the **Light colour** lane: a look on the Resolume layer above
 Lights (layer 5), which sits on the same band and blends in **Multiply**. Each
 fixture takes its colour from the look, so a white chase over *Amber wash* is an
 amber chase, and over a look with warm sides and a cool middle it changes colour
-as it travels. With nothing on Light colour the presets stay white.
+as it travels. With nothing on Light colour the presets stay white, and so do
+the fixtures a look leaves out: the layer gets its own copy of each look
+(`light-looks/colour/`) with those fixtures white, so they pass the preset through.
 
 The two lanes change on their own schedule (say colour per song, movement per
 section), and colour cues crossfade over a bar by default. Pick looks on the

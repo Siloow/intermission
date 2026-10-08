@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Composition name="Composition" uniqueId="1621406654242" numDecks="3" currentDeckIndex="0" numLayers="4" numColumns="$columns" compositionIsRelative="0">
+<Composition name="Composition" uniqueId="1621406654242" numDecks="3" currentDeckIndex="0" numLayers="5" numColumns="$columns" compositionIsRelative="0">
 	<versionInfo name="Resolume Arena" majorVersion="7" minorVersion="19" microVersion="2" revision="33366"/>
 	<CompositionInfo name="Intermission" description="" width="1920" height="1200">
 		<DeckInfo name="library" id="1790519837484" closed="0"/>
@@ -275,6 +275,59 @@
 			</ChoosableMixer>
 		</VideoTrack>
 	</Layer>
+	<Layer uniqueId="1791466850063" layerIndex="4">
+		<Params name="Params">
+			<Param name="Name" T="STRING" default="Layer #" value="Light colour"/>
+		</Params>
+		<ClipTransition name="ClipTransition"/>
+		<LayerView name="LayerView" foldedControl="0">
+			<FoldParams name="FoldParams">
+				<FoldState component="/groupedcomponent/renderpasschaincomponent/huerotate/" folded="0"/>
+				<FoldState component="/groupedcomponent/renderpasschaincomponent/huerotate/view/groupedcomponent/" folded="0"/>
+			</FoldParams>
+		</LayerView>
+		<AudioTrack name="AudioTrack">
+			<AudioEffectChain name="AudioEffectChain"/>
+		</AudioTrack>
+		<VideoTrack name="VideoTrack">
+			<Params name="Params">
+				<ParamRange name="Opacity" T="DOUBLE" default="0.5" value="1">
+					<PhaseSourceStatic name="PhaseSourceStatic" phase="1"/>
+				</ParamRange>
+				<ParamRange name="Width" T="DOUBLE" default="1920" value="1920">
+					<PhaseSourceStatic name="PhaseSourceStatic" phase="0.1171875"/>
+				</ParamRange>
+				<ParamRange name="Height" T="DOUBLE" default="1200" value="1200">
+					<PhaseSourceStatic name="PhaseSourceStatic" phase="0.0732421875"/>
+				</ParamRange>
+			</Params>
+			<RenderPass name="RenderPassChain" type="RenderPassChain" uniqueTypeId="RenderPassChain" uniqueId="1791466837362" baseType="RenderPassChain">
+				<RenderPass storage="0" name="Transform" type="TransformEffect" uniqueTypeId="17122039101699797593" uniqueId="1791466842978" baseType="Effect" index="0">
+					<Params name="Params">
+						<ParamRange name="Position Y" T="DOUBLE" default="0" value="540">
+							<PhaseSourceStatic name="PhaseSourceStatic" phase="0.5164794921875"/>
+						</ParamRange>
+					</Params>
+					<View name="View" bCanBeDisabled="0" bCanBeRemoved="0"/>
+				</RenderPass>
+				<RenderPass storage="0" name="HueRotate" type="DryWetEffect" uniqueTypeId="A128" uniqueId="1791466850540" baseType="DryWetEffect" index="1">
+					<RenderPass name="HueRotate" type="HueRotate" uniqueTypeId="A128" uniqueId="1791466850534" baseType="Effect" dwType="Effect"/>
+					<ChoosableMixer name="Mixer">
+						<RenderPass name="Alpha" type="Alpha" uniqueTypeId="A006" uniqueId="1791466850545" baseType="Mixer"/>
+					</ChoosableMixer>
+				</RenderPass>
+			</RenderPass>
+			<ChoosableMixer name="Blend">
+				<Params name="Params">
+					<ParamChoice name="Blend Mode" T="UINT64" default="67464114" value="67464213" storeChoices="0"/>
+				</Params>
+				<RenderPass name="Multiply" type="Multiply" uniqueTypeId="A013" uniqueId="1791466837369" baseType="Mixer"/>
+			</ChoosableMixer>
+			<ChoosableMixer name="Transition">
+				<RenderPass name="Alpha" type="Alpha" uniqueTypeId="A006" uniqueId="1791466837394" baseType="Mixer"/>
+			</ChoosableMixer>
+		</VideoTrack>
+	</Layer>
 	<CrossFader name="CrossFader">
 		<AudioTrack name="AudioTrack">
 			<AudioEffectChain name="AudioEffectChain"/>
@@ -308,7 +361,7 @@
 			</ParamRange>
 		</Params>
 	</TempoController>
-	<Deck name="Deck" uniqueId="1790519837484" closed="0" numLayersWithContent="$layers_with_content" numColumnsWithContent="$columns_with_content" numLayers="4" numColumns="$columns" deckIndex="0">
+	<Deck name="Deck" uniqueId="1790519837484" closed="0" numLayersWithContent="$layers_with_content" numColumnsWithContent="$columns_with_content" numLayers="5" numColumns="$columns" deckIndex="0">
 		<Params name="Params">
 			<Param name="Name" T="STRING" default="empty" value="library"/>
 		</Params>
