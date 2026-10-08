@@ -169,7 +169,14 @@ def build(layout):
                          seconds=repr(secs), ms=repr(secs * 1000.0), beats=f"{beats:g}")
             clips.append(templates[it["kind"]].substitute(v).rstrip("\n"))
     used_cols = max(len(v) for v in layout.values())
+    # Arena's tempo: the show's (show.json), which the presets were made at. Ableton
+    # Link takes over when it's on. Arena stores it also as a phase over 20..500 bpm.
+    try:
+        tempo = float(json.load(open(showfolder.path("show.json"))).get("tempo") or 120)
+    except (OSError, ValueError):
+        tempo = 120.0
     return tpl("template.avc").substitute(
+        tempo=f"{tempo:g}", tempo_phase=repr((tempo - 20) / 480),
         columns=columns, columns_with_content=used_cols,
         layers_with_content=sum(1 for v in layout.values() if v),
         columns_xml=cols_xml, clips_xml="\n".join(clips))

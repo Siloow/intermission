@@ -356,8 +356,8 @@
 	</CrossFader>
 	<TempoController name="TempoController">
 		<Params name="Params">
-			<ParamRange name="Tempo" T="DOUBLE" default="120" value="328.18006996344553272">
-				<PhaseSourceStatic name="PhaseSourceStatic" phase="0.64204181242384483763"/>
+			<ParamRange name="Tempo" T="DOUBLE" default="120" value="$tempo">
+				<PhaseSourceStatic name="PhaseSourceStatic" phase="$tempo_phase"/>
 			</ParamRange>
 		</Params>
 	</TempoController>
