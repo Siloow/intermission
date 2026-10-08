@@ -44,6 +44,11 @@ set up, then it's one double-click.
 
 - **Update the tools** — double-click **Update.command** in the `intermission`
   folder. Do this when Sil says something changed.
+- **New layers or clips in Resolume** (Sil will say so, like the Light colour
+  layer and its colour clips) — after Update.command: quit Resolume, double-click
+  **Intermission.command**, and on the Host press **Make composition**. It rebuilds
+  your composition with everything in it (the old one is kept in Arena's
+  Compositions/.backup). Then press **Test**: Resolume opens with it.
 - **New music** — nothing to do. When Sil syncs the set, the new `show.json` and
   bounce appear in the show folder on their own; reload the timeline.
 
